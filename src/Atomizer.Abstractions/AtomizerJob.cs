@@ -5,7 +5,7 @@ namespace Atomizer.Abstractions
     public class AtomizerJob
     {
         public Guid Id { get; set; }
-        public string Queue { get; set; } = "default";
+        public AtomizerQueue Queue { get; set; } = AtomizerQueue.Default;
         public Type Type { get; set; } = null!;
         public string Payload { get; set; } = string.Empty;
         public DateTimeOffset ScheduledAt { get; set; }
@@ -16,18 +16,18 @@ namespace Atomizer.Abstractions
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
         public string? FifoKey { get; set; }
-        
+
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public string? IdempotencyKey { get; set; }
-        
+
         public enum AtomizerJobStatus
         {
             Pending,
             Processing,
             Completed,
             Failed,
-            DeadLettered
+            DeadLettered,
         }
     }
 }
