@@ -2,12 +2,12 @@
 
 namespace Atomizer.Hosting
 {
-    public interface IClock
+    public interface IAtomizerClock
     {
         DateTimeOffset UtcNow { get; }
     }
 
-    public class SystemClock : IClock
+    public class AtomizerClock : IAtomizerClock
     {
         public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
     }

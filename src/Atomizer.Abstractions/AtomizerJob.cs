@@ -5,8 +5,8 @@ namespace Atomizer.Abstractions
     public class AtomizerJob
     {
         public Guid Id { get; set; }
-        public AtomizerQueue Queue { get; set; } = AtomizerQueue.Default;
-        public Type Type { get; set; } = null!;
+        public QueueKey QueueKey { get; set; } = QueueKey.Default;
+        public Type PayloadType { get; set; } = null!;
         public string Payload { get; set; } = string.Empty;
         public DateTimeOffset ScheduledAt { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }

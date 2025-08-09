@@ -9,7 +9,7 @@ namespace Atomizer.Abstractions
     {
         Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken);
         Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
-            AtomizerQueue queue,
+            QueueKey queueKey,
             int batchSize,
             DateTimeOffset now,
             CancellationToken cancellationToken

@@ -25,7 +25,7 @@ namespace Atomizer.Abstractions
         /// <summary>
         /// The queue to which the job will be added. Defaults to AtomizerQueue.Default.
         /// </summary>
-        public string Queue { get; set; } = AtomizerQueue.Default;
+        public string Queue { get; set; } = QueueKey.Default;
 
         /// <summary>
         /// Enqueue the job with a different type than the registered type.
