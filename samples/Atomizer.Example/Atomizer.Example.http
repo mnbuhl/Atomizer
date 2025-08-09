@@ -1,0 +1,6 @@
+@Atomizer.Example_HostAddress = http://localhost:5191
+
+GET {{Atomizer.Example_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

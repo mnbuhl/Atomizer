@@ -1,0 +1,45 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{57DC23B8-FC3C-41A3-AEB0-21C016F935F6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D128655-88B1-4CA4-B12B-9E6C067D6DA3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7233FD90-018C-47BF-9001-EB1681DFE75B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "items", "items", "{3F9C53FE-5C90-4E1E-A2FE-8F73B8185C3B}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		.csharpierrc = .csharpierrc
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Abstractions", "src\Atomizer.Abstractions\Atomizer.Abstractions.csproj", "{DFAD4FC9-858C-42A5-A6AE-B513442B5A95}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer", "src\Atomizer\Atomizer.csproj", "{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Example", "samples\Atomizer.Example\Atomizer.Example.csproj", "{A0F78C07-4E79-437C-B8C5-C7A54B9C3A41}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DFAD4FC9-858C-42A5-A6AE-B513442B5A95}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFAD4FC9-858C-42A5-A6AE-B513442B5A95}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFAD4FC9-858C-42A5-A6AE-B513442B5A95}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFAD4FC9-858C-42A5-A6AE-B513442B5A95}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0F78C07-4E79-437C-B8C5-C7A54B9C3A41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0F78C07-4E79-437C-B8C5-C7A54B9C3A41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0F78C07-4E79-437C-B8C5-C7A54B9C3A41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0F78C07-4E79-437C-B8C5-C7A54B9C3A41}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DFAD4FC9-858C-42A5-A6AE-B513442B5A95} = {57DC23B8-FC3C-41A3-AEB0-21C016F935F6}
+		{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615} = {57DC23B8-FC3C-41A3-AEB0-21C016F935F6}
+		{A0F78C07-4E79-437C-B8C5-C7A54B9C3A41} = {5D128655-88B1-4CA4-B12B-9E6C067D6DA3}
+	EndGlobalSection
+EndGlobal
