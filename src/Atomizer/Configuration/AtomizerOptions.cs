@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Atomizer.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Configuration

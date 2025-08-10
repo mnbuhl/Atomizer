@@ -10,6 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "items", "items", "{3F9C53FE
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		.csharpierrc = .csharpierrc
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Abstractions", "src\Atomizer.Abstractions\Atomizer.Abstractions.csproj", "{DFAD4FC9-858C-42A5-A6AE-B513442B5A95}"
