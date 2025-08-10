@@ -1,5 +1,5 @@
 ﻿using System;
-using Atomizer.Abstractions;
+using Atomizer.Hosting;
 
 namespace Atomizer.Configuration
 {

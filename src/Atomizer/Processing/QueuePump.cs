@@ -13,9 +13,9 @@ namespace Atomizer.Processing
     {
         private readonly QueueOptions _queue;
         private readonly AtomizerOptions _rootOptions;
+        private readonly DefaultRetryPolicy _retryPolicy;
         private readonly IAtomizerJobStorage _storage;
         private readonly IAtomizerJobDispatcher _dispatcher;
-        private readonly IAtomizerRetryPolicy _retryPolicy;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueuePump> _logger;
 
@@ -24,32 +24,26 @@ namespace Atomizer.Processing
         private CancellationTokenSource _cts = new CancellationTokenSource();
         private DateTimeOffset _lastStorageCheck;
 
-        private readonly int _workersCount;
-        private readonly int _batchSize;
-
         public QueuePump(
             QueueOptions queue,
             AtomizerOptions rootOptions,
+            DefaultRetryPolicy retryPolicy,
             IAtomizerJobStorage storage,
             IAtomizerJobDispatcher dispatcher,
-            IAtomizerRetryPolicy retryPolicy,
             IAtomizerClock clock,
             IAtomizerLogger<QueuePump> logger
         )
         {
             _queue = queue;
             _rootOptions = rootOptions;
+            _retryPolicy = retryPolicy;
             _storage = storage;
             _dispatcher = dispatcher;
-            _retryPolicy = retryPolicy;
             _clock = clock;
             _logger = logger;
 
-            _batchSize = queue.BatchSize ?? rootOptions.DefaultBatchSize;
-            _workersCount = queue.DegreeOfParallelism ?? rootOptions.DefaultDegreeOfParallelism;
-
             _channel = Channel.CreateBounded<AtomizerJob>(
-                new BoundedChannelOptions(Math.Max(4, _batchSize * Math.Max(1, _workersCount)))
+                new BoundedChannelOptions(_queue.DegreeOfParallelism * _queue.BatchSize)
                 {
                     FullMode = BoundedChannelFullMode.Wait,
                     SingleReader = false,
@@ -66,12 +60,12 @@ namespace Atomizer.Processing
             _logger.LogInformation(
                 "Starting queue pump for queue '{QueueKey}' with {Workers} workers.",
                 _queue.QueueKey,
-                _workersCount
+                _queue.DegreeOfParallelism
             );
 
             _ = Task.Run(() => PollLoop(_cts.Token), _cts.Token);
 
-            var workers = Math.Max(1, _workersCount);
+            var workers = Math.Max(1, _queue.DegreeOfParallelism);
             for (int i = 0; i < workers; i++)
             {
                 var workerId = $"{_queue.QueueKey}-{i}";
@@ -120,7 +114,7 @@ namespace Atomizer.Processing
 
                         var leased = await _storage.TryLeaseBatchAsync(
                             _queue.QueueKey,
-                            _batchSize,
+                            _queue.BatchSize,
                             now,
                             _queue.VisibilityTimeout,
                             ct

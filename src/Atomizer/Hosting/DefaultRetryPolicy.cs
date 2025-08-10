@@ -4,25 +4,30 @@ using Atomizer.Configuration;
 
 namespace Atomizer.Hosting
 {
-    internal sealed class DefaultRetryPolicy : IAtomizerRetryPolicy
+    public sealed class DefaultRetryPolicy
     {
-        public RetryOptions Options { get; set; } = new RetryOptions();
+        private readonly RetryOptions _options;
         private readonly Random _rng = new Random();
 
-        public int MaxAttempts => Options.MaxAttempts;
+        public DefaultRetryPolicy(RetryOptions options)
+        {
+            _options = options;
+        }
+
+        public int MaxAttempts => _options.MaxAttempts;
 
         public bool ShouldRetry(int attempt, Exception error, AtomizerRetryContext context)
         {
-            return attempt < Options.MaxAttempts;
+            return attempt < _options.MaxAttempts;
         }
 
         public TimeSpan GetBackoff(int attempt, Exception error, AtomizerRetryContext context)
         {
             var n = Math.Max(1, attempt);
-            var first = Options.InitialBackoff;
+            var first = _options.InitialBackoff;
 
             TimeSpan backoff;
-            switch (Options.BackoffStrategy)
+            switch (_options.BackoffStrategy)
             {
                 case AtomizerRetryBackoffStrategy.Fixed:
                     backoff = first;
@@ -40,10 +45,29 @@ namespace Atomizer.Hosting
                     break;
             }
 
-            if (backoff > Options.MaxBackoff)
-                backoff = Options.MaxBackoff;
+            if (backoff > _options.MaxBackoff)
+                backoff = _options.MaxBackoff;
 
             return backoff;
+        }
+    }
+
+    public enum AtomizerRetryBackoffStrategy
+    {
+        Fixed,
+        Exponential,
+        ExponentialWithJitter,
+    }
+
+    public sealed class AtomizerRetryContext
+    {
+        public QueueKey QueueKey { get; set; }
+        public AtomizerJob Job { get; set; }
+
+        public AtomizerRetryContext(AtomizerJob job)
+        {
+            Job = job;
+            QueueKey = job.QueueKey;
         }
     }
 }

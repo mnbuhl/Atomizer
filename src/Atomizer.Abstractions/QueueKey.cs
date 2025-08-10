@@ -13,6 +13,11 @@ namespace Atomizer.Abstractions
                 throw new ArgumentException("Queue name cannot be null or empty.", nameof(key));
             }
 
+            if (key.Length > 100)
+            {
+                throw new ArgumentException("Queue name cannot exceed 100 characters.", nameof(key));
+            }
+
             Key = key;
         }
 

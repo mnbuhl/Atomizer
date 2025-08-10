@@ -20,27 +20,14 @@ namespace Atomizer.Configuration
         /// </summary>
         public TimeSpan StorageCheckInterval { get; set; } = TimeSpan.FromSeconds(15);
 
-        /// <summary>
-        /// Gets or sets the default batch size for processing jobs.
-        /// <remarks>Default is 15, meaning that the handler will process up to 15 jobs per tick.</remarks>
-        /// </summary>
-        public int DefaultBatchSize { get; set; } = 15;
-
-        /// <summary>
-        /// Gets or sets the maximum degree of parallelism for processing jobs.
-        /// <remarks>Default is 4, which means up to 4 jobs can be processed in parallel.</remarks>
-        /// </summary>
-        public int DefaultDegreeOfParallelism { get; set; } = 4;
-
         public JobStorageOptions? JobStorageOptions { get; set; }
 
         internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
-        internal RetryOptions DefaultRetryOptions { get; set; } = new RetryOptions();
         internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
 
         public AtomizerOptions AddQueue(string name, Action<QueueOptions>? configure = null)
         {
-            var options = new QueueOptions { QueueKey = name };
+            var options = new QueueOptions(name);
             configure?.Invoke(options);
 
             if (options.QueueKey == null)

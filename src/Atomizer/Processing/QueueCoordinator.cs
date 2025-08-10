@@ -18,7 +18,6 @@ namespace Atomizer.Processing
         private readonly AtomizerOptions _options;
         private readonly IAtomizerJobStorage _jobStorage;
         private readonly IAtomizerJobDispatcher _jobDispatcher;
-        private readonly IAtomizerRetryPolicy _retryPolicy;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueueCoordinator> _logger;
         private readonly IAtomizerServiceResolver _serviceResolver;
@@ -29,7 +28,6 @@ namespace Atomizer.Processing
             AtomizerOptions options,
             IAtomizerJobStorage jobStorage,
             IAtomizerJobDispatcher jobDispatcher,
-            IAtomizerRetryPolicy retryPolicy,
             IAtomizerClock clock,
             IAtomizerLogger<QueueCoordinator> logger,
             IAtomizerServiceResolver serviceResolver
@@ -38,7 +36,6 @@ namespace Atomizer.Processing
             _options = options;
             _jobStorage = jobStorage;
             _jobDispatcher = jobDispatcher;
-            _retryPolicy = retryPolicy;
             _clock = clock;
             _logger = logger;
             _serviceResolver = serviceResolver;
@@ -53,9 +50,9 @@ namespace Atomizer.Processing
                 var pump = new QueuePump(
                     queue,
                     _options,
+                    new DefaultRetryPolicy(queue.RetryOptions),
                     _jobStorage,
                     _jobDispatcher,
-                    _retryPolicy,
                     _clock,
                     pumpLogger
                 );
