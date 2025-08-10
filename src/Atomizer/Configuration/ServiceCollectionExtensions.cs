@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Atomizer.Abstractions;
+using Atomizer.Client;
 using Atomizer.Hosting;
 using Atomizer.Processing;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,7 @@ namespace Atomizer.Configuration
 
             services.AddSingleton(options);
             services.Add(options.Handlers);
+            services.AddScoped<IAtomizerClient, AtomizerClient>();
             services.AddSingleton<IAtomizerClock, AtomizerClock>();
             services.AddSingleton<IRetryPolicy, DefaultRetryPolicy>();
             services.AddSingleton<IJobTypeResolver, DefaultJobTypeResolver>();

@@ -15,7 +15,6 @@ namespace Atomizer.Abstractions
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
-        public string? FifoKey { get; set; }
 
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }

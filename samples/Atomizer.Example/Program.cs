@@ -1,7 +1,9 @@
+using Atomizer;
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Example.Handlers;
 using Atomizer.Storage;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,7 +51,7 @@ var summaries = new[]
 
 app.MapPost(
         "/log",
-        async (IAtomizerClient atomizerClient) =>
+        async ([FromServices] IAtomizerClient atomizerClient) =>
         {
             await atomizerClient.EnqueueAsync(new LoggerJob("Hello, Atomizer!", LogLevel.Information));
         }

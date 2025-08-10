@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Atomizer.Abstractions;
 
-namespace Atomizer.Abstractions
+// ReSharper disable once CheckNamespace
+namespace Atomizer
 {
     public interface IAtomizerClient
     {
@@ -33,13 +35,18 @@ namespace Atomizer.Abstractions
         public Type? TypeOverride { get; set; }
 
         /// <summary>
-        /// The FIFO key for FIFO queues, used to group jobs.
-        /// </summary>
-        public string? FifoKey { get; set; }
-
-        /// <summary>
         /// The idempotency key for the job, used to ensure that duplicate jobs are not processed.
         /// </summary>
         public string? IdempotencyKey { get; set; }
+
+        /// <summary>
+        /// The correlation ID for the job, used to group related jobs together.
+        /// </summary>
+        public string? CorrelationId { get; set; }
+
+        /// <summary>
+        /// The causation ID for the job, used to track the origin of the job.
+        /// </summary>
+        public string? CausationId { get; set; }
     }
 }
