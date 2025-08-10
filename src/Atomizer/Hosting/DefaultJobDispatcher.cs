@@ -1,25 +1,24 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Hosting
 {
     internal class DefaultJobDispatcher : IJobDispatcher
     {
-        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IAtomizerServiceResolver _serviceResolver;
         private readonly IJobTypeResolver _typeResolver;
         private readonly IJobSerializer _jobSerializer;
         private readonly IAtomizerLogger _logger;
 
         public DefaultJobDispatcher(
-            IServiceScopeFactory scopeFactory,
+            IAtomizerServiceResolver serviceResolver,
             IJobTypeResolver typeResolver,
             IJobSerializer jobSerializer,
             IAtomizerLogger logger
         )
         {
-            _scopeFactory = scopeFactory;
+            _serviceResolver = serviceResolver;
             _typeResolver = typeResolver;
             _jobSerializer = jobSerializer;
             _logger = logger;
@@ -30,9 +29,9 @@ namespace Atomizer.Hosting
             var handlerType = _typeResolver.Resolve(job.PayloadType);
             var payload = _jobSerializer.Deserialize(job.Payload, job.PayloadType)!;
 
-            using var scope = _scopeFactory.CreateScope();
+            using var scope = _serviceResolver.CreateScope();
 
-            var handler = scope.ServiceProvider.GetRequiredService(handlerType);
+            var handler = scope.Resolve(handlerType);
             var jobContext = new JobContext { Job = job, CancellationToken = cancellationToken };
 
             _logger.LogDebug(
