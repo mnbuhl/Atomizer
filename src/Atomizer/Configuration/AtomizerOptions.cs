@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using Atomizer.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Configuration
 {
@@ -31,10 +35,11 @@ namespace Atomizer.Configuration
 
         internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
         internal RetryOptions DefaultRetryOptions { get; set; } = new RetryOptions();
+        internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
 
-        public void AddQueue(string name, Action<QueueOptions>? configure = null)
+        public AtomizerOptions AddQueue(string name, Action<QueueOptions>? configure = null)
         {
-            var options = new QueueOptions();
+            var options = new QueueOptions { QueueKey = name };
             configure?.Invoke(options);
 
             if (options.QueueKey == null)
@@ -58,6 +63,38 @@ namespace Atomizer.Configuration
             }
 
             Queues.Add(options);
+
+            return this;
         }
+
+        public AtomizerOptions AddHandlers(params Assembly[] assemblies)
+        {
+            if (assemblies.Length == 0)
+            {
+                throw new ArgumentException("At least one assembly must be specified.", nameof(assemblies));
+            }
+
+            foreach (var assembly in assemblies)
+            {
+                var types = assembly
+                    .GetTypes()
+                    .Where(t => !t.IsAbstract && !t.IsInterface && !t.IsGenericTypeDefinition);
+
+                foreach (var impl in types)
+                {
+                    var handlerInterfaces = impl.GetInterfaces()
+                        .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IJobHandler<>));
+
+                    foreach (var handlerInterface in handlerInterfaces)
+                    {
+                        Handlers.Add(new ServiceDescriptor(handlerInterface, impl, ServiceLifetime.Scoped));
+                    }
+                }
+            }
+
+            return this;
+        }
+
+        public AtomizerOptions AddHandlersFrom<TMarker>() => AddHandlers(typeof(TMarker).Assembly);
     }
 }

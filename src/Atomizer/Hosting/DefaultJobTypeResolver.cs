@@ -11,8 +11,8 @@ namespace Atomizer.Hosting
         public Type Resolve(Type payloadType)
         {
             return _cache.GetOrAdd(
-                payloadType.AssemblyQualifiedName,
-                key => typeof(IJobHandler<>).MakeGenericType(payloadType)
+                payloadType.AssemblyQualifiedName!,
+                typeof(IJobHandler<>).MakeGenericType(payloadType)
             );
         }
     }

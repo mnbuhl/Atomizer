@@ -3,6 +3,7 @@ using System.Linq;
 using Atomizer.Abstractions;
 using Atomizer.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Atomizer.Configuration
 {
@@ -22,9 +23,12 @@ namespace Atomizer.Configuration
             }
 
             services.AddSingleton(options);
+            services.Add(options.Handlers);
             services.AddSingleton<IAtomizerClock, AtomizerClock>();
             services.AddSingleton<IRetryPolicy, DefaultRetryPolicy>();
             services.AddSingleton<IJobTypeResolver, DefaultJobTypeResolver>();
+            services.AddSingleton<IJobDispatcher, DefaultJobDispatcher>();
+            services.AddSingleton<IJobSerializer, DefaultJobSerializer>();
 
             return services;
         }

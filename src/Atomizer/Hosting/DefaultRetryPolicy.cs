@@ -4,30 +4,25 @@ using Atomizer.Configuration;
 
 namespace Atomizer.Hosting
 {
-    public class DefaultRetryPolicy : IRetryPolicy
+    internal sealed class DefaultRetryPolicy : IRetryPolicy
     {
-        private readonly RetryOptions _opts;
+        public RetryOptions Options { get; set; } = new RetryOptions();
         private readonly Random _rng = new Random();
 
-        public DefaultRetryPolicy(RetryOptions opts)
-        {
-            _opts = opts;
-        }
-
-        public int MaxAttempts => _opts.MaxAttempts;
+        public int MaxAttempts => Options.MaxAttempts;
 
         public bool ShouldRetry(int attempt, Exception error, RetryContext context)
         {
-            return attempt < _opts.MaxAttempts;
+            return attempt < Options.MaxAttempts;
         }
 
         public TimeSpan GetBackoff(int attempt, Exception error, RetryContext context)
         {
             var n = Math.Max(1, attempt);
-            var first = _opts.InitialBackoff;
+            var first = Options.InitialBackoff;
 
             TimeSpan backoff;
-            switch (_opts.BackoffStrategy)
+            switch (Options.BackoffStrategy)
             {
                 case RetryBackoffStrategy.Fixed:
                     backoff = first;
@@ -45,8 +40,8 @@ namespace Atomizer.Hosting
                     break;
             }
 
-            if (backoff > _opts.MaxBackoff)
-                backoff = _opts.MaxBackoff;
+            if (backoff > Options.MaxBackoff)
+                backoff = Options.MaxBackoff;
 
             return backoff;
         }
