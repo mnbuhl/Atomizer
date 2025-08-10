@@ -29,10 +29,12 @@ namespace Atomizer.Storage
 
         // Options for configuring the in-memory job storage
         private readonly InMemoryJobStorageOptions _options;
+        private readonly IAtomizerLogger<InMemoryJobStorage> _logger;
 
-        public InMemoryJobStorage(InMemoryJobStorageOptions options)
+        public InMemoryJobStorage(InMemoryJobStorageOptions options, IAtomizerLogger<InMemoryJobStorage> logger)
         {
             _options = options;
+            _logger = logger;
         }
 
         public Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken)
@@ -45,6 +47,11 @@ namespace Atomizer.Storage
                 {
                     if (_idempotency.TryGetValue(job.IdempotencyKey, out var existing))
                     {
+                        _logger.LogInformation(
+                            "Idempotent hit for key '{Key}' -> {JobId}",
+                            job.IdempotencyKey,
+                            existing
+                        );
                         return Task.FromResult(existing);
                     }
                 }
@@ -60,6 +67,13 @@ namespace Atomizer.Storage
                 {
                     _idempotency.TryAdd(job.IdempotencyKey, job.Id);
                 }
+
+                _logger.LogDebug(
+                    "Inserted job {JobId} into '{Queue}' (count={Count})",
+                    job.Id,
+                    job.QueueKey,
+                    _jobs.Count
+                );
 
                 EvictWhileOverCapacity(_options.MaximumJobsInMemory);
             }
@@ -109,6 +123,7 @@ namespace Atomizer.Storage
                 }
             }
 
+            _logger.LogDebug("Leased {Count} job(s) from '{Queue}'", leased.Count, queueKey);
             // Return the leased snapshots
             return Task.FromResult((IReadOnlyList<AtomizerJob>)leased);
         }
@@ -191,6 +206,13 @@ namespace Atomizer.Storage
                     {
                         _idempotency.TryRemove(job.IdempotencyKey, out _);
                     }
+
+                    _logger.LogInformation(
+                        "Evicted job {JobId} due to capacity limit ({Current}/{Max})",
+                        id,
+                        _jobs.Count,
+                        max
+                    );
                 }
             }
         }

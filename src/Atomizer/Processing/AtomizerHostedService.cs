@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Microsoft.Extensions.Hosting;
 
@@ -9,11 +10,17 @@ namespace Atomizer.Processing
     {
         private readonly IQueueCoordinator _coordinator;
         private readonly AtomizerProcessingOptions _options;
+        private readonly IAtomizerLogger<AtomizerHostedService> _logger;
 
-        public AtomizerHostedService(IQueueCoordinator coordinator, AtomizerProcessingOptions options)
+        public AtomizerHostedService(
+            IQueueCoordinator coordinator,
+            AtomizerProcessingOptions options,
+            IAtomizerLogger<AtomizerHostedService> logger
+        )
         {
             _coordinator = coordinator;
             _options = options;
+            _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -22,13 +29,17 @@ namespace Atomizer.Processing
             {
                 await Task.Delay(_options.StartupDelay!.Value, stoppingToken);
             }
+
+            _logger.LogInformation("Atomizer hosted service starting");
             await _coordinator.StartAsync(stoppingToken);
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Atomizer hosted service stopping");
             await _coordinator.StopAsync();
             await base.StopAsync(cancellationToken);
+            _logger.LogInformation("Atomizer hosted service stopped");
         }
     }
 }

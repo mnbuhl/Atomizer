@@ -11,8 +11,6 @@ namespace Atomizer.Processing
 {
     public class QueuePump
     {
-        public QueueKey QueueKey { get; }
-
         private readonly QueueOptions _options;
         private readonly AtomizerOptions _rootOptions;
         private readonly IJobStorage _storage;
@@ -47,8 +45,6 @@ namespace Atomizer.Processing
             _clock = clock;
             _logger = logger;
 
-            QueueKey = options.QueueKey;
-
             _batchSize = options.BatchSize ?? rootOptions.DefaultBatchSize;
             _workersCount = options.DegreeOfParallelism ?? rootOptions.DefaultDegreeOfParallelism;
 
@@ -67,12 +63,18 @@ namespace Atomizer.Processing
         {
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+            _logger.LogInformation(
+                "Starting queue pump for queue '{QueueKey}' with {Workers} workers.",
+                _options.QueueKey,
+                _workersCount
+            );
+
             _ = Task.Run(() => PollLoop(_cts.Token), _cts.Token);
 
             var workers = Math.Max(1, _workersCount);
             for (int i = 0; i < workers; i++)
             {
-                var workerId = $"{QueueKey}-{i}";
+                var workerId = $"{_options.QueueKey}-{i}";
                 var workerTask = Task.Run(() => WorkerLoop(workerId, _cts.Token), _cts.Token);
                 _workers.Add(workerTask);
             }
@@ -80,6 +82,7 @@ namespace Atomizer.Processing
 
         public async Task StopAsync()
         {
+            _logger.LogInformation("Stopping queue pump for queue '{QueueKey}'...", _options.QueueKey);
             _cts.Cancel();
             _channel.Writer.TryComplete();
             try
@@ -90,10 +93,15 @@ namespace Atomizer.Processing
             {
                 // Ignore cancellation exceptions
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while stopping queue pump for queue '{QueueKey}'.", _options.QueueKey);
+            }
             finally
             {
                 _cts.Dispose();
             }
+            _logger.LogInformation("Queue pump for queue '{QueueKey}' stopped.", _options.QueueKey);
         }
 
         private async Task PollLoop(CancellationToken ct) { }

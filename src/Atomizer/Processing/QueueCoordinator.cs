@@ -46,9 +46,9 @@ namespace Atomizer.Processing
 
         public Task StartAsync(CancellationToken ct)
         {
+            _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
             foreach (var queue in _options.Queues)
             {
-                _logger.LogInformation("Starting queue pump for queue: {QueueKey}", queue.QueueKey);
                 var pumpLogger = _serviceResolver.Resolve<IAtomizerLogger<QueuePump>>();
                 var pump = new QueuePump(
                     queue,
@@ -70,9 +70,10 @@ namespace Atomizer.Processing
         {
             foreach (var pump in _queuePumps)
             {
-                _logger.LogInformation("Stopping queue pump for queue: {QueueKey}", pump.QueueKey);
                 await pump.StopAsync();
             }
+
+            _logger.LogInformation("All queue pumps stopped");
         }
     }
 }

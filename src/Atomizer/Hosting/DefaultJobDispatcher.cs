@@ -43,6 +43,8 @@ namespace Atomizer.Hosting
 
             var method = handlerType.GetMethod("HandleAsync", new[] { job.PayloadType, typeof(JobContext) })!;
             await (Task)method.Invoke(handler, new object[] { payload, jobContext })!;
+
+            _logger.LogDebug("Job {JobId} of type {JobType} completed successfully", job.Id, handlerType.Name);
         }
     }
 }
