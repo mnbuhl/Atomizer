@@ -29,6 +29,7 @@ namespace Atomizer.Configuration
             services.AddSingleton<IJobTypeResolver, DefaultJobTypeResolver>();
             services.AddSingleton<IJobDispatcher, DefaultJobDispatcher>();
             services.AddSingleton<IJobSerializer, DefaultJobSerializer>();
+            services.AddSingleton<IAtomizerLogger, DefaultAtomizerLogger>();
 
             return services;
         }
