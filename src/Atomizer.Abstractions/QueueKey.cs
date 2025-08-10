@@ -22,6 +22,17 @@ namespace Atomizer.Abstractions
 
         public static implicit operator QueueKey(string name) => new QueueKey(name);
 
+        public static bool operator ==(QueueKey? left, QueueKey? right)
+        {
+            if (left is null && right is null)
+                return true;
+            if (left is null || right is null)
+                return false;
+            return string.Equals(left.Key, right.Key, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool operator !=(QueueKey? left, QueueKey? right) => !(left == right);
+
         public override string ToString() => Key;
 
         public override bool Equals(object? obj)

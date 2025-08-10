@@ -12,6 +12,7 @@ namespace Atomizer.Abstractions
             QueueKey queueKey,
             int batchSize,
             DateTimeOffset now,
+            TimeSpan visibilityTimeout,
             CancellationToken cancellationToken
         );
 

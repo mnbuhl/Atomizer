@@ -20,14 +20,14 @@ namespace Atomizer.Abstractions
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public string? IdempotencyKey { get; set; }
+    }
 
-        public enum AtomizerJobStatus
-        {
-            Pending,
-            Processing,
-            Completed,
-            Failed,
-            DeadLettered,
-        }
+    public enum AtomizerJobStatus
+    {
+        Pending,
+        Processing,
+        Completed,
+        Failed,
+        DeadLettered,
     }
 }
