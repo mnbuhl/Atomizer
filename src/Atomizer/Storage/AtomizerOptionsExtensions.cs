@@ -1,5 +1,4 @@
 ﻿using Atomizer.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Storage
 {
@@ -7,8 +6,7 @@ namespace Atomizer.Storage
     {
         public static AtomizerOptions UseInMemoryStorage(this AtomizerOptions options)
         {
-            options.JobStorageFactory = _ => new InMemoryJobStorage();
-            options.JobStorageLifetime = ServiceLifetime.Singleton;
+            options.JobStorageOptions = new JobStorageOptions(_ => new InMemoryJobStorage());
             return options;
         }
     }

@@ -18,12 +18,7 @@ namespace Atomizer.Configuration
             var options = new AtomizerOptions();
             configure?.Invoke(options);
 
-            if (options.Queues.All(q => !Equals(q.QueueKey, QueueKey.Default)))
-            {
-                options.AddQueue(QueueKey.Default);
-            }
-
-            if (options.JobStorageFactory is null)
+            if (options.JobStorageOptions is null)
             {
                 throw new InvalidOperationException(
                     "JobStorageFactory must be set. Use UseInMemoryStorage or another storage provider."
@@ -40,16 +35,16 @@ namespace Atomizer.Configuration
             services.AddSingleton(typeof(IAtomizerLogger<>), typeof(DefaultAtomizerLogger<>));
             services.AddSingleton<IAtomizerServiceResolver, DefaultAtomizerServiceResolver>();
 
-            switch (options.JobStorageLifetime)
+            switch (options.JobStorageOptions.JobStorageLifetime)
             {
                 case ServiceLifetime.Singleton:
-                    services.AddSingleton(options.JobStorageFactory);
+                    services.AddSingleton(options.JobStorageOptions.JobStorageFactory);
                     break;
                 case ServiceLifetime.Scoped:
-                    services.AddScoped(options.JobStorageFactory);
+                    services.AddScoped(options.JobStorageOptions.JobStorageFactory);
                     break;
                 case ServiceLifetime.Transient:
-                    services.AddTransient(options.JobStorageFactory);
+                    services.AddTransient(options.JobStorageOptions.JobStorageFactory);
                     break;
             }
 

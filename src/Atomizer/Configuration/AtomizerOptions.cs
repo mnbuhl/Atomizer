@@ -33,20 +33,11 @@ namespace Atomizer.Configuration
         /// </summary>
         public int DefaultDegreeOfParallelism { get; set; } = 4;
 
-        /// <summary>
-        /// Function to create the job storage.
-        /// </summary>
-        public Func<IServiceProvider, IJobStorage>? JobStorageFactory { get; set; }
-
-        /// <summary>
-        /// Gets or sets the lifetime of the job storage service.
-        /// </summary>
-        public ServiceLifetime JobStorageLifetime { get; set; } = ServiceLifetime.Singleton;
+        public JobStorageOptions? JobStorageOptions { get; set; }
 
         internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
         internal RetryOptions DefaultRetryOptions { get; set; } = new RetryOptions();
         internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
-        internal bool EnableProcessing { get; private set; }
 
         public AtomizerOptions AddQueue(string name, Action<QueueOptions>? configure = null)
         {
@@ -78,7 +69,7 @@ namespace Atomizer.Configuration
             return this;
         }
 
-        public AtomizerOptions AddHandlers(params Assembly[] assemblies)
+        public AtomizerOptions AddHandlersFrom(params Assembly[] assemblies)
         {
             if (assemblies.Length == 0)
             {
@@ -106,13 +97,6 @@ namespace Atomizer.Configuration
             return this;
         }
 
-        public AtomizerOptions AddHandlersFrom<TMarker>() => AddHandlers(typeof(TMarker).Assembly);
-
-        public AtomizerOptions AddProcessing()
-        {
-            EnableProcessing = true;
-
-            return this;
-        }
+        public AtomizerOptions AddHandlersFrom<TMarker>() => AddHandlersFrom(typeof(TMarker).Assembly);
     }
 }

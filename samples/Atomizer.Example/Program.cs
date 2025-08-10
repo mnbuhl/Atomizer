@@ -18,9 +18,9 @@ builder.Services.AddAtomizer(options =>
 {
     options.AddQueue(QueueKey.Default);
     options.AddHandlersFrom<LoggerHandler>();
-    options.AddProcessing();
     options.UseInMemoryStorage();
 });
+builder.Services.AddAtomizerProcessing();
 
 var app = builder.Build();
 
