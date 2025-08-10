@@ -189,9 +189,20 @@ namespace Atomizer.Processing
                         _queue.QueueKey
                     );
                 }
+                catch (TaskCanceledException) when (ct.IsCancellationRequested)
+                {
+                    _logger.LogWarning(
+                        "Worker {Worker} cancellation requested while processing job {JobId} on '{Queue}'",
+                        workerId,
+                        job.Id,
+                        _queue.QueueKey
+                    );
+                    // figure out how to handle cancellation gracefully
+                }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     _logger.LogWarning("Worker {Worker} cancellation requested", workerId);
+                    // figure out how to handle cancellation gracefully
                 }
                 catch (Exception ex)
                 {

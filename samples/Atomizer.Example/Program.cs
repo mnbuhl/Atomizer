@@ -103,4 +103,12 @@ app.MapPost(
     }
 );
 
+app.MapPost(
+    "/long-running",
+    async ([FromQuery] int durationInSeconds, [FromServices] IAtomizerClient atomizerClient) =>
+    {
+        await atomizerClient.EnqueueAsync(new LongRunningJob(durationInSeconds));
+    }
+);
+
 app.Run();
