@@ -1,6 +1,7 @@
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Example.Handlers;
+using Atomizer.Storage;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,8 @@ builder.Services.AddAtomizer(options =>
 {
     options.AddQueue(QueueKey.Default);
     options.AddHandlersFrom<LoggerHandler>();
+    options.AddProcessing();
+    options.UseInMemoryStorage();
 });
 
 var app = builder.Build();

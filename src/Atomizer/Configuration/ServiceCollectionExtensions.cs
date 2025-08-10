@@ -2,6 +2,7 @@
 using System.Linq;
 using Atomizer.Abstractions;
 using Atomizer.Hosting;
+using Atomizer.Processing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -22,6 +23,13 @@ namespace Atomizer.Configuration
                 options.AddQueue(QueueKey.Default);
             }
 
+            if (options.JobStorageFactory is null)
+            {
+                throw new InvalidOperationException(
+                    "JobStorageFactory must be set. Use UseInMemoryStorage or another storage provider."
+                );
+            }
+
             services.AddSingleton(options);
             services.Add(options.Handlers);
             services.AddSingleton<IAtomizerClock, AtomizerClock>();
@@ -31,6 +39,25 @@ namespace Atomizer.Configuration
             services.AddSingleton<IJobSerializer, DefaultJobSerializer>();
             services.AddSingleton<IAtomizerLogger, DefaultAtomizerLogger>();
             services.AddSingleton<IAtomizerServiceResolver, DefaultAtomizerServiceResolver>();
+
+            switch (options.JobStorageLifetime)
+            {
+                case ServiceLifetime.Singleton:
+                    services.AddSingleton(options.JobStorageFactory);
+                    break;
+                case ServiceLifetime.Scoped:
+                    services.AddScoped(options.JobStorageFactory);
+                    break;
+                case ServiceLifetime.Transient:
+                    services.AddTransient(options.JobStorageFactory);
+                    break;
+            }
+
+            if (options.EnableProcessing)
+            {
+                services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
+                services.AddHostedService<AtomizerHostedService>();
+            }
 
             return services;
         }
