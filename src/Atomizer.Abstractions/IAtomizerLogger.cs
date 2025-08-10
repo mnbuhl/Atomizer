@@ -2,7 +2,7 @@
 
 namespace Atomizer.Abstractions
 {
-    public interface IAtomizerLogger
+    public interface IAtomizerLogger<T>
     {
         void Log(AtomizerLogLevel level, string message, params object?[] args);
         void Log(AtomizerLogLevel level, Exception ex, string? message, params object?[] args);

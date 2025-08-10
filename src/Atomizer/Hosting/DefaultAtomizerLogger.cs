@@ -6,13 +6,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Hosting
 {
-    public class DefaultAtomizerLogger : IAtomizerLogger
+    public class DefaultAtomizerLogger<T> : IAtomizerLogger<T>
     {
         private readonly ILogger _logger;
 
         public DefaultAtomizerLogger(ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger("Atomizer");
+            _logger = loggerFactory.CreateLogger<T>();
         }
 
         public void Log(AtomizerLogLevel level, string message, params object?[] args)

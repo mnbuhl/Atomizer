@@ -20,7 +20,7 @@ namespace Atomizer.Processing
         private readonly IJobDispatcher _jobDispatcher;
         private readonly IRetryPolicy _retryPolicy;
         private readonly IAtomizerClock _clock;
-        private readonly IAtomizerLogger _logger;
+        private readonly IAtomizerLogger<QueueCoordinator> _logger;
 
         private readonly List<QueuePump> _queuePumps = new List<QueuePump>();
 
@@ -30,7 +30,7 @@ namespace Atomizer.Processing
             IJobDispatcher jobDispatcher,
             IRetryPolicy retryPolicy,
             IAtomizerClock clock,
-            IAtomizerLogger logger
+            IAtomizerLogger<QueueCoordinator> logger
         )
         {
             _options = options;
@@ -45,6 +45,7 @@ namespace Atomizer.Processing
         {
             foreach (var queue in _options.Queues)
             {
+                _logger.LogInformation("Starting queue pump for queue: {QueueKey}", queue.QueueKey);
                 var pump = new QueuePump();
                 _queuePumps.Add(pump);
                 pump.StartAsync(ct);

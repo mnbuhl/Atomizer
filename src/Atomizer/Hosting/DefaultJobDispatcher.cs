@@ -9,13 +9,13 @@ namespace Atomizer.Hosting
         private readonly IAtomizerServiceResolver _serviceResolver;
         private readonly IJobTypeResolver _typeResolver;
         private readonly IJobSerializer _jobSerializer;
-        private readonly IAtomizerLogger _logger;
+        private readonly IAtomizerLogger<DefaultJobDispatcher> _logger;
 
         public DefaultJobDispatcher(
             IAtomizerServiceResolver serviceResolver,
             IJobTypeResolver typeResolver,
             IJobSerializer jobSerializer,
-            IAtomizerLogger logger
+            IAtomizerLogger<DefaultJobDispatcher> logger
         )
         {
             _serviceResolver = serviceResolver;
