@@ -1,7 +1,9 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using Atomizer.Abstractions;
 
-namespace Atomizer.Abstractions
+// ReSharper disable once CheckNamespace
+namespace Atomizer
 {
     public interface IJobHandler<in TPayload>
     {

@@ -11,7 +11,7 @@ namespace Atomizer.Processing
 {
     public class QueuePump
     {
-        private readonly QueueOptions _options;
+        private readonly QueueOptions _queue;
         private readonly AtomizerOptions _rootOptions;
         private readonly IJobStorage _storage;
         private readonly IJobDispatcher _dispatcher;
@@ -28,7 +28,7 @@ namespace Atomizer.Processing
         private readonly int _batchSize;
 
         public QueuePump(
-            QueueOptions options,
+            QueueOptions queue,
             AtomizerOptions rootOptions,
             IJobStorage storage,
             IJobDispatcher dispatcher,
@@ -37,7 +37,7 @@ namespace Atomizer.Processing
             IAtomizerLogger<QueuePump> logger
         )
         {
-            _options = options;
+            _queue = queue;
             _rootOptions = rootOptions;
             _storage = storage;
             _dispatcher = dispatcher;
@@ -45,8 +45,8 @@ namespace Atomizer.Processing
             _clock = clock;
             _logger = logger;
 
-            _batchSize = options.BatchSize ?? rootOptions.DefaultBatchSize;
-            _workersCount = options.DegreeOfParallelism ?? rootOptions.DefaultDegreeOfParallelism;
+            _batchSize = queue.BatchSize ?? rootOptions.DefaultBatchSize;
+            _workersCount = queue.DegreeOfParallelism ?? rootOptions.DefaultDegreeOfParallelism;
 
             _channel = Channel.CreateBounded<AtomizerJob>(
                 new BoundedChannelOptions(Math.Max(4, _batchSize * Math.Max(1, _workersCount)))
@@ -65,7 +65,7 @@ namespace Atomizer.Processing
 
             _logger.LogInformation(
                 "Starting queue pump for queue '{QueueKey}' with {Workers} workers.",
-                _options.QueueKey,
+                _queue.QueueKey,
                 _workersCount
             );
 
@@ -74,7 +74,7 @@ namespace Atomizer.Processing
             var workers = Math.Max(1, _workersCount);
             for (int i = 0; i < workers; i++)
             {
-                var workerId = $"{_options.QueueKey}-{i}";
+                var workerId = $"{_queue.QueueKey}-{i}";
                 var workerTask = Task.Run(() => WorkerLoop(workerId, _cts.Token), _cts.Token);
                 _workers.Add(workerTask);
             }
@@ -82,7 +82,7 @@ namespace Atomizer.Processing
 
         public async Task StopAsync()
         {
-            _logger.LogInformation("Stopping queue pump for queue '{QueueKey}'...", _options.QueueKey);
+            _logger.LogInformation("Stopping queue pump for queue '{QueueKey}'...", _queue.QueueKey);
             _cts.Cancel();
             _channel.Writer.TryComplete();
             try
@@ -95,17 +95,144 @@ namespace Atomizer.Processing
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while stopping queue pump for queue '{QueueKey}'.", _options.QueueKey);
+                _logger.LogError(ex, "Error while stopping queue pump for queue '{QueueKey}'.", _queue.QueueKey);
             }
             finally
             {
                 _cts.Dispose();
             }
-            _logger.LogInformation("Queue pump for queue '{QueueKey}' stopped.", _options.QueueKey);
+            _logger.LogInformation("Queue pump for queue '{QueueKey}' stopped.", _queue.QueueKey);
         }
 
-        private async Task PollLoop(CancellationToken ct) { }
+        private async Task PollLoop(CancellationToken ct)
+        {
+            var tick = _rootOptions.TickInterval;
+            var storageCadence = _rootOptions.StorageCheckInterval;
 
-        private async Task WorkerLoop(string workerId, CancellationToken ct) { }
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    var now = _clock.UtcNow;
+                    if (now - _lastStorageCheck >= storageCadence)
+                    {
+                        _lastStorageCheck = now;
+
+                        var leased = await _storage.TryLeaseBatchAsync(
+                            _queue.QueueKey,
+                            _batchSize,
+                            now,
+                            _queue.VisibilityTimeout,
+                            ct
+                        );
+
+                        if (leased.Count > 0)
+                        {
+                            _logger.LogDebug("Pump '{Queue}' leased {Count} job(s)", _queue.QueueKey, leased.Count);
+
+                            foreach (var job in leased)
+                            {
+                                await _channel.Writer.WriteAsync(job, ct);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogDebug("Pump '{Queue}' found no jobs to lease", _queue.QueueKey);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Cancellation requested, exit the loop
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in poll loop for queue '{QueueKey}'", _queue.QueueKey);
+                }
+
+                try
+                {
+                    await Task.Delay(tick, ct);
+                }
+                catch (TaskCanceledException)
+                {
+                    // Cancellation requested, exit the loop
+                    break;
+                }
+            }
+        }
+
+        private async Task WorkerLoop(string workerId, CancellationToken ct)
+        {
+            _logger.LogDebug("Worker {Worker} for '{Queue}' started", workerId, _queue.QueueKey);
+
+            while (!ct.IsCancellationRequested)
+            {
+                AtomizerJob job;
+                try
+                {
+                    job = await _channel.Reader.ReadAsync(ct);
+                }
+                catch
+                {
+                    break;
+                }
+
+                var swStart = _clock.UtcNow;
+                try
+                {
+                    _logger.LogDebug(
+                        "Worker {Worker} executing job {JobId} (attempt {Attempt}) on '{Queue}'",
+                        workerId,
+                        job.Id,
+                        job.Attempt,
+                        _queue.QueueKey
+                    );
+                    await _dispatcher.DispatchAsync(job, ct);
+                    await _storage.MarkSucceededAsync(job.Id, _clock.UtcNow, ct);
+                    _logger.LogInformation(
+                        "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
+                        job.Id,
+                        (int)(_clock.UtcNow - swStart).TotalMilliseconds,
+                        _queue.QueueKey
+                    );
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    _logger.LogWarning("Worker {Worker} cancellation requested", workerId);
+                }
+                catch (Exception ex)
+                {
+                    var attempt = job.Attempt;
+                    var retryCtx = new RetryContext(job);
+                    if (_retryPolicy.ShouldRetry(attempt, ex, retryCtx))
+                    {
+                        var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
+                        var nextVisible = _clock.UtcNow + delay;
+                        await _storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
+                        _logger.LogWarning(
+                            ex,
+                            "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying in {Delay}ms",
+                            job.Id,
+                            attempt,
+                            _queue.QueueKey,
+                            (int)delay.TotalMilliseconds
+                        );
+                    }
+                    else
+                    {
+                        await _storage.MoveToDeadLetterAsync(job.Id, ex.Message, ct);
+                        await _storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
+                        _logger.LogError(
+                            ex,
+                            "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
+                            job.Id,
+                            _queue.QueueKey
+                        );
+                    }
+                }
+            }
+        }
     }
 }
