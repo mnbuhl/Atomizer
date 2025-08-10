@@ -18,6 +18,12 @@ namespace Atomizer.Hosting
             return _serviceProvider.GetRequiredService(type);
         }
 
+        public TService Resolve<TService>()
+            where TService : notnull
+        {
+            return _serviceProvider.GetRequiredService<TService>();
+        }
+
         public IAtomizerServiceScope CreateScope()
         {
             return new DefaultAtomizerServiceScope(_serviceProvider.CreateScope());
@@ -38,6 +44,12 @@ namespace Atomizer.Hosting
         public object Resolve(Type type)
         {
             return _scope.ServiceProvider.GetRequiredService(type);
+        }
+
+        public TService Resolve<TService>()
+            where TService : notnull
+        {
+            return _scope.ServiceProvider.GetRequiredService<TService>();
         }
 
         public void Dispose()

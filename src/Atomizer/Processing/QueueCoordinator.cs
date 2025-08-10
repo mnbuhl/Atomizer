@@ -21,6 +21,7 @@ namespace Atomizer.Processing
         private readonly IRetryPolicy _retryPolicy;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueueCoordinator> _logger;
+        private readonly IAtomizerServiceResolver _serviceResolver;
 
         private readonly List<QueuePump> _queuePumps = new List<QueuePump>();
 
@@ -30,7 +31,8 @@ namespace Atomizer.Processing
             IJobDispatcher jobDispatcher,
             IRetryPolicy retryPolicy,
             IAtomizerClock clock,
-            IAtomizerLogger<QueueCoordinator> logger
+            IAtomizerLogger<QueueCoordinator> logger,
+            IAtomizerServiceResolver serviceResolver
         )
         {
             _options = options;
@@ -39,6 +41,7 @@ namespace Atomizer.Processing
             _retryPolicy = retryPolicy;
             _clock = clock;
             _logger = logger;
+            _serviceResolver = serviceResolver;
         }
 
         public Task StartAsync(CancellationToken ct)
@@ -46,9 +49,18 @@ namespace Atomizer.Processing
             foreach (var queue in _options.Queues)
             {
                 _logger.LogInformation("Starting queue pump for queue: {QueueKey}", queue.QueueKey);
-                var pump = new QueuePump();
+                var pumpLogger = _serviceResolver.Resolve<IAtomizerLogger<QueuePump>>();
+                var pump = new QueuePump(
+                    queue,
+                    _options,
+                    _jobStorage,
+                    _jobDispatcher,
+                    _retryPolicy,
+                    _clock,
+                    pumpLogger
+                );
                 _queuePumps.Add(pump);
-                pump.StartAsync(ct);
+                pump.Start(ct);
             }
 
             return Task.CompletedTask;
@@ -58,6 +70,7 @@ namespace Atomizer.Processing
         {
             foreach (var pump in _queuePumps)
             {
+                _logger.LogInformation("Stopping queue pump for queue: {QueueKey}", pump.QueueKey);
                 await pump.StopAsync();
             }
         }
