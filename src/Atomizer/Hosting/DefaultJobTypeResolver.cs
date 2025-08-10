@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using Atomizer.Abstractions;
 
 namespace Atomizer.Hosting
 {
+    public interface IAtomizerJobTypeResolver
+    {
+        Type Resolve(Type payloadType);
+    }
+
     public class DefaultJobTypeResolver : IAtomizerJobTypeResolver
     {
         private readonly ConcurrentDictionary<string, Type> _cache = new ConcurrentDictionary<string, Type>();

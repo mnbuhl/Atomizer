@@ -4,6 +4,11 @@ using Atomizer.Abstractions;
 
 namespace Atomizer.Hosting
 {
+    public interface IAtomizerJobDispatcher
+    {
+        Task DispatchAsync(AtomizerJob job, CancellationToken cancellationToken);
+    }
+
     internal class DefaultJobDispatcher : IAtomizerJobDispatcher
     {
         private readonly IAtomizerServiceResolver _serviceResolver;
