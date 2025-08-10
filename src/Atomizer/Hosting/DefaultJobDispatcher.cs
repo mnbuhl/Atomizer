@@ -1,4 +1,6 @@
-﻿using System.Threading;
+﻿using System;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
 
@@ -46,8 +48,27 @@ namespace Atomizer.Hosting
                 job.PayloadType.Name
             );
 
-            var method = handlerType.GetMethod("HandleAsync", new[] { job.PayloadType, typeof(JobContext) })!;
-            await (Task)method.Invoke(handler, new object[] { payload, jobContext })!;
+            try
+            {
+                var method = handlerType.GetMethod("HandleAsync", new[] { job.PayloadType, typeof(JobContext) })!;
+                await (Task)method.Invoke(handler, new object[] { payload, jobContext })!;
+            }
+            catch (TargetInvocationException ex)
+            {
+                // Unwrap the inner exception to get the actual error
+                _logger.LogError(
+                    ex.InnerException!,
+                    "Error while processing job {JobId} of type {JobType}",
+                    job.Id,
+                    handlerType.Name
+                );
+                throw ex.InnerException!; // Re-throw the inner exception for proper handling
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while processing job {JobId} of type {JobType}", job.Id, handlerType.Name);
+                throw; // Re-throw to allow the job storage to handle retries or failures
+            }
 
             _logger.LogDebug("Job {JobId} of type {JobType} completed successfully", job.Id, handlerType.Name);
         }

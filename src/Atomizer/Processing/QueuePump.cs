@@ -12,7 +12,6 @@ namespace Atomizer.Processing
     public class QueuePump
     {
         private readonly QueueOptions _queue;
-        private readonly AtomizerOptions _rootOptions;
         private readonly DefaultRetryPolicy _retryPolicy;
         private readonly IAtomizerJobStorage _storage;
         private readonly IAtomizerJobDispatcher _dispatcher;
@@ -26,7 +25,6 @@ namespace Atomizer.Processing
 
         public QueuePump(
             QueueOptions queue,
-            AtomizerOptions rootOptions,
             DefaultRetryPolicy retryPolicy,
             IAtomizerJobStorage storage,
             IAtomizerJobDispatcher dispatcher,
@@ -35,7 +33,6 @@ namespace Atomizer.Processing
         )
         {
             _queue = queue;
-            _rootOptions = rootOptions;
             _retryPolicy = retryPolicy;
             _storage = storage;
             _dispatcher = dispatcher;
@@ -58,7 +55,7 @@ namespace Atomizer.Processing
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             _logger.LogInformation(
-                "Starting queue pump for queue '{QueueKey}' with {Workers} workers.",
+                "Starting queue '{QueueKey}' with {Workers} workers.",
                 _queue.QueueKey,
                 _queue.DegreeOfParallelism
             );
@@ -76,7 +73,7 @@ namespace Atomizer.Processing
 
         public async Task StopAsync()
         {
-            _logger.LogInformation("Stopping queue pump for queue '{QueueKey}'...", _queue.QueueKey);
+            _logger.LogInformation("Stopping queue '{QueueKey}'...", _queue.QueueKey);
             _cts.Cancel();
             _channel.Writer.TryComplete();
             try
@@ -89,19 +86,19 @@ namespace Atomizer.Processing
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while stopping queue pump for queue '{QueueKey}'.", _queue.QueueKey);
+                _logger.LogError(ex, "Error while stopping queue '{QueueKey}'.", _queue.QueueKey);
             }
             finally
             {
                 _cts.Dispose();
             }
-            _logger.LogInformation("Queue pump for queue '{QueueKey}' stopped.", _queue.QueueKey);
+            _logger.LogInformation("Queue '{QueueKey}' stopped.", _queue.QueueKey);
         }
 
         private async Task PollLoop(CancellationToken ct)
         {
-            var tick = _rootOptions.TickInterval;
-            var storageCadence = _rootOptions.StorageCheckInterval;
+            var tick = _queue.TickInterval;
+            var storageCadence = _queue.StorageCheckInterval;
 
             while (!ct.IsCancellationRequested)
             {
@@ -122,7 +119,7 @@ namespace Atomizer.Processing
 
                         if (leased.Count > 0)
                         {
-                            _logger.LogDebug("Pump '{Queue}' leased {Count} job(s)", _queue.QueueKey, leased.Count);
+                            _logger.LogDebug("Queue '{Queue}' leased {Count} job(s)", _queue.QueueKey, leased.Count);
 
                             foreach (var job in leased)
                             {
@@ -131,7 +128,7 @@ namespace Atomizer.Processing
                         }
                         else
                         {
-                            _logger.LogDebug("Pump '{Queue}' found no jobs to lease", _queue.QueueKey);
+                            _logger.LogDebug("Queue '{Queue}' found no jobs to lease", _queue.QueueKey);
                         }
                     }
                 }
@@ -206,8 +203,7 @@ namespace Atomizer.Processing
                         var nextVisible = _clock.UtcNow + delay;
                         await _storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
                         _logger.LogWarning(
-                            ex,
-                            "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying in {Delay}ms",
+                            "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
                             job.Id,
                             attempt,
                             _queue.QueueKey,
@@ -219,7 +215,6 @@ namespace Atomizer.Processing
                         await _storage.MoveToDeadLetterAsync(job.Id, ex.Message, ct);
                         await _storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
                         _logger.LogError(
-                            ex,
                             "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
                             job.Id,
                             _queue.QueueKey

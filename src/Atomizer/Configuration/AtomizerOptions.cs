@@ -8,18 +8,6 @@ namespace Atomizer.Configuration
 {
     public sealed class AtomizerOptions
     {
-        /// <summary>
-        /// Gets or sets the interval at which the atomizer ticks.
-        /// <remarks>Default is 1 second, meaning that the atomizer will tick every second.</remarks>
-        /// </summary>
-        public TimeSpan TickInterval { get; set; } = TimeSpan.FromSeconds(1);
-
-        /// <summary>
-        /// Gets or sets the interval at which the atomizer checks for storage updates.
-        /// <remarks>Default is 15 seconds, meaning that the atomizer will check for storage updates every 15 seconds.</remarks>
-        /// </summary>
-        public TimeSpan StorageCheckInterval { get; set; } = TimeSpan.FromSeconds(15);
-
         public JobStorageOptions? JobStorageOptions { get; set; }
 
         internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
@@ -66,7 +54,7 @@ namespace Atomizer.Configuration
             {
                 var types = assembly
                     .GetTypes()
-                    .Where(t => !t.IsAbstract && !t.IsInterface && !t.IsGenericTypeDefinition);
+                    .Where(t => !t.IsAbstract && t is { IsInterface: false, IsGenericTypeDefinition: false });
 
                 foreach (var impl in types)
                 {

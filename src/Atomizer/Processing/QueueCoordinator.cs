@@ -49,7 +49,6 @@ namespace Atomizer.Processing
                 var pumpLogger = _serviceResolver.Resolve<IAtomizerLogger<QueuePump>>();
                 var pump = new QueuePump(
                     queue,
-                    _options,
                     new DefaultRetryPolicy(queue.RetryOptions),
                     _jobStorage,
                     _jobDispatcher,
