@@ -2,7 +2,7 @@
 
 namespace Atomizer.Abstractions
 {
-    public interface IJobTypeResolver
+    public interface IAtomizerJobTypeResolver
     {
         Type Resolve(Type payloadType);
     }

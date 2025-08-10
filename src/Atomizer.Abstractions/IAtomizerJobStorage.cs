@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Atomizer.Abstractions
 {
-    public interface IJobStorage
+    public interface IAtomizerJobStorage
     {
         Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken);
         Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(

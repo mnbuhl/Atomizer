@@ -4,17 +4,17 @@ using Atomizer.Abstractions;
 
 namespace Atomizer.Hosting
 {
-    internal class DefaultJobDispatcher : IJobDispatcher
+    internal class DefaultJobDispatcher : IAtomizerJobDispatcher
     {
         private readonly IAtomizerServiceResolver _serviceResolver;
-        private readonly IJobTypeResolver _typeResolver;
-        private readonly IJobSerializer _jobSerializer;
+        private readonly IAtomizerJobTypeResolver _typeResolver;
+        private readonly IAtomizerJobSerializer _jobSerializer;
         private readonly IAtomizerLogger<DefaultJobDispatcher> _logger;
 
         public DefaultJobDispatcher(
             IAtomizerServiceResolver serviceResolver,
-            IJobTypeResolver typeResolver,
-            IJobSerializer jobSerializer,
+            IAtomizerJobTypeResolver typeResolver,
+            IAtomizerJobSerializer jobSerializer,
             IAtomizerLogger<DefaultJobDispatcher> logger
         )
         {

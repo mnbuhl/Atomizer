@@ -8,14 +8,14 @@ namespace Atomizer.Client
 {
     public class AtomizerClient : IAtomizerClient
     {
-        private readonly IJobStorage _jobStorage;
-        private readonly IJobSerializer _jobSerializer;
+        private readonly IAtomizerJobStorage _jobStorage;
+        private readonly IAtomizerJobSerializer _jobSerializer;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<AtomizerClient> _logger;
 
         public AtomizerClient(
-            IJobStorage jobStorage,
-            IJobSerializer jobSerializer,
+            IAtomizerJobStorage jobStorage,
+            IAtomizerJobSerializer jobSerializer,
             IAtomizerClock clock,
             IAtomizerLogger<AtomizerClient> logger
         )

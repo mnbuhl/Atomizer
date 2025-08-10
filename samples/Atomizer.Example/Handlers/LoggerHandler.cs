@@ -4,7 +4,7 @@ namespace Atomizer.Example.Handlers;
 
 public record LoggerJob(string Message, LogLevel Level);
 
-public class LoggerHandler : IJobHandler<LoggerJob>
+public class LoggerHandler : IAtomizerJobHandler<LoggerJob>
 {
     private readonly ILogger<LoggerHandler> _logger;
 

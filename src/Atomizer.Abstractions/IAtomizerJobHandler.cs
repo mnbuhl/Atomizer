@@ -5,7 +5,7 @@ using Atomizer.Abstractions;
 // ReSharper disable once CheckNamespace
 namespace Atomizer
 {
-    public interface IJobHandler<in TPayload>
+    public interface IAtomizerJobHandler<in TPayload>
     {
         Task HandleAsync(TPayload payload, JobContext context);
     }

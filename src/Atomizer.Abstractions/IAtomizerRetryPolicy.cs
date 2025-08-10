@@ -2,26 +2,26 @@
 
 namespace Atomizer.Abstractions
 {
-    public interface IRetryPolicy
+    public interface IAtomizerRetryPolicy
     {
-        bool ShouldRetry(int attempt, Exception error, RetryContext context);
-        TimeSpan GetBackoff(int attempt, Exception error, RetryContext context);
+        bool ShouldRetry(int attempt, Exception error, AtomizerRetryContext context);
+        TimeSpan GetBackoff(int attempt, Exception error, AtomizerRetryContext context);
         int MaxAttempts { get; }
     }
 
-    public enum RetryBackoffStrategy
+    public enum AtomizerRetryBackoffStrategy
     {
         Fixed,
         Exponential,
         ExponentialWithJitter,
     }
 
-    public sealed class RetryContext
+    public sealed class AtomizerRetryContext
     {
         public QueueKey QueueKey { get; set; }
         public AtomizerJob Job { get; set; }
 
-        public RetryContext(AtomizerJob job)
+        public AtomizerRetryContext(AtomizerJob job)
         {
             Job = job;
             QueueKey = job.QueueKey;

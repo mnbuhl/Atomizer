@@ -8,6 +8,7 @@ namespace Atomizer.Configuration
         public int MaxAttempts { get; set; } = 3;
         public TimeSpan InitialBackoff { get; set; } = TimeSpan.FromSeconds(3);
         public TimeSpan MaxBackoff { get; set; } = TimeSpan.FromMinutes(5);
-        public RetryBackoffStrategy BackoffStrategy { get; set; } = RetryBackoffStrategy.ExponentialWithJitter;
+        public AtomizerRetryBackoffStrategy BackoffStrategy { get; set; } =
+            AtomizerRetryBackoffStrategy.ExponentialWithJitter;
     }
 }

@@ -4,7 +4,7 @@ using Atomizer.Abstractions;
 
 namespace Atomizer.Hosting
 {
-    public class DefaultJobTypeResolver : IJobTypeResolver
+    public class DefaultJobTypeResolver : IAtomizerJobTypeResolver
     {
         private readonly ConcurrentDictionary<string, Type> _cache = new ConcurrentDictionary<string, Type>();
 
@@ -12,7 +12,7 @@ namespace Atomizer.Hosting
         {
             return _cache.GetOrAdd(
                 payloadType.AssemblyQualifiedName!,
-                typeof(IJobHandler<>).MakeGenericType(payloadType)
+                typeof(IAtomizerJobHandler<>).MakeGenericType(payloadType)
             );
         }
     }

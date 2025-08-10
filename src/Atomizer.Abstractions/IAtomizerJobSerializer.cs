@@ -2,7 +2,7 @@
 
 namespace Atomizer.Abstractions
 {
-    public interface IJobSerializer
+    public interface IAtomizerJobSerializer
     {
         public string Serialize<TPayload>(TPayload payload);
         public object? Deserialize(string payload, Type payloadType);

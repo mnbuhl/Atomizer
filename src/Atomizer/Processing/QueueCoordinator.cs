@@ -16,9 +16,9 @@ namespace Atomizer.Processing
     public class QueueCoordinator : IQueueCoordinator
     {
         private readonly AtomizerOptions _options;
-        private readonly IJobStorage _jobStorage;
-        private readonly IJobDispatcher _jobDispatcher;
-        private readonly IRetryPolicy _retryPolicy;
+        private readonly IAtomizerJobStorage _jobStorage;
+        private readonly IAtomizerJobDispatcher _jobDispatcher;
+        private readonly IAtomizerRetryPolicy _retryPolicy;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueueCoordinator> _logger;
         private readonly IAtomizerServiceResolver _serviceResolver;
@@ -27,9 +27,9 @@ namespace Atomizer.Processing
 
         public QueueCoordinator(
             AtomizerOptions options,
-            IJobStorage jobStorage,
-            IJobDispatcher jobDispatcher,
-            IRetryPolicy retryPolicy,
+            IAtomizerJobStorage jobStorage,
+            IAtomizerJobDispatcher jobDispatcher,
+            IAtomizerRetryPolicy retryPolicy,
             IAtomizerClock clock,
             IAtomizerLogger<QueueCoordinator> logger,
             IAtomizerServiceResolver serviceResolver

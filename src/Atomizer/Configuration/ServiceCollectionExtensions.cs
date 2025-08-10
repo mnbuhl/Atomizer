@@ -30,10 +30,10 @@ namespace Atomizer.Configuration
             services.Add(options.Handlers);
             services.AddScoped<IAtomizerClient, AtomizerClient>();
             services.AddSingleton<IAtomizerClock, AtomizerClock>();
-            services.AddSingleton<IRetryPolicy, DefaultRetryPolicy>();
-            services.AddSingleton<IJobTypeResolver, DefaultJobTypeResolver>();
-            services.AddSingleton<IJobDispatcher, DefaultJobDispatcher>();
-            services.AddSingleton<IJobSerializer, DefaultJobSerializer>();
+            services.AddSingleton<IAtomizerRetryPolicy, DefaultRetryPolicy>();
+            services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
+            services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
+            services.AddSingleton<IAtomizerJobSerializer, DefaultJobSerializer>();
             services.AddSingleton(typeof(IAtomizerLogger<>), typeof(DefaultAtomizerLogger<>));
             services.AddSingleton<IAtomizerServiceResolver, DefaultAtomizerServiceResolver>();
 

@@ -7,7 +7,7 @@ namespace Atomizer.Configuration
     public class JobStorageOptions
     {
         public JobStorageOptions(
-            Func<IServiceProvider, IJobStorage> jobStorageFactory,
+            Func<IServiceProvider, IAtomizerJobStorage> jobStorageFactory,
             ServiceLifetime jobStorageLifetime = ServiceLifetime.Singleton
         )
         {
@@ -18,7 +18,7 @@ namespace Atomizer.Configuration
         /// <summary>
         /// Function to create the job storage.
         /// </summary>
-        public Func<IServiceProvider, IJobStorage> JobStorageFactory { get; set; }
+        public Func<IServiceProvider, IAtomizerJobStorage> JobStorageFactory { get; set; }
 
         /// <summary>
         /// Gets or sets the lifetime of the job storage service.

@@ -4,7 +4,7 @@ using Atomizer.Abstractions;
 
 namespace Atomizer.Hosting
 {
-    internal sealed class DefaultJobSerializer : IJobSerializer
+    internal sealed class DefaultJobSerializer : IAtomizerJobSerializer
     {
         private static readonly JsonSerializerOptions Options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 

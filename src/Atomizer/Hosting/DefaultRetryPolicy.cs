@@ -4,19 +4,19 @@ using Atomizer.Configuration;
 
 namespace Atomizer.Hosting
 {
-    internal sealed class DefaultRetryPolicy : IRetryPolicy
+    internal sealed class DefaultRetryPolicy : IAtomizerRetryPolicy
     {
         public RetryOptions Options { get; set; } = new RetryOptions();
         private readonly Random _rng = new Random();
 
         public int MaxAttempts => Options.MaxAttempts;
 
-        public bool ShouldRetry(int attempt, Exception error, RetryContext context)
+        public bool ShouldRetry(int attempt, Exception error, AtomizerRetryContext context)
         {
             return attempt < Options.MaxAttempts;
         }
 
-        public TimeSpan GetBackoff(int attempt, Exception error, RetryContext context)
+        public TimeSpan GetBackoff(int attempt, Exception error, AtomizerRetryContext context)
         {
             var n = Math.Max(1, attempt);
             var first = Options.InitialBackoff;
@@ -24,13 +24,13 @@ namespace Atomizer.Hosting
             TimeSpan backoff;
             switch (Options.BackoffStrategy)
             {
-                case RetryBackoffStrategy.Fixed:
+                case AtomizerRetryBackoffStrategy.Fixed:
                     backoff = first;
                     break;
-                case RetryBackoffStrategy.Exponential:
+                case AtomizerRetryBackoffStrategy.Exponential:
                     backoff = TimeSpan.FromMilliseconds(first.TotalMilliseconds * Math.Pow(2, n - 1));
                     break;
-                case RetryBackoffStrategy.ExponentialWithJitter:
+                case AtomizerRetryBackoffStrategy.ExponentialWithJitter:
                     var baseMs = first.TotalMilliseconds * Math.Pow(2, n - 1);
                     var factor = 0.8 + _rng.NextDouble() * 0.4; // 0.8x - 1.2x
                     backoff = TimeSpan.FromMilliseconds(baseMs * factor);

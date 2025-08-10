@@ -13,9 +13,9 @@ namespace Atomizer.Processing
     {
         private readonly QueueOptions _queue;
         private readonly AtomizerOptions _rootOptions;
-        private readonly IJobStorage _storage;
-        private readonly IJobDispatcher _dispatcher;
-        private readonly IRetryPolicy _retryPolicy;
+        private readonly IAtomizerJobStorage _storage;
+        private readonly IAtomizerJobDispatcher _dispatcher;
+        private readonly IAtomizerRetryPolicy _retryPolicy;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueuePump> _logger;
 
@@ -30,9 +30,9 @@ namespace Atomizer.Processing
         public QueuePump(
             QueueOptions queue,
             AtomizerOptions rootOptions,
-            IJobStorage storage,
-            IJobDispatcher dispatcher,
-            IRetryPolicy retryPolicy,
+            IAtomizerJobStorage storage,
+            IAtomizerJobDispatcher dispatcher,
+            IAtomizerRetryPolicy retryPolicy,
             IAtomizerClock clock,
             IAtomizerLogger<QueuePump> logger
         )
@@ -205,7 +205,7 @@ namespace Atomizer.Processing
                 catch (Exception ex)
                 {
                     var attempt = job.Attempt;
-                    var retryCtx = new RetryContext(job);
+                    var retryCtx = new AtomizerRetryContext(job);
                     if (_retryPolicy.ShouldRetry(attempt, ex, retryCtx))
                     {
                         var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
