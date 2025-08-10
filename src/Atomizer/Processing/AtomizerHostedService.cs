@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using Atomizer.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace Atomizer.Processing
@@ -7,15 +8,21 @@ namespace Atomizer.Processing
     public class AtomizerHostedService : BackgroundService
     {
         private readonly IQueueCoordinator _coordinator;
+        private readonly AtomizerProcessingOptions _options;
 
-        public AtomizerHostedService(IQueueCoordinator coordinator)
+        public AtomizerHostedService(IQueueCoordinator coordinator, AtomizerProcessingOptions options)
         {
             _coordinator = coordinator;
+            _options = options;
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            return _coordinator.StartAsync(stoppingToken);
+            if (_options.StartupDelay != null)
+            {
+                await Task.Delay(_options.StartupDelay!.Value, stoppingToken);
+            }
+            await _coordinator.StartAsync(stoppingToken);
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)

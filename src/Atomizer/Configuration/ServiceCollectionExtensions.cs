@@ -53,11 +53,28 @@ namespace Atomizer.Configuration
                     break;
             }
 
-            if (options.EnableProcessing)
+            return services;
+        }
+
+        public static IServiceCollection AddAtomizerProcessing(
+            this IServiceCollection services,
+            Action<AtomizerProcessingOptions>? configure = null
+        )
+        {
+            var options = new AtomizerProcessingOptions();
+            configure?.Invoke(options);
+
+            if (options.StartupDelay != null && options.StartupDelay < TimeSpan.Zero)
             {
-                services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
-                services.AddHostedService<AtomizerHostedService>();
+                throw new ArgumentOutOfRangeException(
+                    nameof(options.StartupDelay),
+                    "Startup delay must be a non-negative TimeSpan."
+                );
             }
+
+            services.AddSingleton(options);
+            services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
+            services.AddHostedService<AtomizerHostedService>();
 
             return services;
         }
