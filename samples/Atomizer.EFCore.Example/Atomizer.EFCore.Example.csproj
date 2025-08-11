@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Atomizer.EntityFrameworkCore\Atomizer.EntityFrameworkCore.csproj" />
+        <ProjectReference Include="..\aspire\Atomizer.Example.ServiceDefaults\Atomizer.Example.ServiceDefaults.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <Folder Include="Data\PostgresMigrations\" />
+    </ItemGroup>
+</Project>

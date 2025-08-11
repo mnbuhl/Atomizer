@@ -3,6 +3,6 @@
     public class EntityFrameworkCoreJobStorageOptions
     {
         public string Schema { get; set; } = "Atomizer";
-        public EntityFrameworkCoreStorageProvider StorageProvider { get; internal set; }
+        public EFCoreStorageProvider StorageProvider { get; internal set; }
     }
 }

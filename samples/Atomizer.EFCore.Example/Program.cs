@@ -1,0 +1,80 @@
+using Atomizer;
+using Atomizer.Abstractions;
+using Atomizer.Configuration;
+using Atomizer.EFCore.Example.Data;
+using Atomizer.EFCore.Example.Entities;
+using Atomizer.EFCore.Example.Handlers;
+using Atomizer.EntityFrameworkCore.Extensions;
+using Atomizer.EntityFrameworkCore.Storage;
+using Microsoft.AspNetCore.Mvc;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddSwaggerGen(c =>
+    c.SwaggerDoc("v1", new() { Title = "Atomizer EF Core Example API", Version = "v1" })
+);
+builder.Services.AddEndpointsApiExplorer();
+builder.AddServiceDefaults();
+
+builder.AddNpgsqlDbContext<ExampleDbContext>("postgres");
+
+builder.Services.AddAtomizer(options =>
+{
+    options.AddQueue(QueueKey.Default);
+    options.AddHandlersFrom<AssignStockJobHandler>();
+    options.UseEntityFrameworkCoreStorage<ExampleDbContext>(EFCoreStorageProvider.PostgreSql);
+});
+builder.Services.AddAtomizerProcessing();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.MapDefaultEndpoints();
+
+app.MapPost(
+    "/products",
+    async ([FromServices] ExampleDbContext dbContext) =>
+    {
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = "Sample Product",
+            Price = 19.99m,
+            Quantity = 0,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        dbContext.Products.Add(product);
+        await dbContext.SaveChangesAsync();
+
+        return Results.Created($"/products/{product.Id}", product);
+    }
+);
+
+app.MapPost(
+    "/assign-stock",
+    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] AssignStock assignStock) =>
+    {
+        var jobId = await atomizerClient.EnqueueAsync(assignStock);
+        return Results.Accepted($"/jobs/{jobId}");
+    }
+);
+
+app.MapPost(
+    "/cleanup-products",
+    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] CleanupProductsBefore cleanup) =>
+    {
+        var jobId = await atomizerClient.EnqueueAsync(cleanup);
+        return Results.Accepted($"/jobs/{jobId}");
+    }
+);
+
+app.Run();

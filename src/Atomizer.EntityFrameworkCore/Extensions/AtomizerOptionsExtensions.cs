@@ -11,7 +11,7 @@ namespace Atomizer.EntityFrameworkCore.Extensions
     {
         public static AtomizerOptions UseEntityFrameworkCoreStorage<TDbContext>(
             this AtomizerOptions options,
-            EntityFrameworkCoreStorageProvider storageProvider,
+            EFCoreStorageProvider storageProvider,
             Action<EntityFrameworkCoreJobStorageOptions>? configure = null
         )
             where TDbContext : DbContext

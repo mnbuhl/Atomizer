@@ -1,6 +1,7 @@
 ﻿namespace Atomizer.EntityFrameworkCore.Storage
 {
-    public enum EntityFrameworkCoreStorageProvider
+    // ReSharper disable once InconsistentNaming
+    public enum EFCoreStorageProvider
     {
         MySql,
         PostgreSql,
