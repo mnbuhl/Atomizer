@@ -33,7 +33,6 @@ namespace Atomizer.Configuration
             services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
             services.AddSingleton<IAtomizerJobSerializer, DefaultJobSerializer>();
             services.AddSingleton(typeof(IAtomizerLogger<>), typeof(DefaultAtomizerLogger<>));
-            services.AddSingleton<IAtomizerServiceResolver, DefaultAtomizerServiceResolver>();
 
             switch (options.JobStorageOptions.JobStorageLifetime)
             {

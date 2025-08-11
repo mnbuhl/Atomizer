@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Processing
 {
@@ -20,7 +22,7 @@ namespace Atomizer.Processing
         private readonly IAtomizerJobDispatcher _jobDispatcher;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueueCoordinator> _logger;
-        private readonly IAtomizerServiceResolver _serviceResolver;
+        private readonly IServiceProvider _serviceProvider;
 
         private readonly List<QueuePump> _queuePumps = new List<QueuePump>();
 
@@ -30,7 +32,7 @@ namespace Atomizer.Processing
             IAtomizerJobDispatcher jobDispatcher,
             IAtomizerClock clock,
             IAtomizerLogger<QueueCoordinator> logger,
-            IAtomizerServiceResolver serviceResolver
+            IServiceProvider serviceProvider
         )
         {
             _options = options;
@@ -38,7 +40,7 @@ namespace Atomizer.Processing
             _jobDispatcher = jobDispatcher;
             _clock = clock;
             _logger = logger;
-            _serviceResolver = serviceResolver;
+            _serviceProvider = serviceProvider;
         }
 
         public Task StartAsync(CancellationToken ct)
@@ -46,7 +48,7 @@ namespace Atomizer.Processing
             _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
             foreach (var queue in _options.Queues)
             {
-                var pumpLogger = _serviceResolver.Resolve<IAtomizerLogger<QueuePump>>();
+                var pumpLogger = _serviceProvider.GetRequiredService<IAtomizerLogger<QueuePump>>();
                 var pump = new QueuePump(
                     queue,
                     new DefaultRetryPolicy(queue.RetryOptions),
