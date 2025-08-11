@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using Atomizer.Abstractions;
 using Atomizer.Client;
 using Atomizer.Hosting;

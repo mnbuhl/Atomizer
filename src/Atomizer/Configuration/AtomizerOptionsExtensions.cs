@@ -1,9 +1,9 @@
 ﻿using System;
 using Atomizer.Abstractions;
-using Atomizer.Configuration;
+using Atomizer.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Atomizer.Storage
+namespace Atomizer.Configuration
 {
     public static class AtomizerOptionsExtensions
     {
