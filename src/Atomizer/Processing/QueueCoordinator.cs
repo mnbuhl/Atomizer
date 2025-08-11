@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Processing
 {
@@ -18,7 +17,6 @@ namespace Atomizer.Processing
     public class QueueCoordinator : IQueueCoordinator
     {
         private readonly AtomizerOptions _options;
-        private readonly IAtomizerJobStorage _jobStorage;
         private readonly IAtomizerJobDispatcher _jobDispatcher;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueueCoordinator> _logger;
@@ -28,7 +26,6 @@ namespace Atomizer.Processing
 
         public QueueCoordinator(
             AtomizerOptions options,
-            IAtomizerJobStorage jobStorage,
             IAtomizerJobDispatcher jobDispatcher,
             IAtomizerClock clock,
             IAtomizerLogger<QueueCoordinator> logger,
@@ -36,7 +33,6 @@ namespace Atomizer.Processing
         )
         {
             _options = options;
-            _jobStorage = jobStorage;
             _jobDispatcher = jobDispatcher;
             _clock = clock;
             _logger = logger;
@@ -48,14 +44,12 @@ namespace Atomizer.Processing
             _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
             foreach (var queue in _options.Queues)
             {
-                var pumpLogger = _serviceProvider.GetRequiredService<IAtomizerLogger<QueuePump>>();
                 var pump = new QueuePump(
                     queue,
                     new DefaultRetryPolicy(queue.RetryOptions),
-                    _jobStorage,
                     _jobDispatcher,
                     _clock,
-                    pumpLogger
+                    _serviceProvider
                 );
                 _queuePumps.Add(pump);
                 pump.Start(ct);

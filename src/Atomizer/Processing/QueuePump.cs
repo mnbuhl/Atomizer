@@ -7,6 +7,7 @@ using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Hosting;
 using Atomizer.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Processing
 {
@@ -14,10 +15,10 @@ namespace Atomizer.Processing
     {
         private readonly QueueOptions _queue;
         private readonly DefaultRetryPolicy _retryPolicy;
-        private readonly IAtomizerJobStorage _storage;
         private readonly IAtomizerJobDispatcher _dispatcher;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueuePump> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
         private readonly Channel<AtomizerJob> _channel;
         private readonly List<Task> _workers = new List<Task>();
@@ -27,18 +28,17 @@ namespace Atomizer.Processing
         public QueuePump(
             QueueOptions queue,
             DefaultRetryPolicy retryPolicy,
-            IAtomizerJobStorage storage,
             IAtomizerJobDispatcher dispatcher,
             IAtomizerClock clock,
-            IAtomizerLogger<QueuePump> logger
+            IServiceProvider serviceProvider
         )
         {
             _queue = queue;
             _retryPolicy = retryPolicy;
-            _storage = storage;
             _dispatcher = dispatcher;
             _clock = clock;
-            _logger = logger;
+            _logger = serviceProvider.GetRequiredService<IAtomizerLogger<QueuePump>>();
+            _serviceProvider = serviceProvider;
 
             _channel = Channel.CreateBounded<AtomizerJob>(
                 new BoundedChannelOptions(_queue.DegreeOfParallelism * _queue.BatchSize)
@@ -108,9 +108,12 @@ namespace Atomizer.Processing
                     var now = _clock.UtcNow;
                     if (now - _lastStorageCheck >= storageCadence)
                     {
+                        using var scope = _serviceProvider.CreateScope();
+                        var storage = scope.ServiceProvider.GetRequiredService<IAtomizerJobStorage>();
+
                         _lastStorageCheck = now;
 
-                        var leased = await _storage.TryLeaseBatchAsync(
+                        var leased = await storage.TryLeaseBatchAsync(
                             _queue.QueueKey,
                             _queue.BatchSize,
                             now,
@@ -171,6 +174,9 @@ namespace Atomizer.Processing
                     break;
                 }
 
+                using var scope = _serviceProvider.CreateScope();
+                var storage = scope.ServiceProvider.GetRequiredService<IAtomizerJobStorage>();
+
                 var swStart = _clock.UtcNow;
                 try
                 {
@@ -182,7 +188,7 @@ namespace Atomizer.Processing
                         _queue.QueueKey
                     );
                     await _dispatcher.DispatchAsync(job, ct);
-                    await _storage.MarkSucceededAsync(job.Id, _clock.UtcNow, ct);
+                    await storage.MarkSucceededAsync(job.Id, _clock.UtcNow, ct);
                     _logger.LogInformation(
                         "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
                         job.Id,
@@ -213,7 +219,7 @@ namespace Atomizer.Processing
                     {
                         var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
                         var nextVisible = _clock.UtcNow + delay;
-                        await _storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
+                        await storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
                         _logger.LogWarning(
                             "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
                             job.Id,
@@ -224,8 +230,8 @@ namespace Atomizer.Processing
                     }
                     else
                     {
-                        await _storage.MoveToDeadLetterAsync(job.Id, ex.Message, ct);
-                        await _storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
+                        await storage.MoveToDeadLetterAsync(job.Id, ex.Message, ct);
+                        await storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
                         _logger.LogError(
                             "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
                             job.Id,
