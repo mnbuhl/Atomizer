@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Hosting;
+using Atomizer.Models;
 
 namespace Atomizer.Processing
 {

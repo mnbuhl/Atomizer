@@ -1,6 +1,7 @@
 ﻿using System;
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
+using Atomizer.Models;
 
 namespace Atomizer.Hosting
 {

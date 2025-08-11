@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
+using Atomizer.Models;
 
 namespace Atomizer.Hosting
 {

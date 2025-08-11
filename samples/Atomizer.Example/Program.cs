@@ -2,6 +2,7 @@ using Atomizer;
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Example.Handlers;
+using Atomizer.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 

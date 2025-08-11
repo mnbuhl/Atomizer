@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
+using Atomizer.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Atomizer.EntityFrameworkCore.Storage

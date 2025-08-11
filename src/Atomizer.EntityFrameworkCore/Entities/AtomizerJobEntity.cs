@@ -1,4 +1,5 @@
 ﻿using System;
+using Atomizer.Models;
 
 namespace Atomizer.EntityFrameworkCore.Entities
 {
@@ -32,7 +33,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
 
     public static class AtomizerJobEntityExtensions
     {
-        public static AtomizerJobEntity ToEntity(this Atomizer.Abstractions.AtomizerJob job)
+        public static AtomizerJobEntity ToEntity(this AtomizerJob job)
         {
             return new AtomizerJobEntity
             {
@@ -56,18 +57,18 @@ namespace Atomizer.EntityFrameworkCore.Entities
 
     public static class AtomizerJobEntityMapper
     {
-        public static Atomizer.Abstractions.AtomizerJob ToAtomizerJob(this AtomizerJobEntity entity)
+        public static AtomizerJob ToAtomizerJob(this AtomizerJobEntity entity)
         {
-            return new Atomizer.Abstractions.AtomizerJob
+            return new AtomizerJob
             {
                 Id = entity.Id,
-                QueueKey = new Atomizer.Abstractions.QueueKey(entity.QueueKey),
+                QueueKey = new QueueKey(entity.QueueKey),
                 PayloadType =
                     Type.GetType(entity.PayloadType) ?? throw new InvalidOperationException("Invalid payload type"),
                 Payload = entity.Payload,
                 ScheduledAt = entity.ScheduledAt,
                 VisibleAt = entity.VisibleAt,
-                Status = (Abstractions.AtomizerJobStatus)(int)entity.Status,
+                Status = (AtomizerJobStatus)(int)entity.Status,
                 Attempt = entity.Attempt,
                 CreatedAt = entity.CreatedAt,
                 CompletedAt = entity.CompletedAt,

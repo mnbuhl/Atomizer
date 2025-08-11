@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Atomizer.Abstractions
+namespace Atomizer.Models
 {
     public sealed class QueueKey
     {

@@ -1,6 +1,7 @@
 ﻿using System;
+using Atomizer.Abstractions;
 
-namespace Atomizer.Abstractions
+namespace Atomizer.Models
 {
     public class AtomizerJob
     {

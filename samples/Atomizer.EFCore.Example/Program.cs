@@ -6,6 +6,7 @@ using Atomizer.EFCore.Example.Entities;
 using Atomizer.EFCore.Example.Handlers;
 using Atomizer.EntityFrameworkCore.Extensions;
 using Atomizer.EntityFrameworkCore.Storage;
+using Atomizer.Models;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);

@@ -1,5 +1,6 @@
 ﻿using System;
 using Atomizer.Abstractions;
+using Atomizer.Models;
 
 namespace Atomizer.Configuration
 {
