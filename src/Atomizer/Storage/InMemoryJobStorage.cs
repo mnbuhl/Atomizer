@@ -8,7 +8,7 @@ using Atomizer.Abstractions;
 
 namespace Atomizer.Storage
 {
-    public class InMemoryJobStorage : IAtomizerJobStorage
+    internal sealed class InMemoryJobStorage : IAtomizerJobStorage
     {
         // Global store of jobs
         private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new ConcurrentDictionary<Guid, AtomizerJob>();

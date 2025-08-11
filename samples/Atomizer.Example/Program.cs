@@ -95,10 +95,7 @@ app.MapPost(
     {
         await atomizerClient.EnqueueAsync(
             new LoggerJob($"Logging to {queue} queue!", LogLevel.Information),
-            options =>
-            {
-                options.Queue = queue;
-            }
+            options => options.Queue = queue
         );
     }
 );
