@@ -1,5 +1,4 @@
 using Atomizer;
-using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.EFCore.Example.Data;
 using Atomizer.EFCore.Example.Entities;
@@ -8,6 +7,7 @@ using Atomizer.EntityFrameworkCore.Extensions;
 using Atomizer.EntityFrameworkCore.Storage;
 using Atomizer.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +19,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddEndpointsApiExplorer();
 builder.AddServiceDefaults();
 
-builder.AddNpgsqlDbContext<ExampleDbContext>("postgres");
+builder.AddNpgsqlDbContext<ExampleDbContext>("atomizerdb");
 
 builder.Services.AddAtomizer(options =>
 {
@@ -37,6 +37,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+using var scope = app.Services.CreateScope();
+await using var db = scope.ServiceProvider.GetRequiredService<ExampleDbContext>();
+await db.Database.MigrateAsync();
 
 app.MapDefaultEndpoints();
 

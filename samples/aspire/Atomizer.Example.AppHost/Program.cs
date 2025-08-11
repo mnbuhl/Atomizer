@@ -6,11 +6,13 @@ var postgres = builder
     .WithDataVolume()
     .WithLifetime(ContainerLifetime.Persistent);
 
+var database = postgres.AddDatabase("atomizerdb");
+
 builder.AddProject<Projects.Atomizer_Example>("atomizer-example");
 
 builder
     .AddProject<Projects.Atomizer_EFCore_Example>("atomizer-efcore-example")
-    .WithReference(postgres)
-    .WaitFor(postgres);
+    .WithReference(database)
+    .WaitFor(database);
 
 builder.Build().Run();
