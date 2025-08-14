@@ -7,7 +7,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
     {
         public Guid Id { get; set; }
         public string QueueKey { get; set; } = string.Empty;
-        public string PayloadType { get; set; } = null!;
+        public string PayloadType { get; set; } = string.Empty;
         public string Payload { get; set; } = string.Empty;
         public DateTimeOffset ScheduledAt { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }
@@ -20,6 +20,8 @@ namespace Atomizer.EntityFrameworkCore.Entities
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public string? IdempotencyKey { get; set; }
+
+        public string? LeaseToken { get; set; }
     }
 
     public enum AtomizerEntityJobStatus

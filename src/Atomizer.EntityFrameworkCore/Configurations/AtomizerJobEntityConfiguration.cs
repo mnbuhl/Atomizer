@@ -31,6 +31,7 @@ namespace Atomizer.EntityFrameworkCore.Configurations
             builder.Property(job => job.CorrelationId).HasMaxLength(255);
             builder.Property(job => job.CausationId).HasMaxLength(255);
             builder.Property(job => job.IdempotencyKey).HasMaxLength(255);
+            builder.Property(job => job.LeaseToken).HasMaxLength(255);
         }
     }
 }
