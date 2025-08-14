@@ -4,6 +4,7 @@ using Atomizer.Configuration;
 using Atomizer.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.EntityFrameworkCore.Extensions
 {
@@ -22,7 +23,7 @@ namespace Atomizer.EntityFrameworkCore.Extensions
                 sp => new EntityFrameworkCoreJobStorage<TDbContext>(
                     sp.GetRequiredService<TDbContext>(),
                     efOptions,
-                    sp.GetRequiredService<IAtomizerLogger<EntityFrameworkCoreJobStorage<TDbContext>>>()
+                    sp.GetRequiredService<ILogger<EntityFrameworkCoreJobStorage<TDbContext>>>()
                 ),
                 ServiceLifetime.Scoped
             );

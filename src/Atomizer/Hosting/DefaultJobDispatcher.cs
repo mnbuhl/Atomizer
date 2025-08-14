@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Hosting
 {
@@ -18,13 +19,13 @@ namespace Atomizer.Hosting
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAtomizerJobTypeResolver _typeResolver;
         private readonly IAtomizerJobSerializer _jobSerializer;
-        private readonly IAtomizerLogger<DefaultJobDispatcher> _logger;
+        private readonly ILogger<DefaultJobDispatcher> _logger;
 
         public DefaultJobDispatcher(
             IServiceScopeFactory scopeFactory,
             IAtomizerJobTypeResolver typeResolver,
             IAtomizerJobSerializer jobSerializer,
-            IAtomizerLogger<DefaultJobDispatcher> logger
+            ILogger<DefaultJobDispatcher> logger
         )
         {
             _scopeFactory = scopeFactory;

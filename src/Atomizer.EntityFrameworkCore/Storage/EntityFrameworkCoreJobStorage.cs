@@ -8,6 +8,7 @@ using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Extensions;
 using Atomizer.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.EntityFrameworkCore.Storage
 {
@@ -16,7 +17,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
     {
         private readonly TDbContext _dbContext;
         private readonly EntityFrameworkCoreJobStorageOptions _options;
-        private readonly IAtomizerLogger<EntityFrameworkCoreJobStorage<TDbContext>> _logger;
+        private readonly ILogger<EntityFrameworkCoreJobStorage<TDbContext>> _logger;
 
         private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
 
@@ -25,7 +26,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
         public EntityFrameworkCoreJobStorage(
             TDbContext dbContext,
             EntityFrameworkCoreJobStorageOptions options,
-            IAtomizerLogger<EntityFrameworkCoreJobStorage<TDbContext>> logger
+            ILogger<EntityFrameworkCoreJobStorage<TDbContext>> logger
         )
         {
             _dbContext = dbContext;

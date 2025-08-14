@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
@@ -19,7 +20,7 @@ namespace Atomizer.Processing
         private readonly AtomizerOptions _options;
         private readonly IAtomizerJobDispatcher _jobDispatcher;
         private readonly IAtomizerClock _clock;
-        private readonly IAtomizerLogger<QueueCoordinator> _logger;
+        private readonly ILogger<QueueCoordinator> _logger;
         private readonly IServiceProvider _serviceProvider;
 
         private readonly List<QueuePump> _queuePumps = new List<QueuePump>();
@@ -28,7 +29,7 @@ namespace Atomizer.Processing
             AtomizerOptions options,
             IAtomizerJobDispatcher jobDispatcher,
             IAtomizerClock clock,
-            IAtomizerLogger<QueueCoordinator> logger,
+            ILogger<QueueCoordinator> logger,
             IServiceProvider serviceProvider
         )
         {

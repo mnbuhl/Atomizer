@@ -1,14 +1,12 @@
-﻿using Atomizer.Abstractions;
-
-namespace Atomizer.Example.Handlers;
+﻿namespace Atomizer.Example.Handlers;
 
 public record LongRunningJob(int DurationInSeconds);
 
 public class LongRunningJobHandler : IAtomizerJobHandler<LongRunningJob>
 {
-    private readonly IAtomizerLogger<LongRunningJobHandler> _logger;
+    private readonly ILogger<LongRunningJobHandler> _logger;
 
-    public LongRunningJobHandler(IAtomizerLogger<LongRunningJobHandler> logger)
+    public LongRunningJobHandler(ILogger<LongRunningJobHandler> logger)
     {
         _logger = logger;
     }

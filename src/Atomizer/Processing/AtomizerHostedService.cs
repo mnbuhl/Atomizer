@@ -1,8 +1,8 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
@@ -10,12 +10,12 @@ namespace Atomizer.Processing
     {
         private readonly IQueueCoordinator _coordinator;
         private readonly AtomizerProcessingOptions _options;
-        private readonly IAtomizerLogger<AtomizerHostedService> _logger;
+        private readonly ILogger<AtomizerHostedService> _logger;
 
         public AtomizerHostedService(
             IQueueCoordinator coordinator,
             AtomizerProcessingOptions options,
-            IAtomizerLogger<AtomizerHostedService> logger
+            ILogger<AtomizerHostedService> logger
         )
         {
             _coordinator = coordinator;

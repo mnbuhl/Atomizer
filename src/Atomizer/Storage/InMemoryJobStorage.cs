@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage
 {
@@ -30,9 +31,9 @@ namespace Atomizer.Storage
 
         // Options for configuring the in-memory job storage
         private readonly InMemoryJobStorageOptions _options;
-        private readonly IAtomizerLogger<InMemoryJobStorage> _logger;
+        private readonly ILogger<InMemoryJobStorage> _logger;
 
-        public InMemoryJobStorage(InMemoryJobStorageOptions options, IAtomizerLogger<InMemoryJobStorage> logger)
+        public InMemoryJobStorage(InMemoryJobStorageOptions options, ILogger<InMemoryJobStorage> logger)
         {
             _options = options;
             _logger = logger;

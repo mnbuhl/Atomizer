@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Hosting;
 using Atomizer.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Client
 {
@@ -12,13 +13,13 @@ namespace Atomizer.Client
         private readonly IAtomizerJobStorage _jobStorage;
         private readonly IAtomizerJobSerializer _jobSerializer;
         private readonly IAtomizerClock _clock;
-        private readonly IAtomizerLogger<AtomizerClient> _logger;
+        private readonly ILogger<AtomizerClient> _logger;
 
         public AtomizerClient(
             IAtomizerJobStorage jobStorage,
             IAtomizerJobSerializer jobSerializer,
             IAtomizerClock clock,
-            IAtomizerLogger<AtomizerClient> logger
+            ILogger<AtomizerClient> logger
         )
         {
             _jobStorage = jobStorage;

@@ -8,6 +8,7 @@ using Atomizer.Configuration;
 using Atomizer.Hosting;
 using Atomizer.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
@@ -17,7 +18,8 @@ namespace Atomizer.Processing
         private readonly DefaultRetryPolicy _retryPolicy;
         private readonly IAtomizerJobDispatcher _dispatcher;
         private readonly IAtomizerClock _clock;
-        private readonly IAtomizerLogger<QueuePump> _logger;
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger<QueuePump> _logger;
         private readonly IServiceProvider _serviceProvider;
 
         private readonly Channel<AtomizerJob> _channel;
@@ -39,8 +41,10 @@ namespace Atomizer.Processing
             _retryPolicy = retryPolicy;
             _dispatcher = dispatcher;
             _clock = clock;
-            _logger = serviceProvider.GetRequiredService<IAtomizerLogger<QueuePump>>();
             _serviceProvider = serviceProvider;
+            _loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+
+            _logger = _loggerFactory.CreateLogger<QueuePump>();
 
             _channel = Channel.CreateBounded<AtomizerJob>(
                 new BoundedChannelOptions(_queue.DegreeOfParallelism * _queue.BatchSize)
@@ -66,13 +70,13 @@ namespace Atomizer.Processing
                 _queue.DegreeOfParallelism
             );
 
-            _ = Task.Run(() => PollLoop(_cts.Token), _cts.Token);
+            _ = Task.Run(async () => await PollLoop(_cts.Token), _cts.Token);
 
             var workers = Math.Max(1, _queue.DegreeOfParallelism);
             for (int i = 0; i < workers; i++)
             {
                 var workerId = $"{_queue.QueueKey}-{i}";
-                var workerTask = Task.Run(() => WorkerLoop(workerId, _cts.Token), _cts.Token);
+                var workerTask = Task.Run(async () => await WorkerLoop(workerId, _cts.Token), _cts.Token);
                 _workers.Add(workerTask);
             }
         }
@@ -182,11 +186,12 @@ namespace Atomizer.Processing
 
                 using var scope = _serviceProvider.CreateScope();
                 var storage = scope.ServiceProvider.GetRequiredService<IAtomizerJobStorage>();
+                var workerLogger = _loggerFactory.CreateLogger($"Worker.{workerId}-{job.Id}");
 
                 var swStart = _clock.UtcNow;
                 try
                 {
-                    _logger.LogDebug(
+                    workerLogger.LogDebug(
                         "Worker {Worker} executing job {JobId} (attempt {Attempt}) on '{Queue}'",
                         workerId,
                         job.Id,
@@ -195,7 +200,7 @@ namespace Atomizer.Processing
                     );
                     await _dispatcher.DispatchAsync(job, ct);
                     await storage.MarkSucceededAsync(job.Id, _clock.UtcNow, ct);
-                    _logger.LogInformation(
+                    workerLogger.LogInformation(
                         "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
                         job.Id,
                         (int)(_clock.UtcNow - swStart).TotalMilliseconds,
@@ -204,7 +209,7 @@ namespace Atomizer.Processing
                 }
                 catch (TaskCanceledException) when (ct.IsCancellationRequested)
                 {
-                    _logger.LogWarning(
+                    workerLogger.LogWarning(
                         "Worker {Worker} cancellation requested while processing job {JobId} on '{Queue}'",
                         workerId,
                         job.Id,
@@ -214,34 +219,48 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    _logger.LogWarning("Worker {Worker} cancellation requested", workerId);
+                    workerLogger.LogWarning("Worker {Worker} cancellation requested", workerId);
                     // figure out how to handle cancellation gracefully
                 }
                 catch (Exception ex)
                 {
                     var attempt = job.Attempt;
-                    var retryCtx = new AtomizerRetryContext(job);
-                    if (_retryPolicy.ShouldRetry(attempt, ex, retryCtx))
+
+                    try
                     {
-                        var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
-                        var nextVisible = _clock.UtcNow + delay;
-                        await storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
-                        _logger.LogWarning(
-                            "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
-                            job.Id,
-                            attempt,
-                            _queue.QueueKey,
-                            (int)delay.TotalMilliseconds
-                        );
+                        var retryCtx = new AtomizerRetryContext(job);
+                        if (_retryPolicy.ShouldRetry(attempt, ex, retryCtx))
+                        {
+                            var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
+                            var nextVisible = _clock.UtcNow + delay;
+                            await storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
+                            workerLogger.LogWarning(
+                                "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
+                                job.Id,
+                                attempt,
+                                _queue.QueueKey,
+                                (int)delay.TotalMilliseconds
+                            );
+                        }
+                        else
+                        {
+                            await storage.MoveToDeadLetterAsync(job.Id, ex.Message, ct);
+                            await storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
+                            workerLogger.LogError(
+                                "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
+                                job.Id,
+                                _queue.QueueKey
+                            );
+                        }
                     }
-                    else
+                    catch (Exception jobFailureEx)
                     {
-                        await storage.MoveToDeadLetterAsync(job.Id, ex.Message, ct);
-                        await storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
-                        _logger.LogError(
-                            "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
+                        workerLogger.LogError(
+                            jobFailureEx,
+                            "Error while handling failure of job {JobId} on '{Queue}' on attempt {Attempt}",
                             job.Id,
-                            _queue.QueueKey
+                            _queue.QueueKey,
+                            attempt
                         );
                     }
                 }

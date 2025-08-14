@@ -1,6 +1,4 @@
-﻿using Atomizer.Abstractions;
-
-namespace Atomizer.Example.Handlers;
+﻿namespace Atomizer.Example.Handlers;
 
 public record LoggerJob(string Message, LogLevel Level);
 

@@ -6,9 +6,9 @@ public record EmptyPayloadJob;
 
 public class EmptyPayloadJobHandler : IAtomizerJobHandler<EmptyPayloadJob>
 {
-    private readonly IAtomizerLogger<EmptyPayloadJobHandler> _logger;
+    private readonly ILogger<EmptyPayloadJobHandler> _logger;
 
-    public EmptyPayloadJobHandler(IAtomizerLogger<EmptyPayloadJobHandler> logger)
+    public EmptyPayloadJobHandler(ILogger<EmptyPayloadJobHandler> logger)
     {
         _logger = logger;
     }
