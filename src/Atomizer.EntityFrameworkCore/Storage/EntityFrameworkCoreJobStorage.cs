@@ -19,6 +19,8 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
         private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
 
+        private readonly EFCoreStorageProvider _storageProvider;
+
         public EntityFrameworkCoreJobStorage(
             TDbContext dbContext,
             EntityFrameworkCoreJobStorageOptions options,
@@ -28,6 +30,8 @@ namespace Atomizer.EntityFrameworkCore.Storage
             _dbContext = dbContext;
             _options = options;
             _logger = logger;
+
+            _storageProvider = GetStorageProvider(dbContext);
         }
 
         public async Task<Guid> InsertAsync(
@@ -69,6 +73,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             int batchSize,
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
+            string leaseToken,
             CancellationToken cancellationToken
         )
         {
@@ -103,6 +108,20 @@ namespace Atomizer.EntityFrameworkCore.Storage
         public Task MoveToDeadLetterAsync(Guid jobId, string reason, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
+        }
+
+        private static EFCoreStorageProvider GetStorageProvider(TDbContext dbContext)
+        {
+            var provider = dbContext.Database.ProviderName;
+
+            return provider switch
+            {
+                "Npgsql.EntityFrameworkCore.PostgreSQL" => EFCoreStorageProvider.PostgreSql,
+                "Pomelo.EntityFrameworkCore.MySql" or "MySql.Data.EntityFrameworkCore" or "MySql.EntityFrameworkCore" =>
+                    EFCoreStorageProvider.MySql,
+                "Microsoft.EntityFrameworkCore.SqlServer" => EFCoreStorageProvider.SqlServer,
+                _ => throw new NotSupportedException($"Provider '{provider}' is not supported."),
+            };
         }
     }
 }

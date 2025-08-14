@@ -53,6 +53,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 CorrelationId = job.CorrelationId,
                 CausationId = job.CausationId,
                 IdempotencyKey = job.IdempotencyKey,
+                LeaseToken = job.LeaseToken,
             };
         }
     }
@@ -78,6 +79,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 CorrelationId = entity.CorrelationId,
                 CausationId = entity.CausationId,
                 IdempotencyKey = entity.IdempotencyKey,
+                LeaseToken = entity.LeaseToken,
             };
         }
     }

@@ -69,6 +69,7 @@ namespace Atomizer.Configuration
             services.AddSingleton(options);
             services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
             services.AddHostedService<AtomizerHostedService>();
+            services.AddSingleton<AtomizerRuntimeIdentity>();
 
             return services;
         }

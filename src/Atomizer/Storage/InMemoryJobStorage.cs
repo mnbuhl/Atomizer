@@ -87,6 +87,7 @@ namespace Atomizer.Storage
             int batchSize,
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
+            string leaseToken,
             CancellationToken cancellationToken
         )
         {

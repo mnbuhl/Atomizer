@@ -20,6 +20,8 @@ namespace Atomizer.Models
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public string? IdempotencyKey { get; set; }
+
+        public string? LeaseToken { get; set; }
     }
 
     public enum AtomizerJobStatus

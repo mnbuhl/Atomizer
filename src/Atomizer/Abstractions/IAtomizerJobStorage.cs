@@ -14,6 +14,7 @@ namespace Atomizer.Abstractions
             int batchSize,
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
+            string leaseToken,
             CancellationToken cancellationToken
         );
 

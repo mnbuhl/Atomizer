@@ -4,7 +4,6 @@ using Atomizer.EFCore.Example.Data;
 using Atomizer.EFCore.Example.Entities;
 using Atomizer.EFCore.Example.Handlers;
 using Atomizer.EntityFrameworkCore.Extensions;
-using Atomizer.EntityFrameworkCore.Storage;
 using Atomizer.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +24,7 @@ builder.Services.AddAtomizer(options =>
 {
     options.AddQueue(QueueKey.Default);
     options.AddHandlersFrom<AssignStockJobHandler>();
-    options.UseEntityFrameworkCoreStorage<ExampleDbContext>(EFCoreStorageProvider.PostgreSql);
+    options.UseEntityFrameworkCoreStorage<ExampleDbContext>();
 });
 builder.Services.AddAtomizerProcessing();
 
