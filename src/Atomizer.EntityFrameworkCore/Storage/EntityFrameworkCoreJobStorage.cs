@@ -68,7 +68,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             return entity.Id;
         }
 
-        public Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
+        public async Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
             QueueKey queueKey,
             int batchSize,
             DateTimeOffset now,
@@ -76,6 +76,81 @@ namespace Atomizer.EntityFrameworkCore.Storage
             string leaseToken,
             CancellationToken cancellationToken
         )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var candidateIds = await JobEntities
+                .AsNoTracking()
+                .Where(j =>
+                    j.QueueKey == queueKey.Key
+                    && (
+                        j.Status == AtomizerEntityJobStatus.Pending
+                            && (j.VisibleAt == null || j.VisibleAt <= now)
+                            && j.ScheduledAt <= now
+                        || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
+                    )
+                )
+                .Select(j => j.Id)
+                .Take(batchSize)
+                .ToListAsync(cancellationToken);
+
+            if (candidateIds.Count == 0)
+            {
+                _logger.LogDebug("No jobs found for queue {QueueKey} at {Now}", queueKey.Key, now);
+                return Array.Empty<AtomizerJob>();
+            }
+
+            var updated = await JobEntities
+                .Where(j =>
+                    candidateIds.Contains(j.Id)
+                    && (
+                        j.Status == AtomizerEntityJobStatus.Pending
+                            && (j.VisibleAt == null || j.VisibleAt <= now)
+                            && j.ScheduledAt <= now
+                        || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
+                    )
+                )
+                .ExecuteUpdateAsync(
+                    s =>
+                        s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Processing)
+                            .SetProperty(j => j.Attempt, j => j.Attempt + 1)
+                            .SetProperty(j => j.VisibleAt, now.Add(visibilityTimeout))
+                            .SetProperty(j => j.LeaseToken, leaseToken),
+                    cancellationToken
+                );
+
+            if (updated == 0)
+            {
+                _logger.LogDebug(
+                    "No jobs updated for queue {QueueKey} at {Now} with lease token {LeaseToken}",
+                    queueKey.Key,
+                    now,
+                    leaseToken
+                );
+                return Array.Empty<AtomizerJob>();
+            }
+
+            _logger.LogInformation(
+                "Leased {Count} jobs for queue {QueueKey} with lease token {LeaseToken}",
+                updated,
+                queueKey.Key,
+                leaseToken
+            );
+
+            var leased = await JobEntities
+                .AsNoTracking()
+                .Where(j =>
+                    candidateIds.Contains(j.Id)
+                    && j.Status == AtomizerEntityJobStatus.Processing
+                    && j.LeaseToken == leaseToken
+                )
+                .Select(j => j.ToAtomizerJob())
+                .ToListAsync(cancellationToken);
+
+            return leased;
+        }
+
+        public Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

@@ -119,6 +119,7 @@ namespace Atomizer.Storage
                         stored.Status = AtomizerJobStatus.Processing;
                         stored.Attempt += 1;
                         stored.VisibleAt = now + visibilityTimeout;
+                        stored.LeaseToken = leaseToken;
                         // reflect mutations in the dictionary (stored is a reference type)
                         _jobs[job.Id] = stored;
                     }
@@ -128,6 +129,32 @@ namespace Atomizer.Storage
             _logger.LogDebug("Leased {Count} job(s) from '{Queue}'", leased.Count, queueKey);
             // Return the leased snapshots
             return Task.FromResult((IReadOnlyList<AtomizerJob>)leased);
+        }
+
+        public Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            int releasedCount = 0;
+
+            lock (_leaseGate)
+            {
+                foreach (
+                    var job in _jobs.Values.Where(j =>
+                        j.LeaseToken == leaseToken && j.Status == AtomizerJobStatus.Processing
+                    )
+                )
+                {
+                    job.Status = AtomizerJobStatus.Pending;
+                    job.VisibleAt = null; // Clear visibility to make it available immediately
+                    job.LeaseToken = null; // Clear lease token
+                    _jobs[job.Id] = job; // Update the job in the dictionary
+                    releasedCount++;
+                }
+            }
+
+            _logger.LogDebug("Released {Count} leased job(s) with token '{LeaseToken}'", releasedCount, leaseToken);
+            return Task.FromResult(releasedCount);
         }
 
         public Task MarkSucceededAsync(Guid jobId, DateTimeOffset completedAt, CancellationToken cancellationToken)

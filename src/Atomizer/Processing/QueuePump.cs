@@ -19,7 +19,6 @@ namespace Atomizer.Processing
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerLogger<QueuePump> _logger;
         private readonly IServiceProvider _serviceProvider;
-        private readonly AtomizerRuntimeIdentity _identity;
 
         private readonly Channel<AtomizerJob> _channel;
         private readonly List<Task> _workers = new List<Task>();
@@ -41,7 +40,6 @@ namespace Atomizer.Processing
             _dispatcher = dispatcher;
             _clock = clock;
             _logger = serviceProvider.GetRequiredService<IAtomizerLogger<QueuePump>>();
-            _identity = serviceProvider.GetRequiredService<AtomizerRuntimeIdentity>();
             _serviceProvider = serviceProvider;
 
             _channel = Channel.CreateBounded<AtomizerJob>(
@@ -53,7 +51,9 @@ namespace Atomizer.Processing
             );
 
             _lastStorageCheck = _clock.MinValue;
-            _leaseToken = $"{_identity.InstanceId}-{_queue.QueueKey}:{Guid.NewGuid():N}";
+
+            var identity = serviceProvider.GetRequiredService<AtomizerRuntimeIdentity>();
+            _leaseToken = $"{identity.InstanceId}-{_queue.QueueKey}:{Guid.NewGuid():N}";
         }
 
         public void Start(CancellationToken cancellationToken)

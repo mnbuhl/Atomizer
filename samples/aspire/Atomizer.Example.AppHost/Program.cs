@@ -1,10 +1,6 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var postgres = builder
-    .AddPostgres("postgres")
-    .WithPgAdmin()
-    .WithDataVolume()
-    .WithLifetime(ContainerLifetime.Persistent);
+var postgres = builder.AddPostgres("postgres").WithPgAdmin().WithDataVolume();
 
 var database = postgres.AddDatabase("atomizerdb");
 
