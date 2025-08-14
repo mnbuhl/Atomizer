@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.EntityFrameworkCore.Entities;
+using Atomizer.EntityFrameworkCore.Extensions;
 using Atomizer.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -90,6 +91,8 @@ namespace Atomizer.EntityFrameworkCore.Storage
                         || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
                     )
                 )
+                .OrderBy(j => j.ScheduledAt)
+                .ThenBy(j => j.CreatedAt)
                 .Select(j => j.Id)
                 .Take(batchSize)
                 .ToListAsync(cancellationToken);
@@ -110,7 +113,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
                         || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
                     )
                 )
-                .ExecuteUpdateAsync(
+                .ExecuteUpdateCompatAsync(
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Processing)
                             .SetProperty(j => j.Attempt, j => j.Attempt + 1)
