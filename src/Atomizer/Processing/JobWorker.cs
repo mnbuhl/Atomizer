@@ -1,0 +1,80 @@
+﻿using System;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
+using Atomizer.Abstractions;
+using Atomizer.Configuration;
+using Atomizer.Hosting;
+using Atomizer.Models;
+using Microsoft.Extensions.Logging;
+
+namespace Atomizer.Processing
+{
+    internal sealed class JobWorker
+    {
+        private readonly string _workerId;
+        private readonly QueueOptions _queue;
+        private readonly IAtomizerClock _clock;
+        private readonly IAtomizerJobDispatcher _dispatcher;
+        private readonly DefaultRetryPolicy _retryPolicy;
+        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+        private readonly ILogger _logger;
+        private readonly ILoggerFactory _loggerFactory;
+
+        public JobWorker(
+            string workerId,
+            QueueOptions queue,
+            IAtomizerClock clock,
+            IAtomizerJobDispatcher dispatcher,
+            DefaultRetryPolicy retryPolicy,
+            IAtomizerStorageScopeFactory storageScopeFactory,
+            ILoggerFactory loggerFactory
+        )
+        {
+            _workerId = workerId;
+            _queue = queue;
+            _clock = clock;
+            _dispatcher = dispatcher;
+            _retryPolicy = retryPolicy;
+            _storageScopeFactory = storageScopeFactory;
+            _loggerFactory = loggerFactory;
+
+            _logger = loggerFactory.CreateLogger($"Worker.{workerId}");
+        }
+
+        public async Task RunAsync(ChannelReader<AtomizerJob> reader, CancellationToken ct)
+        {
+            _logger.LogDebug("Worker {Worker} for '{Queue}' started", _workerId, _queue.QueueKey);
+
+            while (!ct.IsCancellationRequested)
+            {
+                AtomizerJob job;
+                try
+                {
+                    job = await reader.ReadAsync(ct);
+                }
+                catch
+                {
+                    _logger.LogWarning("Worker {Worker} read operation failed, stopping worker", _workerId);
+                    break;
+                }
+
+                using var scope = _storageScopeFactory.CreateScope();
+                var storage = scope.Storage;
+
+                var jobLogger = _loggerFactory.CreateLogger($"Worker.{_workerId}-{job.Id}");
+                var processor = new JobProcessor(_queue, _clock, _dispatcher, _retryPolicy, storage, jobLogger);
+
+                try
+                {
+                    await processor.ProcessAsync(job, ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    jobLogger.LogWarning("Worker {Worker} cancellation requested", _workerId);
+                    break;
+                }
+            }
+        }
+    }
+}

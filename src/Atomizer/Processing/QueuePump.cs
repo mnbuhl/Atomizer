@@ -20,38 +20,40 @@ namespace Atomizer.Processing
         private readonly IAtomizerClock _clock;
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<QueuePump> _logger;
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
 
         private readonly Channel<AtomizerJob> _channel;
         private readonly List<Task> _workers = new List<Task>();
         private CancellationTokenSource _cts = new CancellationTokenSource();
-        private DateTimeOffset _lastStorageCheck;
-
-        private readonly string _leaseToken;
+        private readonly QueuePoller _poller;
 
         public QueuePump(QueueOptions queue, DefaultRetryPolicy retryPolicy, IServiceProvider serviceProvider)
         {
             _queue = queue;
             _retryPolicy = retryPolicy;
-            _serviceProvider = serviceProvider;
             _dispatcher = serviceProvider.GetRequiredService<IAtomizerJobDispatcher>();
             _clock = serviceProvider.GetRequiredService<IAtomizerClock>();
             _loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
             _logger = _loggerFactory.CreateLogger<QueuePump>();
 
-            _channel = Channel.CreateBounded<AtomizerJob>(
-                new BoundedChannelOptions(_queue.DegreeOfParallelism * _queue.BatchSize)
-                {
-                    FullMode = BoundedChannelFullMode.Wait,
-                    SingleReader = false,
-                }
+            _channel = ChannelFactory.CreateBounded<AtomizerJob>(
+                capacity: Math.Max(1, _queue.DegreeOfParallelism) * Math.Max(1, _queue.BatchSize)
             );
 
-            _lastStorageCheck = _clock.MinValue;
-
             var identity = serviceProvider.GetRequiredService<AtomizerRuntimeIdentity>();
-            _leaseToken = $"{identity.InstanceId}-{_queue.QueueKey}:{Guid.NewGuid():N}";
+            var leaseToken = $"{identity.InstanceId}-{_queue.QueueKey}:{Guid.NewGuid():N}";
+
+            _storageScopeFactory = new ServiceProviderStorageScopeFactory(serviceProvider);
+
+            _poller = new QueuePoller(
+                _queue,
+                _clock,
+                _storageScopeFactory,
+                _loggerFactory.CreateLogger<QueuePoller>(),
+                leaseToken,
+                _channel.Writer
+            );
         }
 
         public void Start(CancellationToken cancellationToken)
@@ -64,14 +66,26 @@ namespace Atomizer.Processing
                 _queue.DegreeOfParallelism
             );
 
-            _ = Task.Run(async () => await PollLoop(_cts.Token), _cts.Token);
+            // Start poller
+            _ = Task.Run(async () => await _poller.RunAsync(_cts.Token), _cts.Token);
 
+            // Start workers
             var workers = Math.Max(1, _queue.DegreeOfParallelism);
             for (int i = 0; i < workers; i++)
             {
                 var workerId = $"{_queue.QueueKey}-{i}";
-                var workerTask = Task.Run(async () => await WorkerLoop(workerId, _cts.Token), _cts.Token);
-                _workers.Add(workerTask);
+                var worker = new JobWorker(
+                    workerId,
+                    _queue,
+                    _clock,
+                    _dispatcher,
+                    _retryPolicy,
+                    _storageScopeFactory,
+                    _loggerFactory
+                );
+
+                var task = Task.Run(async () => await worker.RunAsync(_channel.Reader, _cts.Token), _cts.Token);
+                _workers.Add(task);
             }
         }
 
@@ -80,13 +94,14 @@ namespace Atomizer.Processing
             _logger.LogInformation("Stopping queue '{QueueKey}'...", _queue.QueueKey);
             _cts.Cancel();
             _channel.Writer.TryComplete();
+
             try
             {
                 await Task.WhenAll(_workers);
             }
             catch (OperationCanceledException)
             {
-                // Ignore cancellation exceptions
+                // expected on shutdown
             }
             catch (Exception ex)
             {
@@ -96,168 +111,8 @@ namespace Atomizer.Processing
             {
                 _cts.Dispose();
             }
+
             _logger.LogInformation("Queue '{QueueKey}' stopped", _queue.QueueKey);
-        }
-
-        private async Task PollLoop(CancellationToken ct)
-        {
-            var tick = _queue.TickInterval;
-            var storageCadence = _queue.StorageCheckInterval;
-
-            while (!ct.IsCancellationRequested)
-            {
-                try
-                {
-                    var now = _clock.UtcNow;
-                    if (now - _lastStorageCheck >= storageCadence)
-                    {
-                        using var scope = _serviceProvider.CreateScope();
-                        var storage = scope.ServiceProvider.GetRequiredService<IAtomizerJobStorage>();
-
-                        _lastStorageCheck = now;
-
-                        var leased = await storage.TryLeaseBatchAsync(
-                            _queue.QueueKey,
-                            _queue.BatchSize,
-                            now,
-                            _queue.VisibilityTimeout,
-                            _leaseToken,
-                            ct
-                        );
-
-                        if (leased.Count > 0)
-                        {
-                            _logger.LogDebug("Queue '{Queue}' leased {Count} job(s)", _queue.QueueKey, leased.Count);
-
-                            foreach (var job in leased)
-                            {
-                                await _channel.Writer.WriteAsync(job, ct);
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogDebug("Queue '{Queue}' found no jobs to lease", _queue.QueueKey);
-                        }
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    // Cancellation requested, exit the loop
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error in poll loop for queue '{QueueKey}'", _queue.QueueKey);
-                }
-
-                try
-                {
-                    await Task.Delay(tick, ct);
-                }
-                catch (TaskCanceledException)
-                {
-                    // Cancellation requested, exit the loop
-                    break;
-                }
-            }
-        }
-
-        private async Task WorkerLoop(string workerId, CancellationToken ct)
-        {
-            _logger.LogDebug("Worker {Worker} for '{Queue}' started", workerId, _queue.QueueKey);
-
-            while (!ct.IsCancellationRequested)
-            {
-                AtomizerJob job;
-                try
-                {
-                    job = await _channel.Reader.ReadAsync(ct);
-                }
-                catch
-                {
-                    break;
-                }
-
-                using var scope = _serviceProvider.CreateScope();
-                var storage = scope.ServiceProvider.GetRequiredService<IAtomizerJobStorage>();
-                var workerLogger = _loggerFactory.CreateLogger($"Worker.{workerId}-{job.Id}");
-
-                var swStart = _clock.UtcNow;
-                try
-                {
-                    workerLogger.LogDebug(
-                        "Worker {Worker} executing job {JobId} (attempt {Attempt}) on '{Queue}'",
-                        workerId,
-                        job.Id,
-                        job.Attempt,
-                        _queue.QueueKey
-                    );
-                    await _dispatcher.DispatchAsync(job, ct);
-                    await storage.MarkSucceededAsync(job.Id, _clock.UtcNow, ct);
-                    workerLogger.LogInformation(
-                        "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
-                        job.Id,
-                        (int)(_clock.UtcNow - swStart).TotalMilliseconds,
-                        _queue.QueueKey
-                    );
-                }
-                catch (TaskCanceledException) when (ct.IsCancellationRequested)
-                {
-                    workerLogger.LogWarning(
-                        "Worker {Worker} cancellation requested while processing job {JobId} on '{Queue}'",
-                        workerId,
-                        job.Id,
-                        _queue.QueueKey
-                    );
-                    // figure out how to handle cancellation gracefully
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    workerLogger.LogWarning("Worker {Worker} cancellation requested", workerId);
-                    // figure out how to handle cancellation gracefully
-                }
-                catch (Exception ex)
-                {
-                    var attempt = job.Attempt;
-
-                    try
-                    {
-                        var retryCtx = new AtomizerRetryContext(job);
-                        if (_retryPolicy.ShouldRetry(attempt, ex, retryCtx))
-                        {
-                            var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
-                            var nextVisible = _clock.UtcNow + delay;
-                            await storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
-                            workerLogger.LogWarning(
-                                "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
-                                job.Id,
-                                attempt,
-                                _queue.QueueKey,
-                                (int)delay.TotalMilliseconds
-                            );
-                        }
-                        else
-                        {
-                            await storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
-                            workerLogger.LogError(
-                                "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
-                                job.Id,
-                                _queue.QueueKey
-                            );
-                        }
-                    }
-                    catch (Exception jobFailureEx)
-                    {
-                        workerLogger.LogError(
-                            jobFailureEx,
-                            "Error while handling failure of job {JobId} on '{Queue}' on attempt {Attempt}",
-                            job.Id,
-                            _queue.QueueKey,
-                            attempt
-                        );
-                    }
-                }
-            }
         }
     }
 }
