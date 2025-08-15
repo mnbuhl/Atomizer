@@ -78,7 +78,7 @@ namespace Atomizer.Processing
 
         private async Task HandleFailureAsync(AtomizerJob job, Exception ex, CancellationToken ct)
         {
-            var attempt = job.Attempt;
+            var attempt = job.Attempt + 1;
 
             try
             {
@@ -89,7 +89,7 @@ namespace Atomizer.Processing
                     var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
                     var nextVisible = _clock.UtcNow + delay;
 
-                    await _storage.RescheduleAsync(job.Id, _leaseToken, attempt + 1, nextVisible, ct);
+                    await _storage.RescheduleAsync(job.Id, _leaseToken, attempt, nextVisible, ct);
 
                     _logger.LogWarning(
                         "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
@@ -104,7 +104,7 @@ namespace Atomizer.Processing
                     await _storage.MarkFailedAsync(job.Id, _leaseToken, ex, _clock.UtcNow, ct);
 
                     _logger.LogError(
-                        "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
+                        "Job {JobId} exhausted retries and was marked as failed on '{Queue}'",
                         job.Id,
                         _queue.QueueKey
                     );

@@ -26,10 +26,9 @@ namespace Atomizer.Models
 
     public enum AtomizerJobStatus
     {
-        Pending,
-        Processing,
-        Completed,
-        Failed,
-        DeadLettered,
+        Pending = 1,
+        Processing = 2,
+        Completed = 3,
+        Failed = 4,
     }
 }

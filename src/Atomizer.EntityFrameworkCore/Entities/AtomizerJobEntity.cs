@@ -26,11 +26,10 @@ namespace Atomizer.EntityFrameworkCore.Entities
 
     public enum AtomizerEntityJobStatus
     {
-        Pending,
-        Processing,
-        Completed,
-        Failed,
-        DeadLettered,
+        Pending = 1,
+        Processing = 2,
+        Completed = 3,
+        Failed = 4,
     }
 
     public static class AtomizerJobEntityExtensions

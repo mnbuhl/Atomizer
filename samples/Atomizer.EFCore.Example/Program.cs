@@ -103,4 +103,13 @@ app.MapPost(
     }
 );
 
+app.MapPost(
+    "/exception-job",
+    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] ExceptionJob job) =>
+    {
+        var jobId = await atomizerClient.EnqueueAsync(job);
+        return Results.Accepted($"/jobs/{jobId}");
+    }
+);
+
 app.Run();
