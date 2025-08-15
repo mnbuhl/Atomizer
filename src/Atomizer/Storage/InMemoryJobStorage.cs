@@ -210,18 +210,6 @@ namespace Atomizer.Storage
             return Task.CompletedTask;
         }
 
-        public Task MoveToDeadLetterAsync(Guid jobId, string reason, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (_jobs.TryGetValue(jobId, out var j))
-            {
-                j.Status = AtomizerJobStatus.DeadLettered;
-                _jobs[jobId] = j;
-            }
-            return Task.CompletedTask;
-        }
-
         private void EvictWhileOverCapacity(int max)
         {
             while (_jobs.Count > max && _insertionOrder.Count > 0)

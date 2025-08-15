@@ -81,4 +81,13 @@ app.MapPost(
     }
 );
 
+app.MapPost(
+    "/long-running-job",
+    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] LongRunningJob job) =>
+    {
+        var jobId = await atomizerClient.EnqueueAsync(job);
+        return Results.Accepted($"/jobs/{jobId}");
+    }
+);
+
 app.Run();

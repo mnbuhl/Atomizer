@@ -28,6 +28,5 @@ namespace Atomizer.Abstractions
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken
         );
-        Task MoveToDeadLetterAsync(Guid jobId, string reason, CancellationToken cancellationToken);
     }
 }

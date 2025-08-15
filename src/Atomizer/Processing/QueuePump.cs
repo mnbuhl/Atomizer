@@ -65,7 +65,7 @@ namespace Atomizer.Processing
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             _logger.LogInformation(
-                "Starting queue '{QueueKey}' with {Workers} workers.",
+                "Starting queue '{QueueKey}' with {Workers} workers",
                 _queue.QueueKey,
                 _queue.DegreeOfParallelism
             );
@@ -96,13 +96,13 @@ namespace Atomizer.Processing
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while stopping queue '{QueueKey}'.", _queue.QueueKey);
+                _logger.LogError(ex, "Error while stopping queue '{QueueKey}'", _queue.QueueKey);
             }
             finally
             {
                 _cts.Dispose();
             }
-            _logger.LogInformation("Queue '{QueueKey}' stopped.", _queue.QueueKey);
+            _logger.LogInformation("Queue '{QueueKey}' stopped", _queue.QueueKey);
         }
 
         private async Task PollLoop(CancellationToken ct)
@@ -244,7 +244,6 @@ namespace Atomizer.Processing
                         }
                         else
                         {
-                            await storage.MoveToDeadLetterAsync(job.Id, ex.Message, ct);
                             await storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
                             workerLogger.LogError(
                                 "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",
