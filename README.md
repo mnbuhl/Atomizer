@@ -1,54 +1,69 @@
 # Atomizer
 
-**Atomizer** is a lightweight, highly extensible background job scheduler for .NET applications.  
-It is designed to work seamlessly with **EF Core** and **PostgreSQL/MySQL/SQL Server** out of the box, while allowing future storage providers (e.g., Redis, DocumentDB, in-memory) with minimal friction.
+> Breaking complexity into atoms — The name “Atomizer” comes from the concept of taking complex, large-scale job processing and breaking it down into the smallest possible executable units (atoms), making distributed processing simpler, more reliable, and easier to reason about.
 
-Atomizer runs jobs on a configurable schedule, supports multiple named queues, batching, parallel processing, retry policies, dead-letter queues, and distributed execution safety (row locking).
-
----
+## Overview
+Atomizer is a lightweight, extensible job processing framework for ASP.NET Core, designed for high throughput and low friction in modern distributed applications.
+It supports multiple storage backends, pluggable job handlers, and graceful shutdowns, while being easy to extend.
 
 ## Features
+- Entity Framework Core driver — First-class support for EF Core 7 with database-backed queues.
+- In-memory driver — Great for testing and development (use at your own risk in production).
+- Multiple queues — Configure different processing options per queue.
+- Graceful shutdown — Ensure in-flight jobs complete or are released back for re-processing.
+- Idempotency support — Avoid double-processing when desired.
 
-- **Multiple queues**: Standard, named queues running side-by-side.
-- **Storage-agnostic**: EF Core (Postgres/MySQL/SQL Server) out of the box, plus in-memory driver
-- **Distributed-safe**: Uses row-level locking in SQL providers.
-- **Configurable batching**: Control how many jobs are pulled per lease.
-- **Parallel workers**: Configure workers per queue using TPL for high throughput.
-- **Error handling & retries**: Built-in retry strategies with extension points.
-- **Dead-letter queue**: Failed jobs can be moved to a persistent dead-letter store.
-- **Fully extensible**: Add your own storages, retry strategies, logging providers, IoC containers, and more.
+## Planned Features
+- Recurring scheduled jobs (cron-like recurring execution).
+- Dashboard (live monitoring and retry/dead-letter management).
+- Redis driver (for fast, distributed, in-memory queues).
 
----
-
-## Installation
-
-```bash
+## Quick Start
+### 1. Install the package
+```csharp
 dotnet add package Atomizer
+dotnet add package Atomizer.EntityFrameworkCore
 ```
 
-### Quick Start
-
+### 2. Configure Atomizer
+Example with EF Core storage and a single queue:
 ```csharp
-builder.Services.AddAtomizer(opts =>
+builder.Services.AddAtomizer(options =>
 {
-    options.AddQueue(QueueKey.Default); // Add a queue
-    options.AddHandlersFrom<SendEmailHandler>(); // Register job handlers
-    options.UseInMemoryStorage(); // Configure the storage provider
+    // Add the default queue
+    options.AddQueue(QueueKey.Default);
+
+    // Register all job handlers from an assembly
+    options.AddHandlersFrom<AssignStockJobHandler>();
+
+    // Use EF Core-backed job storage
+    options.UseEntityFrameworkCoreStorage<ExampleDbContext>();
 });
-builder.Services.AddAtomizerProcessing(); // Add processing services
+
+// Adds the Atomizer processing services
+builder.Services.AddAtomizerProcessing();
 ```
 
-### Defining a Job & Handler
+Inside your `DbContext`:
 ```csharp
-public record SendEmailJob(string Email, string Subject, string Body);
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.AddAtomizerEntities();
+    ...
+}
+```
 
-public class SendEmailJobHandler : IAtomizerJobHandler<SendEmailJob>
+### 3. Define a Job Handler
+```csharp
+public record SendEmailCommand(string Email, string Subject, string Body);
+
+public class SendEmailJobHandler : IAtomizerJobHandler<SendEmailCommand>
 {
     private readonly IEmailService _email;
     
     public SendEmailJobHandler(IEmailService email) => _email = email;
 
-    public async Task HandleAsync(SendEmailJob payload, JobContext context)
+    public async Task HandleAsync(SendEmailCommand payload, JobContext context)
     {
         await _email.SendAsync(
             payload.Email,
@@ -60,7 +75,7 @@ public class SendEmailJobHandler : IAtomizerJobHandler<SendEmailJob>
 }
 ```
 
-### Enqueuing (or scheduling) a Job
+### 4. Enqueue (or schedule) a Job
 ```csharp
 public class MyController : ControllerBase
 {
@@ -84,3 +99,12 @@ public class MyController : ControllerBase
     }
 }
 ```
+
+## Contributing
+1. Fork the repository.
+2. Create a new branch (feature/xyz).
+3. Commit your changes with clear messages.
+4. Submit a PR with details of your changes and test coverage.
+
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details
