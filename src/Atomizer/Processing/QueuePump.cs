@@ -54,7 +54,7 @@ namespace Atomizer.Processing
                 _storageScopeFactory,
                 _loggerFactory.CreateLogger<QueuePoller>(),
                 _leaseToken,
-                _channel.Writer
+                _channel
             );
         }
 

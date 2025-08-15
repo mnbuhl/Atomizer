@@ -213,7 +213,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
             var affected = await JobEntities
                 .Where(j => j.Id == jobId)
-                .ExecuteUpdateAsync(
+                .ExecuteUpdateCompatAsync(
                     set =>
                         set.SetProperty(j => j.Status, _ => AtomizerEntityJobStatus.Failed)
                             .SetProperty(j => j.FailedAt, _ => failedAt)

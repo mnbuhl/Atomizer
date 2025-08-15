@@ -17,7 +17,7 @@ namespace Atomizer.Processing
         private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILogger<QueuePoller> _logger;
         private readonly string _leaseToken;
-        private readonly ChannelWriter<AtomizerJob> _channelWriter;
+        private readonly Channel<AtomizerJob> _channel;
 
         private DateTimeOffset _lastStorageCheck;
 
@@ -27,7 +27,7 @@ namespace Atomizer.Processing
             IAtomizerStorageScopeFactory storageScopeFactory,
             ILogger<QueuePoller> logger,
             string leaseToken,
-            ChannelWriter<AtomizerJob> channelWriter
+            Channel<AtomizerJob> channel
         )
         {
             _queue = queue;
@@ -35,7 +35,7 @@ namespace Atomizer.Processing
             _storageScopeFactory = storageScopeFactory;
             _logger = logger;
             _leaseToken = leaseToken;
-            _channelWriter = channelWriter;
+            _channel = channel;
 
             _lastStorageCheck = _clock.MinValue;
         }
@@ -50,7 +50,8 @@ namespace Atomizer.Processing
                 try
                 {
                     var now = _clock.UtcNow;
-                    if (now - _lastStorageCheck >= storageCheckInterval)
+                    var itemsInChannel = _channel.Reader.CanCount ? _channel.Reader.Count : 0;
+                    if (now - _lastStorageCheck >= storageCheckInterval && itemsInChannel < _queue.DegreeOfParallelism)
                     {
                         using var scope = _storageScopeFactory.CreateScope();
                         var storage = scope.Storage;
@@ -72,7 +73,7 @@ namespace Atomizer.Processing
 
                             foreach (var job in leased)
                             {
-                                await _channelWriter.WriteAsync(job, ct);
+                                await _channel.Writer.WriteAsync(job, ct);
                             }
                         }
                         else
