@@ -17,6 +17,7 @@ namespace Atomizer.Processing
         private readonly DefaultRetryPolicy _retryPolicy;
         private readonly IAtomizerJobStorage _storage;
         private readonly ILogger _logger;
+        private readonly string _leaseToken;
 
         public JobProcessor(
             QueueOptions queue,
@@ -24,7 +25,8 @@ namespace Atomizer.Processing
             IAtomizerJobDispatcher dispatcher,
             DefaultRetryPolicy retryPolicy,
             IAtomizerJobStorage storage,
-            ILogger logger
+            ILogger logger,
+            string leaseToken
         )
         {
             _queue = queue;
@@ -33,6 +35,7 @@ namespace Atomizer.Processing
             _retryPolicy = retryPolicy;
             _storage = storage;
             _logger = logger;
+            _leaseToken = leaseToken;
         }
 
         public async Task ProcessAsync(AtomizerJob job, CancellationToken ct)
@@ -50,7 +53,7 @@ namespace Atomizer.Processing
 
                 await _dispatcher.DispatchAsync(job, ct);
 
-                await _storage.MarkSucceededAsync(job.Id, _clock.UtcNow, ct);
+                await _storage.MarkCompletedAsync(job.Id, _leaseToken, _clock.UtcNow, ct);
 
                 _logger.LogInformation(
                     "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
@@ -86,7 +89,7 @@ namespace Atomizer.Processing
                     var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
                     var nextVisible = _clock.UtcNow + delay;
 
-                    await _storage.RescheduleAsync(job.Id, attempt + 1, nextVisible, ct);
+                    await _storage.RescheduleAsync(job.Id, _leaseToken, attempt + 1, nextVisible, ct);
 
                     _logger.LogWarning(
                         "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
@@ -98,7 +101,7 @@ namespace Atomizer.Processing
                 }
                 else
                 {
-                    await _storage.MarkFailedAsync(job.Id, ex, _clock.UtcNow, ct);
+                    await _storage.MarkFailedAsync(job.Id, _leaseToken, ex, _clock.UtcNow, ct);
 
                     _logger.LogError(
                         "Job {JobId} exhausted retries and was dead-lettered on '{Queue}'",

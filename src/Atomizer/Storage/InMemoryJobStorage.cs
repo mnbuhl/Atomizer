@@ -158,11 +158,16 @@ namespace Atomizer.Storage
             return Task.FromResult(releasedCount);
         }
 
-        public Task MarkSucceededAsync(Guid jobId, DateTimeOffset completedAt, CancellationToken cancellationToken)
+        public Task MarkCompletedAsync(
+            Guid jobId,
+            string leaseToken,
+            DateTimeOffset completedAt,
+            CancellationToken cancellationToken
+        )
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (_jobs.TryGetValue(jobId, out var j))
+            if (_jobs.TryGetValue(jobId, out var j) && j.LeaseToken == leaseToken)
             {
                 j.Status = AtomizerJobStatus.Completed;
                 j.CompletedAt = completedAt;
@@ -174,6 +179,7 @@ namespace Atomizer.Storage
 
         public Task MarkFailedAsync(
             Guid jobId,
+            string leaseToken,
             Exception error,
             DateTimeOffset failedAt,
             CancellationToken cancellationToken
@@ -181,7 +187,7 @@ namespace Atomizer.Storage
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (_jobs.TryGetValue(jobId, out var j))
+            if (_jobs.TryGetValue(jobId, out var j) && j.LeaseToken == leaseToken)
             {
                 j.Status = AtomizerJobStatus.Failed;
                 j.FailedAt = failedAt;
@@ -193,6 +199,7 @@ namespace Atomizer.Storage
 
         public Task RescheduleAsync(
             Guid jobId,
+            string leaseToken,
             int attemptCount,
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken
@@ -200,7 +207,7 @@ namespace Atomizer.Storage
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (_jobs.TryGetValue(jobId, out var j))
+            if (_jobs.TryGetValue(jobId, out var j) && j.LeaseToken == leaseToken)
             {
                 j.Status = AtomizerJobStatus.Pending;
                 j.Attempt = attemptCount;

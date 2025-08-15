@@ -27,6 +27,8 @@ namespace Atomizer.Processing
         private CancellationTokenSource _cts = new CancellationTokenSource();
         private readonly QueuePoller _poller;
 
+        private readonly string _leaseToken;
+
         public QueuePump(QueueOptions queue, DefaultRetryPolicy retryPolicy, IServiceProvider serviceProvider)
         {
             _queue = queue;
@@ -42,7 +44,7 @@ namespace Atomizer.Processing
             );
 
             var identity = serviceProvider.GetRequiredService<AtomizerRuntimeIdentity>();
-            var leaseToken = $"{identity.InstanceId}-{_queue.QueueKey}:{Guid.NewGuid():N}";
+            _leaseToken = $"{identity.InstanceId}-{_queue.QueueKey}:{Guid.NewGuid():N}";
 
             _storageScopeFactory = new ServiceProviderStorageScopeFactory(serviceProvider);
 
@@ -51,7 +53,7 @@ namespace Atomizer.Processing
                 _clock,
                 _storageScopeFactory,
                 _loggerFactory.CreateLogger<QueuePoller>(),
-                leaseToken,
+                _leaseToken,
                 _channel.Writer
             );
         }
@@ -81,7 +83,8 @@ namespace Atomizer.Processing
                     _dispatcher,
                     _retryPolicy,
                     _storageScopeFactory,
-                    _loggerFactory
+                    _loggerFactory,
+                    _leaseToken
                 );
 
                 var task = Task.Run(async () => await worker.RunAsync(_channel.Reader, _cts.Token), _cts.Token);

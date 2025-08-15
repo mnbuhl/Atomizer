@@ -20,10 +20,22 @@ namespace Atomizer.Abstractions
 
         Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken);
 
-        Task MarkSucceededAsync(Guid jobId, DateTimeOffset completedAt, CancellationToken cancellationToken);
-        Task MarkFailedAsync(Guid jobId, Exception error, DateTimeOffset failedAt, CancellationToken cancellationToken);
+        Task MarkCompletedAsync(
+            Guid jobId,
+            string leaseToken,
+            DateTimeOffset completedAt,
+            CancellationToken cancellationToken
+        );
+        Task MarkFailedAsync(
+            Guid jobId,
+            string leaseToken,
+            Exception error,
+            DateTimeOffset failedAt,
+            CancellationToken cancellationToken
+        );
         Task RescheduleAsync(
             Guid jobId,
+            string leaseToken,
             int attemptCount,
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken

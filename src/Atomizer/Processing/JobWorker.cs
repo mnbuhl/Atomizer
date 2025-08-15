@@ -20,6 +20,7 @@ namespace Atomizer.Processing
         private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILogger _logger;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly string _leaseToken;
 
         public JobWorker(
             string workerId,
@@ -28,7 +29,8 @@ namespace Atomizer.Processing
             IAtomizerJobDispatcher dispatcher,
             DefaultRetryPolicy retryPolicy,
             IAtomizerStorageScopeFactory storageScopeFactory,
-            ILoggerFactory loggerFactory
+            ILoggerFactory loggerFactory,
+            string leaseToken
         )
         {
             _workerId = workerId;
@@ -38,6 +40,7 @@ namespace Atomizer.Processing
             _retryPolicy = retryPolicy;
             _storageScopeFactory = storageScopeFactory;
             _loggerFactory = loggerFactory;
+            _leaseToken = leaseToken;
 
             _logger = loggerFactory.CreateLogger($"Worker.{workerId}");
         }
@@ -63,7 +66,15 @@ namespace Atomizer.Processing
                 var storage = scope.Storage;
 
                 var jobLogger = _loggerFactory.CreateLogger($"Worker.{_workerId}-{job.Id}");
-                var processor = new JobProcessor(_queue, _clock, _dispatcher, _retryPolicy, storage, jobLogger);
+                var processor = new JobProcessor(
+                    _queue,
+                    _clock,
+                    _dispatcher,
+                    _retryPolicy,
+                    storage,
+                    jobLogger,
+                    _leaseToken
+                );
 
                 try
                 {

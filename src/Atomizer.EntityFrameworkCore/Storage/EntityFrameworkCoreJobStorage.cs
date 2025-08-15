@@ -150,39 +150,135 @@ namespace Atomizer.EntityFrameworkCore.Storage
             return leased;
         }
 
-        public Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken)
+        public async Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var releasedCount = await JobEntities
+                .Where(j => j.LeaseToken == leaseToken && j.Status == AtomizerEntityJobStatus.Processing)
+                .ExecuteUpdateCompatAsync(
+                    s =>
+                        s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)
+                            .SetProperty(j => j.VisibleAt, _ => null)
+                            .SetProperty(j => j.LeaseToken, _ => null),
+                    cancellationToken
+                );
+
+            return releasedCount;
         }
 
-        public Task MarkSucceededAsync(Guid jobId, DateTimeOffset completedAt, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task MarkFailedAsync(
+        public async Task MarkCompletedAsync(
             Guid jobId,
+            string leaseToken,
+            DateTimeOffset completedAt,
+            CancellationToken cancellationToken
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var updated = await JobEntities
+                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken)
+                .ExecuteUpdateCompatAsync(
+                    s =>
+                        s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Completed)
+                            .SetProperty(j => j.CompletedAt, completedAt)
+                            .SetProperty(j => j.VisibleAt, _ => null)
+                            .SetProperty(j => j.LeaseToken, _ => null),
+                    cancellationToken
+                );
+
+            if (updated == 0)
+            {
+                _logger.LogWarning(
+                    "Failed to mark job {JobId} as completed with lease token {LeaseToken}. Job may not exist or lease token mismatch",
+                    jobId,
+                    leaseToken
+                );
+            }
+            else
+            {
+                _logger.LogDebug("Job {JobId} marked as completed with lease token {LeaseToken}", jobId, leaseToken);
+            }
+        }
+
+        public async Task MarkFailedAsync(
+            Guid jobId,
+            string leaseToken,
             Exception error,
             DateTimeOffset failedAt,
             CancellationToken cancellationToken
         )
         {
-            throw new NotImplementedException();
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var affected = await JobEntities
+                .Where(j => j.Id == jobId)
+                .ExecuteUpdateAsync(
+                    set =>
+                        set.SetProperty(j => j.Status, _ => AtomizerEntityJobStatus.Failed)
+                            .SetProperty(j => j.FailedAt, _ => failedAt)
+                            .SetProperty(j => j.VisibleAt, _ => null)
+                            .SetProperty(j => j.LeaseToken, _ => null),
+                    cancellationToken
+                );
+
+            if (affected == 0)
+            {
+                _logger.LogWarning(
+                    "Failed to mark job {JobId} as failed with lease token {LeaseToken}. Job may not exist",
+                    jobId,
+                    leaseToken
+                );
+            }
+            else
+            {
+                _logger.LogError(
+                    error,
+                    "Job {JobId} marked as failed with lease token {LeaseToken}",
+                    jobId,
+                    leaseToken
+                );
+            }
         }
 
-        public Task RescheduleAsync(
+        public async Task RescheduleAsync(
             Guid jobId,
+            string leaseToken,
             int attemptCount,
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken
         )
         {
-            throw new NotImplementedException();
-        }
+            cancellationToken.ThrowIfCancellationRequested();
 
-        public Task MoveToDeadLetterAsync(Guid jobId, string reason, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
+            var updated = await JobEntities
+                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken)
+                .ExecuteUpdateCompatAsync(
+                    s =>
+                        s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)
+                            .SetProperty(j => j.Attempt, attemptCount)
+                            .SetProperty(j => j.VisibleAt, visibleAt)
+                            .SetProperty(j => j.LeaseToken, _ => null),
+                    cancellationToken
+                );
+
+            if (updated == 0)
+            {
+                _logger.LogWarning(
+                    "Failed to reschedule job {JobId} with lease token {LeaseToken}. Job may not exist or lease token mismatch",
+                    jobId,
+                    leaseToken
+                );
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "Job {JobId} rescheduled with lease token {LeaseToken} for visibility at {VisibleAt}",
+                    jobId,
+                    leaseToken,
+                    visibleAt
+                );
+            }
         }
     }
 }
