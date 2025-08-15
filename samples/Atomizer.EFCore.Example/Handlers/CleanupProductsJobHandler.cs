@@ -15,5 +15,8 @@ public class CleanupProductsJobHandler : IAtomizerJobHandler<CleanupProductsBefo
         _logger = logger;
     }
 
-    public async Task HandleAsync(CleanupProductsBefore payload, JobContext context) { }
+    public Task HandleAsync(CleanupProductsBefore payload, JobContext context)
+    {
+        return Task.CompletedTask;
+    }
 }

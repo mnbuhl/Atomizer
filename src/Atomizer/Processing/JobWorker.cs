@@ -45,16 +45,25 @@ namespace Atomizer.Processing
             _logger = loggerFactory.CreateLogger($"Worker.{workerId}");
         }
 
-        public async Task RunAsync(ChannelReader<AtomizerJob> reader, CancellationToken ct)
+        public async Task RunAsync(
+            ChannelReader<AtomizerJob> reader,
+            CancellationToken ioToken,
+            CancellationToken executionToken
+        )
         {
             _logger.LogDebug("Worker {Worker} for '{Queue}' started", _workerId, _queue.QueueKey);
 
-            while (!ct.IsCancellationRequested)
+            while (!ioToken.IsCancellationRequested)
             {
                 AtomizerJob job;
                 try
                 {
-                    job = await reader.ReadAsync(ct);
+                    job = await reader.ReadAsync(ioToken);
+                }
+                catch (OperationCanceledException) when (ioToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning("Worker {Worker} cancellation requested", _workerId);
+                    break;
                 }
                 catch
                 {
@@ -78,14 +87,16 @@ namespace Atomizer.Processing
 
                 try
                 {
-                    await processor.ProcessAsync(job, ct);
+                    await processor.ProcessAsync(job, executionToken);
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                catch (OperationCanceledException) when (executionToken.IsCancellationRequested)
                 {
-                    jobLogger.LogWarning("Worker {Worker} cancellation requested", _workerId);
+                    jobLogger.LogDebug("Worker {Worker} cancellation requested", _workerId);
                     break;
                 }
             }
+
+            _logger.LogDebug("Worker {Worker} for '{Queue}' stopped", _workerId, _queue.QueueKey);
         }
     }
 }

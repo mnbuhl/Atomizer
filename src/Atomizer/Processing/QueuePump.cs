@@ -24,7 +24,13 @@ namespace Atomizer.Processing
 
         private readonly Channel<AtomizerJob> _channel;
         private readonly List<Task> _workers = new List<Task>();
-        private CancellationTokenSource _cts = new CancellationTokenSource();
+        private Task _pollTask = Task.CompletedTask;
+
+        private CancellationTokenSource _ioCts = new CancellationTokenSource();
+        private CancellationTokenSource _executionCts = new CancellationTokenSource();
+
+        private volatile bool _draining = false;
+
         private readonly QueuePoller _poller;
 
         private readonly string _leaseToken;
@@ -60,7 +66,8 @@ namespace Atomizer.Processing
 
         public void Start(CancellationToken cancellationToken)
         {
-            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _ioCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _executionCts = new CancellationTokenSource();
 
             _logger.LogInformation(
                 "Starting queue '{QueueKey}' with {Workers} workers",
@@ -69,7 +76,7 @@ namespace Atomizer.Processing
             );
 
             // Start poller
-            _ = Task.Run(async () => await _poller.RunAsync(_cts.Token), _cts.Token);
+            _pollTask = Task.Run(async () => await _poller.RunAsync(_ioCts.Token), _ioCts.Token);
 
             // Start workers
             var workers = Math.Max(1, _queue.DegreeOfParallelism);
@@ -87,32 +94,90 @@ namespace Atomizer.Processing
                     _leaseToken
                 );
 
-                var task = Task.Run(async () => await worker.RunAsync(_channel.Reader, _cts.Token), _cts.Token);
+                var task = Task.Run(
+                    async () => await worker.RunAsync(_channel.Reader, _ioCts.Token, _executionCts.Token),
+                    CancellationToken.None
+                );
                 _workers.Add(task);
             }
         }
 
-        public async Task StopAsync()
+        public async Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Stopping queue '{QueueKey}'...", _queue.QueueKey);
-            _cts.Cancel();
+
+            // 1) Enter draining mode: stop leasing & fetching new jobs immediately
+            _draining = true;
+            _ioCts.Cancel(); // Signal poller to stop fetching new jobs & job worker to stop reading from the channel
             _channel.Writer.TryComplete();
 
+            // 2) Wait for all workers to finish processing current jobs until grace period expires
+            var workers = _workers.ToArray();
+            Task allWorkers = Task.WhenAll(workers);
+            Task deadline = Task.Delay(gracePeriod, cancellationToken);
+
+            var finished = await Task.WhenAny(allWorkers, deadline);
+
+            if (finished == deadline)
+            {
+                _logger.LogWarning(
+                    "Graceful shutdown timeout for queue '{QueueKey}' reached, forcing stop",
+                    _queue.QueueKey
+                );
+
+                // 3) Cancel execution for long-running jobs
+                try
+                {
+                    _executionCts.Cancel();
+                }
+                catch
+                {
+                    /* ignore */
+                }
+                try
+                {
+                    await allWorkers.ConfigureAwait(false);
+                }
+                catch
+                {
+                    /* ignore */
+                }
+            }
+
+            // Ensure poller finished
             try
             {
-                await Task.WhenAll(_workers);
+                await _pollTask.ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch
             {
-                // expected on shutdown
+                /* ignore */
+            }
+
+            // 4) Release any remaining leases for this pump
+            try
+            {
+                using var scope = _storageScopeFactory.CreateScope();
+                var released = await scope.Storage.ReleaseLeasedAsync(_leaseToken, cancellationToken);
+                if (released > 0)
+                    _logger.LogInformation(
+                        "Released {Count} leased job(s) for queue '{QueueKey}'",
+                        released,
+                        _queue.QueueKey
+                    );
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while stopping queue '{QueueKey}'", _queue.QueueKey);
+                _logger.LogError(
+                    ex,
+                    "Error releasing leased jobs for queue '{QueueKey}'. Jobs will reappear after visibility timeout",
+                    _queue.QueueKey
+                );
             }
             finally
             {
-                _cts.Dispose();
+                _ioCts.Dispose();
+                _executionCts.Dispose();
             }
 
             _logger.LogInformation("Queue '{QueueKey}' stopped", _queue.QueueKey);

@@ -37,7 +37,7 @@ namespace Atomizer.Processing
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Atomizer hosted service stopping");
-            await _coordinator.StopAsync();
+            await _coordinator.StopAsync(_options.GracefulShutdownTimeout, cancellationToken);
             await base.StopAsync(cancellationToken);
             _logger.LogInformation("Atomizer hosted service stopped");
         }

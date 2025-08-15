@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,7 +11,7 @@ namespace Atomizer.Processing
     public interface IQueueCoordinator
     {
         Task StartAsync(CancellationToken ct);
-        Task StopAsync();
+        Task StopAsync(TimeSpan gracePeriod, CancellationToken ct);
     }
 
     public class QueueCoordinator : IQueueCoordinator
@@ -25,8 +24,6 @@ namespace Atomizer.Processing
 
         public QueueCoordinator(
             AtomizerOptions options,
-            IAtomizerJobDispatcher jobDispatcher,
-            IAtomizerClock clock,
             ILogger<QueueCoordinator> logger,
             IServiceProvider serviceProvider
         )
@@ -49,13 +46,9 @@ namespace Atomizer.Processing
             return Task.CompletedTask;
         }
 
-        public async Task StopAsync()
+        public async Task StopAsync(TimeSpan gracePeriod, CancellationToken ct)
         {
-            foreach (var pump in _queuePumps)
-            {
-                await pump.StopAsync();
-            }
-
+            await Task.WhenAll(_queuePumps.ConvertAll(p => p.StopAsync(gracePeriod, ct)));
             _logger.LogInformation("All queue pumps stopped");
         }
     }
