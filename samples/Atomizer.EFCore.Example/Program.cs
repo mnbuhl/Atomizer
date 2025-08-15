@@ -29,7 +29,10 @@ builder.Services.AddAtomizer(options =>
     options.AddHandlersFrom<AssignStockJobHandler>();
     options.UseEntityFrameworkCoreStorage<ExampleDbContext>();
 });
-builder.Services.AddAtomizerProcessing();
+builder.Services.AddAtomizerProcessing(options =>
+{
+    options.StartupDelay = TimeSpan.FromSeconds(5);
+});
 
 var app = builder.Build();
 
@@ -87,6 +90,15 @@ app.MapPost(
     async ([FromServices] IAtomizerClient atomizerClient, [FromBody] LongRunningJob job) =>
     {
         var jobId = await atomizerClient.EnqueueAsync(job);
+        return Results.Accepted($"/jobs/{jobId}");
+    }
+);
+
+app.MapPost(
+    "/generic-payload-job",
+    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] GenericPayload<string> payload) =>
+    {
+        var jobId = await atomizerClient.EnqueueAsync(payload);
         return Results.Accepted($"/jobs/{jobId}");
     }
 );

@@ -42,6 +42,7 @@ namespace Atomizer.Hosting
             using var scope = _scopeFactory.CreateScope();
 
             var handler = scope.ServiceProvider.GetRequiredService(handlerType);
+
             var jobContext = new JobContext { Job = job, CancellationToken = cancellationToken };
 
             _logger.LogDebug(
