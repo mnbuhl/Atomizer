@@ -16,7 +16,6 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "Atomizer EF Core Example API", Version = "v1" })
 );
 builder.Services.AddEndpointsApiExplorer();
-builder.AddServiceDefaults();
 
 builder.AddNpgsqlDbContext<ExampleDbContext>("atomizerdb");
 
@@ -40,8 +39,6 @@ if (app.Environment.IsDevelopment())
 using var scope = app.Services.CreateScope();
 await using var db = scope.ServiceProvider.GetRequiredService<ExampleDbContext>();
 await db.Database.MigrateAsync();
-
-app.MapDefaultEndpoints();
 
 app.MapPost(
     "/products",

@@ -14,7 +14,6 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\..\src\Atomizer.EntityFrameworkCore\Atomizer.EntityFrameworkCore.csproj" />
-        <ProjectReference Include="..\aspire\Atomizer.Example.ServiceDefaults\Atomizer.Example.ServiceDefaults.csproj" />
     </ItemGroup>
     <ItemGroup>
         <Folder Include="Data\PostgresMigrations\" />

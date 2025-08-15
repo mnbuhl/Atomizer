@@ -44,8 +44,6 @@ builder.Services.AddAtomizer(options =>
 });
 builder.Services.AddAtomizerProcessing();
 
-builder.AddServiceDefaults();
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -109,7 +107,5 @@ app.MapPost(
         await atomizerClient.EnqueueAsync(new LongRunningJob(durationInSeconds));
     }
 );
-
-app.MapDefaultEndpoints();
 
 app.Run();
