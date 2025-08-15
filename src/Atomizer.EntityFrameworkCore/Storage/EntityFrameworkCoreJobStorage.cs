@@ -181,7 +181,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Completed)
                             .SetProperty(j => j.CompletedAt, completedAt)
-                            .SetProperty(j => j.Attempt, j => j.Attempt + 1)
+                            .SetProperty(j => j.Attempts, j => j.Attempts + 1)
                             .SetProperty(j => j.VisibleAt, _ => null)
                             .SetProperty(j => j.LeaseToken, _ => null),
                     cancellationToken
@@ -216,7 +216,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
                 .ExecuteUpdateCompatAsync(
                     set =>
                         set.SetProperty(j => j.Status, _ => AtomizerEntityJobStatus.Failed)
-                            .SetProperty(j => j.Attempt, j => j.Attempt + 1)
+                            .SetProperty(j => j.Attempts, j => j.Attempts + 1)
                             .SetProperty(j => j.FailedAt, _ => failedAt)
                             .SetProperty(j => j.VisibleAt, _ => null)
                             .SetProperty(j => j.LeaseToken, _ => null),
@@ -257,7 +257,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
                 .ExecuteUpdateCompatAsync(
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)
-                            .SetProperty(j => j.Attempt, attemptCount)
+                            .SetProperty(j => j.Attempts, attemptCount)
                             .SetProperty(j => j.VisibleAt, visibleAt)
                             .SetProperty(j => j.LeaseToken, _ => null),
                     cancellationToken

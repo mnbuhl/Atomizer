@@ -41,20 +41,9 @@ namespace Atomizer.Configuration
         /// </summary>
         public TimeSpan StorageCheckInterval { get; set; } = TimeSpan.FromSeconds(15);
 
-        /// <summary>
-        /// Gets or sets the retry options for jobs in the queue.
-        /// </summary>
-        public RetryOptions RetryOptions { get; set; } = new RetryOptions();
-
         public QueueOptions(string queueName)
         {
             QueueKey = new QueueKey(queueName);
-        }
-
-        public QueueOptions ConfigureRetryOptions(Action<RetryOptions> configure)
-        {
-            configure.Invoke(RetryOptions);
-            return this;
         }
     }
 }

@@ -14,7 +14,6 @@ namespace Atomizer.Processing
         private readonly QueueOptions _queue;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerJobDispatcher _dispatcher;
-        private readonly DefaultRetryPolicy _retryPolicy;
         private readonly IAtomizerJobStorage _storage;
         private readonly ILogger _logger;
         private readonly string _leaseToken;
@@ -23,7 +22,6 @@ namespace Atomizer.Processing
             QueueOptions queue,
             IAtomizerClock clock,
             IAtomizerJobDispatcher dispatcher,
-            DefaultRetryPolicy retryPolicy,
             IAtomizerJobStorage storage,
             ILogger logger,
             string leaseToken
@@ -32,7 +30,6 @@ namespace Atomizer.Processing
             _queue = queue;
             _clock = clock;
             _dispatcher = dispatcher;
-            _retryPolicy = retryPolicy;
             _storage = storage;
             _logger = logger;
             _leaseToken = leaseToken;
@@ -47,7 +44,7 @@ namespace Atomizer.Processing
                 _logger.LogDebug(
                     "Executing job {JobId} (attempt {Attempt}) on '{Queue}'",
                     job.Id,
-                    job.Attempt,
+                    job.Attempts,
                     _queue.QueueKey
                 );
 
@@ -78,15 +75,16 @@ namespace Atomizer.Processing
 
         private async Task HandleFailureAsync(AtomizerJob job, Exception ex, CancellationToken ct)
         {
-            var attempt = job.Attempt + 1;
+            var attempt = job.Attempts + 1;
 
             try
             {
                 var retryCtx = new AtomizerRetryContext(job);
+                var retryPolicy = new DefaultRetryPolicy(retryCtx);
 
-                if (_retryPolicy.ShouldRetry(attempt, ex, retryCtx))
+                if (retryPolicy.ShouldRetry(attempt))
                 {
-                    var delay = _retryPolicy.GetBackoff(attempt, ex, retryCtx);
+                    var delay = retryPolicy.GetBackoff(attempt, ex);
                     var nextVisible = _clock.UtcNow + delay;
 
                     await _storage.RescheduleAsync(job.Id, _leaseToken, attempt, nextVisible, ct);

@@ -41,13 +41,9 @@ namespace Atomizer
         public string? IdempotencyKey { get; set; }
 
         /// <summary>
-        /// The correlation ID for the job, used to group related jobs together.
+        /// The maximum number of attempts to process the job before it is considered failed.
+        /// <remarks>Defaults to 3 attempts.</remarks>
         /// </summary>
-        public string? CorrelationId { get; set; }
-
-        /// <summary>
-        /// The causation ID for the job, used to track the origin of the job.
-        /// </summary>
-        public string? CausationId { get; set; }
+        public int MaxAttempts { get; set; } = 3;
     }
 }

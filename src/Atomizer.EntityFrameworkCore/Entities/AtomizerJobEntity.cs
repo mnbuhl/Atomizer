@@ -12,15 +12,12 @@ namespace Atomizer.EntityFrameworkCore.Entities
         public DateTimeOffset ScheduledAt { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }
         public AtomizerEntityJobStatus Status { get; set; } = AtomizerEntityJobStatus.Pending;
-        public int Attempt { get; set; }
+        public int Attempts { get; set; }
+        public int MaxAttempts { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
-
-        public string? CorrelationId { get; set; }
-        public string? CausationId { get; set; }
         public string? IdempotencyKey { get; set; }
-
         public string? LeaseToken { get; set; }
     }
 
@@ -45,12 +42,10 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 ScheduledAt = job.ScheduledAt,
                 VisibleAt = job.VisibleAt,
                 Status = (AtomizerEntityJobStatus)(int)job.Status,
-                Attempt = job.Attempt,
+                Attempts = job.Attempts,
                 CreatedAt = job.CreatedAt,
                 CompletedAt = job.CompletedAt,
                 FailedAt = job.FailedAt,
-                CorrelationId = job.CorrelationId,
-                CausationId = job.CausationId,
                 IdempotencyKey = job.IdempotencyKey,
                 LeaseToken = job.LeaseToken,
             };
@@ -71,12 +66,10 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 ScheduledAt = entity.ScheduledAt,
                 VisibleAt = entity.VisibleAt,
                 Status = (AtomizerJobStatus)(int)entity.Status,
-                Attempt = entity.Attempt,
+                Attempts = entity.Attempts,
                 CreatedAt = entity.CreatedAt,
                 CompletedAt = entity.CompletedAt,
                 FailedAt = entity.FailedAt,
-                CorrelationId = entity.CorrelationId,
-                CausationId = entity.CausationId,
                 IdempotencyKey = entity.IdempotencyKey,
                 LeaseToken = entity.LeaseToken,
             };

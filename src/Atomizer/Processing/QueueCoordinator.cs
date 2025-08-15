@@ -38,7 +38,7 @@ namespace Atomizer.Processing
             _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
             foreach (var queue in _options.Queues)
             {
-                var pump = new QueuePump(queue, new DefaultRetryPolicy(queue.RetryOptions), _serviceProvider);
+                var pump = new QueuePump(queue, _serviceProvider);
                 _queuePumps.Add(pump);
                 pump.Start(ct);
             }

@@ -1,63 +1,41 @@
 ﻿using System;
-using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.Models;
 
 namespace Atomizer.Hosting
 {
     public sealed class DefaultRetryPolicy
     {
-        private readonly RetryOptions _options;
         private readonly Random _rng = new Random();
+        private readonly AtomizerRetryContext _context;
 
-        public DefaultRetryPolicy(RetryOptions options)
+        private static readonly TimeSpan InitialBackoff = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
+
+        public DefaultRetryPolicy(AtomizerRetryContext context)
         {
-            _options = options;
+            _context = context;
         }
 
-        public int MaxAttempts => _options.MaxAttempts;
-
-        public bool ShouldRetry(int attempt, Exception error, AtomizerRetryContext context)
+        public bool ShouldRetry(int attempt)
         {
-            return attempt < _options.MaxAttempts;
+            return attempt < _context.Job.MaxAttempts;
         }
 
-        public TimeSpan GetBackoff(int attempt, Exception error, AtomizerRetryContext context)
+        public TimeSpan GetBackoff(int attempt, Exception error)
         {
             var n = Math.Max(1, attempt);
-            var first = _options.InitialBackoff;
+            var first = InitialBackoff;
 
-            TimeSpan backoff;
-            switch (_options.BackoffStrategy)
-            {
-                case AtomizerRetryBackoffStrategy.Fixed:
-                    backoff = first;
-                    break;
-                case AtomizerRetryBackoffStrategy.Exponential:
-                    backoff = TimeSpan.FromMilliseconds(first.TotalMilliseconds * Math.Pow(2, n - 1));
-                    break;
-                case AtomizerRetryBackoffStrategy.ExponentialWithJitter:
-                    var baseMs = first.TotalMilliseconds * Math.Pow(2, n - 1);
-                    var factor = 0.8 + _rng.NextDouble() * 0.4; // 0.8x - 1.2x
-                    backoff = TimeSpan.FromMilliseconds(baseMs * factor);
-                    break;
-                default:
-                    backoff = first;
-                    break;
-            }
+            // Add random jitter
+            var baseMs = first.TotalMilliseconds * Math.Pow(2, n - 1);
+            var factor = 0.8 + _rng.NextDouble() * 0.4; // 0.8x - 1.2x
+            var backoff = TimeSpan.FromMilliseconds(baseMs * factor);
 
-            if (backoff > _options.MaxBackoff)
-                backoff = _options.MaxBackoff;
+            if (backoff > MaxBackoff)
+                backoff = MaxBackoff;
 
             return backoff;
         }
-    }
-
-    public enum AtomizerRetryBackoffStrategy
-    {
-        Fixed,
-        Exponential,
-        ExponentialWithJitter,
     }
 
     public sealed class AtomizerRetryContext

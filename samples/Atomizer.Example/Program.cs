@@ -33,10 +33,6 @@ builder.Services.AddAtomizer(options =>
         {
             queue.DegreeOfParallelism = 5;
             queue.StorageCheckInterval = TimeSpan.FromSeconds(5);
-            queue.ConfigureRetryOptions(retry =>
-            {
-                retry.MaxAttempts = 10;
-            });
         }
     );
     options.AddHandlersFrom<LoggerHandler>();

@@ -118,7 +118,7 @@ namespace Atomizer.Storage
                     if (_jobs.TryGetValue(job.Id, out var stored))
                     {
                         stored.Status = AtomizerJobStatus.Processing;
-                        stored.Attempt += 1;
+                        stored.Attempts += 1;
                         stored.VisibleAt = now + visibilityTimeout;
                         stored.LeaseToken = leaseToken;
                         // reflect mutations in the dictionary (stored is a reference type)
@@ -210,7 +210,7 @@ namespace Atomizer.Storage
             if (_jobs.TryGetValue(jobId, out var j) && j.LeaseToken == leaseToken)
             {
                 j.Status = AtomizerJobStatus.Pending;
-                j.Attempt = attemptCount;
+                j.Attempts = attemptCount;
                 j.VisibleAt = visibleAt;
                 _jobs[jobId] = j;
             }

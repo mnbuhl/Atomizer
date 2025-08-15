@@ -24,12 +24,11 @@ namespace Atomizer.EntityFrameworkCore.Configurations
             builder.Property(job => job.ScheduledAt).IsRequired();
             builder.Property(job => job.VisibleAt).IsRequired(false);
             builder.Property(job => job.Status).IsRequired();
-            builder.Property(job => job.Attempt).IsRequired();
+            builder.Property(job => job.Attempts).IsRequired();
+            builder.Property(job => job.MaxAttempts).IsRequired();
             builder.Property(job => job.CreatedAt).IsRequired();
             builder.Property(job => job.CompletedAt).IsRequired(false);
             builder.Property(job => job.FailedAt).IsRequired(false);
-            builder.Property(job => job.CorrelationId).HasMaxLength(255);
-            builder.Property(job => job.CausationId).HasMaxLength(255);
             builder.Property(job => job.IdempotencyKey).HasMaxLength(255);
             builder.Property(job => job.LeaseToken).HasMaxLength(255);
         }

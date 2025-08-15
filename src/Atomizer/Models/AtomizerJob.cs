@@ -1,5 +1,4 @@
 ﻿using System;
-using Atomizer.Abstractions;
 
 namespace Atomizer.Models
 {
@@ -12,15 +11,12 @@ namespace Atomizer.Models
         public DateTimeOffset ScheduledAt { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }
         public AtomizerJobStatus Status { get; set; } = AtomizerJobStatus.Pending;
-        public int Attempt { get; set; }
+        public int Attempts { get; set; }
+        public int MaxAttempts { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
-
-        public string? CorrelationId { get; set; }
-        public string? CausationId { get; set; }
         public string? IdempotencyKey { get; set; }
-
         public string? LeaseToken { get; set; }
     }
 

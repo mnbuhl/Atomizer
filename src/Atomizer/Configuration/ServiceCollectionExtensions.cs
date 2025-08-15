@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Linq;
 using Atomizer.Abstractions;
 using Atomizer.Client;
 using Atomizer.Hosting;
+using Atomizer.Models;
 using Atomizer.Processing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -23,6 +25,11 @@ namespace Atomizer.Configuration
                 throw new InvalidOperationException(
                     "JobStorageFactory must be set. Use UseInMemoryStorage or another storage provider."
                 );
+            }
+
+            if (options.Queues.Count == 0 || options.Queues.All(q => q.QueueKey != QueueKey.Default))
+            {
+                options.AddQueue(QueueKey.Default);
             }
 
             services.AddSingleton(options);

@@ -15,7 +15,6 @@ namespace Atomizer.Processing
     public class QueuePump
     {
         private readonly QueueOptions _queue;
-        private readonly DefaultRetryPolicy _retryPolicy;
         private readonly IAtomizerJobDispatcher _dispatcher;
         private readonly IAtomizerClock _clock;
         private readonly ILoggerFactory _loggerFactory;
@@ -29,16 +28,13 @@ namespace Atomizer.Processing
         private CancellationTokenSource _ioCts = new CancellationTokenSource();
         private CancellationTokenSource _executionCts = new CancellationTokenSource();
 
-        private volatile bool _draining = false;
-
         private readonly QueuePoller _poller;
 
         private readonly string _leaseToken;
 
-        public QueuePump(QueueOptions queue, DefaultRetryPolicy retryPolicy, IServiceProvider serviceProvider)
+        public QueuePump(QueueOptions queue, IServiceProvider serviceProvider)
         {
             _queue = queue;
-            _retryPolicy = retryPolicy;
             _dispatcher = serviceProvider.GetRequiredService<IAtomizerJobDispatcher>();
             _clock = serviceProvider.GetRequiredService<IAtomizerClock>();
             _loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
@@ -88,7 +84,6 @@ namespace Atomizer.Processing
                     _queue,
                     _clock,
                     _dispatcher,
-                    _retryPolicy,
                     _storageScopeFactory,
                     _loggerFactory,
                     _leaseToken
@@ -107,7 +102,6 @@ namespace Atomizer.Processing
             _logger.LogInformation("Stopping queue '{QueueKey}'...", _queue.QueueKey);
 
             // 1) Enter draining mode: stop leasing & fetching new jobs immediately
-            _draining = true;
             _ioCts.Cancel(); // Signal poller to stop fetching new jobs & job worker to stop reading from the channel
             _channel.Writer.TryComplete();
 

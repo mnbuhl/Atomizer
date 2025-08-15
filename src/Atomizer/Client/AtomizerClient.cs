@@ -70,11 +70,10 @@ namespace Atomizer.Client
                 ScheduledAt = when,
                 VisibleAt = null,
                 Status = AtomizerJobStatus.Pending,
-                Attempt = 0,
-                CorrelationId = options.CorrelationId,
-                CausationId = options.CorrelationId,
+                Attempts = 0,
                 IdempotencyKey = options.IdempotencyKey,
                 CreatedAt = _clock.UtcNow,
+                MaxAttempts = options.MaxAttempts,
             };
 
             var enforceIdem = !string.IsNullOrEmpty(job.IdempotencyKey);
