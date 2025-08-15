@@ -29,19 +29,13 @@ namespace Atomizer.Processing
 
         private readonly string _leaseToken;
 
-        public QueuePump(
-            QueueOptions queue,
-            DefaultRetryPolicy retryPolicy,
-            IAtomizerJobDispatcher dispatcher,
-            IAtomizerClock clock,
-            IServiceProvider serviceProvider
-        )
+        public QueuePump(QueueOptions queue, DefaultRetryPolicy retryPolicy, IServiceProvider serviceProvider)
         {
             _queue = queue;
             _retryPolicy = retryPolicy;
-            _dispatcher = dispatcher;
-            _clock = clock;
             _serviceProvider = serviceProvider;
+            _dispatcher = serviceProvider.GetRequiredService<IAtomizerJobDispatcher>();
+            _clock = serviceProvider.GetRequiredService<IAtomizerClock>();
             _loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
             _logger = _loggerFactory.CreateLogger<QueuePump>();
