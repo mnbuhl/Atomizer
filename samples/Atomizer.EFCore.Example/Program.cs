@@ -17,7 +17,11 @@ builder.Services.AddSwaggerGen(c =>
 );
 builder.Services.AddEndpointsApiExplorer();
 
-builder.AddNpgsqlDbContext<ExampleDbContext>("atomizerdb");
+builder.Services.AddDbContext<ExampleDbContext>(o =>
+    o.UseNpgsql(builder.Configuration.GetConnectionString("postgresql"))
+        .EnableDetailedErrors()
+        .EnableSensitiveDataLogging()
+);
 
 builder.Services.AddAtomizer(options =>
 {

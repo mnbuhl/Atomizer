@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "items", "items", "{3F9C53FE
 		.gitignore = .gitignore
 		.csharpierrc = .csharpierrc
 		README.md = README.md
+		compose.yml = compose.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer", "src\Atomizer\Atomizer.csproj", "{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615}"
