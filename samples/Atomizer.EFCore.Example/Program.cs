@@ -67,45 +67,45 @@ app.MapPost(
 
 app.MapPost(
     "/assign-stock",
-    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] AssignStock assignStock) =>
+    async ([FromServices] IAtomizerQueueClient atomizerQueueClient, [FromBody] AssignStock assignStock) =>
     {
-        var jobId = await atomizerClient.EnqueueAsync(assignStock);
+        var jobId = await atomizerQueueClient.EnqueueAsync(assignStock);
         return Results.Accepted($"/jobs/{jobId}");
     }
 );
 
 app.MapPost(
     "/cleanup-products",
-    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] CleanupProductsBefore cleanup) =>
+    async ([FromServices] IAtomizerQueueClient atomizerQueueClient, [FromBody] CleanupProductsBefore cleanup) =>
     {
-        var jobId = await atomizerClient.EnqueueAsync(cleanup);
+        var jobId = await atomizerQueueClient.EnqueueAsync(cleanup);
         return Results.Accepted($"/jobs/{jobId}");
     }
 );
 
 app.MapPost(
     "/long-running-job",
-    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] LongRunningJobPayload job) =>
+    async ([FromServices] IAtomizerQueueClient atomizerQueueClient, [FromBody] LongRunningJobPayload job) =>
     {
-        var jobId = await atomizerClient.EnqueueAsync(job);
+        var jobId = await atomizerQueueClient.EnqueueAsync(job);
         return Results.Accepted($"/jobs/{jobId}");
     }
 );
 
 app.MapPost(
     "/generic-payload-job",
-    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] GenericPayload<string> payload) =>
+    async ([FromServices] IAtomizerQueueClient atomizerQueueClient, [FromBody] GenericPayload<string> payload) =>
     {
-        var jobId = await atomizerClient.EnqueueAsync(payload);
+        var jobId = await atomizerQueueClient.EnqueueAsync(payload);
         return Results.Accepted($"/jobs/{jobId}");
     }
 );
 
 app.MapPost(
     "/exception-job",
-    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] ExceptionJob job) =>
+    async ([FromServices] IAtomizerQueueClient atomizerQueueClient, [FromBody] ExceptionJob job) =>
     {
-        var jobId = await atomizerClient.EnqueueAsync(job);
+        var jobId = await atomizerQueueClient.EnqueueAsync(job);
         return Results.Accepted($"/jobs/{jobId}");
     }
 );

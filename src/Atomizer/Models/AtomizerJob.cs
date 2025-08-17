@@ -20,6 +20,7 @@ namespace Atomizer.Models
         public string? IdempotencyKey { get; set; }
         public LeaseToken? LeaseToken { get; set; }
         public List<AtomizerJobError> Errors { get; set; } = new List<AtomizerJobError>();
+        public Guid? ScheduledJobId { get; set; }
     }
 
     public enum AtomizerJobStatus

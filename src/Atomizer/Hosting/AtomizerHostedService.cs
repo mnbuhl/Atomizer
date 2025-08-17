@@ -1,10 +1,11 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Configuration;
+using Atomizer.Processing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Processing
+namespace Atomizer.Hosting
 {
     public class AtomizerHostedService : BackgroundService
     {

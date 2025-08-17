@@ -6,20 +6,20 @@ using Atomizer.Hosting;
 using Atomizer.Models;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Client
+namespace Atomizer.Clients
 {
-    public class AtomizerClient : IAtomizerClient
+    public class AtomizerQueueClient : IAtomizerQueueClient
     {
         private readonly IAtomizerJobStorage _jobStorage;
         private readonly IAtomizerJobSerializer _jobSerializer;
         private readonly IAtomizerClock _clock;
-        private readonly ILogger<AtomizerClient> _logger;
+        private readonly ILogger<AtomizerQueueClient> _logger;
 
-        public AtomizerClient(
+        public AtomizerQueueClient(
             IAtomizerJobStorage jobStorage,
             IAtomizerJobSerializer jobSerializer,
             IAtomizerClock clock,
-            ILogger<AtomizerClient> logger
+            ILogger<AtomizerQueueClient> logger
         )
         {
             _jobStorage = jobStorage;

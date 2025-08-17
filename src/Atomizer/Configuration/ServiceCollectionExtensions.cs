@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Atomizer.Abstractions;
-using Atomizer.Client;
+using Atomizer.Clients;
 using Atomizer.Hosting;
 using Atomizer.Models;
 using Atomizer.Processing;
@@ -34,7 +34,7 @@ namespace Atomizer.Configuration
 
             services.AddSingleton(options);
             services.Add(options.Handlers);
-            services.AddScoped<IAtomizerClient, AtomizerClient>();
+            services.AddScoped<IAtomizerQueueClient, AtomizerQueueClient>();
             services.AddSingleton<IAtomizerClock, AtomizerClock>();
             services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
             services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();

@@ -8,8 +8,8 @@ namespace Atomizer.Hosting
         private readonly Random _rng = new Random();
         private readonly AtomizerRetryContext _context;
 
-        private static readonly TimeSpan InitialBackoff = TimeSpan.FromSeconds(1);
-        private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan InitialBackoff = TimeSpan.FromSeconds(3);
+        private static readonly TimeSpan MaxBackoff = TimeSpan.FromHours(1);
 
         public DefaultRetryPolicy(AtomizerRetryContext context)
         {

@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Atomizer.Abstractions;
 using Atomizer.Models;
 
 // ReSharper disable once CheckNamespace
 namespace Atomizer
 {
-    public interface IAtomizerClient
+    public interface IAtomizerQueueClient
     {
         Task<Guid> EnqueueAsync<TPayload>(
             TPayload payload,
