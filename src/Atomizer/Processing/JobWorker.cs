@@ -19,7 +19,7 @@ namespace Atomizer.Processing
         private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILogger _logger;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly string _leaseToken;
+        private readonly LeaseToken _leaseToken;
 
         public JobWorker(
             string workerId,
@@ -28,7 +28,7 @@ namespace Atomizer.Processing
             IAtomizerJobDispatcher dispatcher,
             IAtomizerStorageScopeFactory storageScopeFactory,
             ILoggerFactory loggerFactory,
-            string leaseToken
+            LeaseToken leaseToken
         )
         {
             _workerId = workerId;

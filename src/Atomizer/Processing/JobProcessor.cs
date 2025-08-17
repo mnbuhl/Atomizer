@@ -16,7 +16,7 @@ namespace Atomizer.Processing
         private readonly IAtomizerJobDispatcher _dispatcher;
         private readonly IAtomizerJobStorage _storage;
         private readonly ILogger _logger;
-        private readonly string _leaseToken;
+        private readonly LeaseToken _leaseToken;
 
         public JobProcessor(
             QueueOptions queue,
@@ -24,7 +24,7 @@ namespace Atomizer.Processing
             IAtomizerJobDispatcher dispatcher,
             IAtomizerJobStorage storage,
             ILogger logger,
-            string leaseToken
+            LeaseToken leaseToken
         )
         {
             _queue = queue;

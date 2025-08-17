@@ -16,7 +16,7 @@ namespace Atomizer.Processing
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILogger<QueuePoller> _logger;
-        private readonly string _leaseToken;
+        private readonly LeaseToken _leaseToken;
         private readonly Channel<AtomizerJob> _channel;
 
         private DateTimeOffset _lastStorageCheck;
@@ -26,7 +26,7 @@ namespace Atomizer.Processing
             IAtomizerClock clock,
             IAtomizerStorageScopeFactory storageScopeFactory,
             ILogger<QueuePoller> logger,
-            string leaseToken,
+            LeaseToken leaseToken,
             Channel<AtomizerJob> channel
         )
         {

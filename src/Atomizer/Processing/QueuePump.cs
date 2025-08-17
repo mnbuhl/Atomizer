@@ -30,7 +30,7 @@ namespace Atomizer.Processing
 
         private readonly QueuePoller _poller;
 
-        private readonly string _leaseToken;
+        private readonly LeaseToken _leaseToken;
 
         public QueuePump(QueueOptions queue, IServiceProvider serviceProvider)
         {
@@ -46,7 +46,7 @@ namespace Atomizer.Processing
             );
 
             var identity = serviceProvider.GetRequiredService<AtomizerRuntimeIdentity>();
-            _leaseToken = $"{identity.InstanceId}-{_queue.QueueKey}:{Guid.NewGuid():N}";
+            _leaseToken = new LeaseToken($"{identity.InstanceId}:*:{_queue.QueueKey}:*:{Guid.NewGuid():N}");
 
             _storageScopeFactory = new ServiceProviderStorageScopeFactory(serviceProvider);
 

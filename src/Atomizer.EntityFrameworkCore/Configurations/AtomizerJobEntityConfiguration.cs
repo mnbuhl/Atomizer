@@ -18,7 +18,7 @@ namespace Atomizer.EntityFrameworkCore.Configurations
             builder.ToTable("AtomizerJobs", _schema);
             builder.HasKey(job => job.Id);
             builder.Property(job => job.Id).ValueGeneratedNever();
-            builder.Property(job => job.QueueKey).IsRequired().HasMaxLength(255);
+            builder.Property(job => job.QueueKey).IsRequired().HasMaxLength(512);
             builder.Property(job => job.PayloadType).IsRequired().HasMaxLength(1024);
             builder.Property(job => job.Payload).IsRequired();
             builder.Property(job => job.ScheduledAt).IsRequired();
@@ -30,7 +30,7 @@ namespace Atomizer.EntityFrameworkCore.Configurations
             builder.Property(job => job.CompletedAt).IsRequired(false);
             builder.Property(job => job.FailedAt).IsRequired(false);
             builder.Property(job => job.IdempotencyKey).HasMaxLength(255);
-            builder.Property(job => job.LeaseToken).HasMaxLength(255);
+            builder.Property(job => job.LeaseToken).HasMaxLength(512);
         }
     }
 }

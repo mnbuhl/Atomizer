@@ -71,7 +71,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             int batchSize,
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
-            string leaseToken,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
@@ -114,7 +114,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Processing)
                             .SetProperty(j => j.VisibleAt, now.Add(visibilityTimeout))
-                            .SetProperty(j => j.LeaseToken, leaseToken),
+                            .SetProperty(j => j.LeaseToken, leaseToken.Token),
                     cancellationToken
                 );
 
@@ -141,7 +141,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
                 .Where(j =>
                     candidateIds.Contains(j.Id)
                     && j.Status == AtomizerEntityJobStatus.Processing
-                    && j.LeaseToken == leaseToken
+                    && j.LeaseToken == leaseToken.Token
                 )
                 .Select(j => j.ToAtomizerJob())
                 .ToListAsync(cancellationToken);
@@ -149,7 +149,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             return leased;
         }
 
-        public async Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken)
+        public async Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -168,7 +168,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
         public async Task MarkCompletedAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             DateTimeOffset completedAt,
             CancellationToken cancellationToken
         )
@@ -176,7 +176,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             cancellationToken.ThrowIfCancellationRequested();
 
             var updated = await JobEntities
-                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken)
+                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken.Token)
                 .ExecuteUpdateCompatAsync(
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Completed)
@@ -203,7 +203,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
         public async Task MarkFailedAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             Exception error,
             DateTimeOffset failedAt,
             CancellationToken cancellationToken
@@ -244,7 +244,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
         public async Task RescheduleAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             int attemptCount,
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken
@@ -253,7 +253,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             cancellationToken.ThrowIfCancellationRequested();
 
             var updated = await JobEntities
-                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken)
+                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken.Token)
                 .ExecuteUpdateCompatAsync(
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)

@@ -2,7 +2,7 @@
 
 namespace Atomizer.Models
 {
-    public sealed class QueueKey
+    public readonly struct QueueKey : IEquatable<QueueKey>
     {
         public static readonly QueueKey Default = new QueueKey("default");
 
@@ -27,31 +27,16 @@ namespace Atomizer.Models
 
         public static implicit operator QueueKey(string name) => new QueueKey(name);
 
-        public static bool operator ==(QueueKey? left, QueueKey? right)
-        {
-            if (left is null && right is null)
-                return true;
-            if (left is null || right is null)
-                return false;
-            return string.Equals(left.Key, right.Key, StringComparison.OrdinalIgnoreCase);
-        }
-
-        public static bool operator !=(QueueKey? left, QueueKey? right) => !(left == right);
-
         public override string ToString() => Key;
 
-        public override bool Equals(object? obj)
-        {
-            if (obj is QueueKey other)
-            {
-                return string.Equals(Key, other.Key, StringComparison.OrdinalIgnoreCase);
-            }
-            return false;
-        }
+        public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Key);
 
-        public override int GetHashCode()
-        {
-            return StringComparer.OrdinalIgnoreCase.GetHashCode(Key);
-        }
+        public override bool Equals(object? obj) => obj is QueueKey other && Equals(other);
+
+        public bool Equals(QueueKey other) => string.Equals(Key, other.Key, StringComparison.OrdinalIgnoreCase);
+
+        public static bool operator ==(QueueKey left, QueueKey right) => left.Equals(right);
+
+        public static bool operator !=(QueueKey left, QueueKey right) => !left.Equals(right);
     }
 }

@@ -14,28 +14,28 @@ namespace Atomizer.Abstractions
             int batchSize,
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
-            string leaseToken,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         );
 
-        Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken);
+        Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
 
         Task MarkCompletedAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             DateTimeOffset completedAt,
             CancellationToken cancellationToken
         );
         Task MarkFailedAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             Exception error,
             DateTimeOffset failedAt,
             CancellationToken cancellationToken
         );
         Task RescheduleAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             int attemptCount,
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken

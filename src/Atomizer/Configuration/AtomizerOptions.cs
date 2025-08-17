@@ -18,11 +18,6 @@ namespace Atomizer.Configuration
             var options = new QueueOptions(name);
             configure?.Invoke(options);
 
-            if (options.QueueKey == null)
-            {
-                throw new InvalidOperationException("Queue must be specified.");
-            }
-
             if (options.BatchSize <= 0)
             {
                 throw new InvalidOperationException("Batch size must be greater than zero.");

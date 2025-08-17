@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Atomizer.Models
 {
@@ -17,7 +18,8 @@ namespace Atomizer.Models
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
         public string? IdempotencyKey { get; set; }
-        public string? LeaseToken { get; set; }
+        public LeaseToken? LeaseToken { get; set; }
+        public List<AtomizerJobError> Errors { get; set; } = new List<AtomizerJobError>();
     }
 
     public enum AtomizerJobStatus

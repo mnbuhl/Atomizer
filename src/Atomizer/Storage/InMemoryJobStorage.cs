@@ -88,7 +88,7 @@ namespace Atomizer.Storage
             int batchSize,
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
-            string leaseToken,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
@@ -132,7 +132,7 @@ namespace Atomizer.Storage
             return Task.FromResult((IReadOnlyList<AtomizerJob>)leased);
         }
 
-        public Task<int> ReleaseLeasedAsync(string leaseToken, CancellationToken cancellationToken)
+        public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -160,7 +160,7 @@ namespace Atomizer.Storage
 
         public Task MarkCompletedAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             DateTimeOffset completedAt,
             CancellationToken cancellationToken
         )
@@ -179,7 +179,7 @@ namespace Atomizer.Storage
 
         public Task MarkFailedAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             Exception error,
             DateTimeOffset failedAt,
             CancellationToken cancellationToken
@@ -199,7 +199,7 @@ namespace Atomizer.Storage
 
         public Task RescheduleAsync(
             Guid jobId,
-            string leaseToken,
+            LeaseToken leaseToken,
             int attemptCount,
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken
