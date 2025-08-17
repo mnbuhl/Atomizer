@@ -17,7 +17,7 @@ namespace Atomizer.EntityFrameworkCore.Configurations
         {
             builder.ToTable("AtomizerJobs", _schema);
             builder.HasKey(job => job.Id);
-            builder.Property(job => job.Id).ValueGeneratedNever();
+            builder.Property(job => job.Id).ValueGeneratedOnAdd();
             builder.Property(job => job.QueueKey).IsRequired().HasMaxLength(512);
             builder.Property(job => job.PayloadType).IsRequired().HasMaxLength(1024);
             builder.Property(job => job.Payload).IsRequired();

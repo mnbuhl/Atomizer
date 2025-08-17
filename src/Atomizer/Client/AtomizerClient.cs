@@ -63,7 +63,6 @@ namespace Atomizer.Client
             var serializedPayload = _jobSerializer.Serialize(payload);
             var job = new AtomizerJob
             {
-                Id = Guid.NewGuid(),
                 QueueKey = options.Queue,
                 PayloadType = options.TypeOverride ?? typeof(TPayload),
                 Payload = serializedPayload,

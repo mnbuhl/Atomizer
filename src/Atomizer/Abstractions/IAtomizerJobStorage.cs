@@ -9,6 +9,9 @@ namespace Atomizer.Abstractions
     public interface IAtomizerJobStorage
     {
         Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken);
+
+        Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken);
+
         Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
             QueueKey queueKey,
             int batchSize,
@@ -21,26 +24,24 @@ namespace Atomizer.Abstractions
         Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
 
         Task MarkCompletedAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
+            AtomizerJob job,
             DateTimeOffset completedAt,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         );
         Task MarkFailedAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
-            Exception error,
+            AtomizerJob job,
             DateTimeOffset failedAt,
+            AtomizerJobError error,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         );
         Task RescheduleAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
-            int attemptCount,
+            AtomizerJob job,
             DateTimeOffset visibleAt,
+            AtomizerJobError? error,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         );
-
-        Task<Guid> InsertErrorAsync(AtomizerJobError error, CancellationToken cancellationToken);
     }
 }

@@ -39,8 +39,6 @@ namespace Atomizer.EntityFrameworkCore.Storage
             CancellationToken cancellationToken
         )
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             // Idempotency (simple lookup; relies on app-level uniqueness of IdempotencyKey)
             if (enforceIdempotency && !string.IsNullOrWhiteSpace(job.IdempotencyKey))
             {
@@ -65,6 +63,14 @@ namespace Atomizer.EntityFrameworkCore.Storage
             await _dbContext.SaveChangesAsync(cancellationToken);
 
             return entity.Id;
+        }
+
+        public async Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken)
+        {
+            var updated = job.ToEntity();
+
+            JobEntities.Update(updated);
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
@@ -151,8 +157,6 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
         public async Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             var releasedCount = await JobEntities
                 .Where(j => j.LeaseToken == leaseToken.Token && j.Status == AtomizerEntityJobStatus.Processing)
                 .ExecuteUpdateCompatAsync(
@@ -167,21 +171,19 @@ namespace Atomizer.EntityFrameworkCore.Storage
         }
 
         public async Task MarkCompletedAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
+            AtomizerJob job,
             DateTimeOffset completedAt,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             var updated = await JobEntities
-                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken.Token)
+                .Where(j => j.Id == job.Id && j.LeaseToken == leaseToken.Token)
                 .ExecuteUpdateCompatAsync(
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Completed)
                             .SetProperty(j => j.CompletedAt, completedAt)
-                            .SetProperty(j => j.Attempts, j => j.Attempts + 1)
+                            .SetProperty(j => j.Attempts, job.Attempts)
                             .SetProperty(j => j.VisibleAt, _ => null)
                             .SetProperty(j => j.LeaseToken, _ => null),
                     cancellationToken
@@ -191,83 +193,87 @@ namespace Atomizer.EntityFrameworkCore.Storage
             {
                 _logger.LogWarning(
                     "Failed to mark job {JobId} as completed with lease token {LeaseToken}. Job may not exist or lease token mismatch",
-                    jobId,
+                    job.Id,
                     leaseToken
                 );
             }
             else
             {
-                _logger.LogDebug("Job {JobId} marked as completed with lease token {LeaseToken}", jobId, leaseToken);
+                _logger.LogDebug("Job {JobId} marked as completed with lease token {LeaseToken}", job.Id, leaseToken);
             }
         }
 
         public async Task MarkFailedAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
-            Exception error,
+            AtomizerJob job,
             DateTimeOffset failedAt,
+            AtomizerJobError error,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             var affected = await JobEntities
-                .Where(j => j.Id == jobId)
+                .Where(j => j.Id == job.Id && j.LeaseToken == leaseToken.Token)
                 .ExecuteUpdateCompatAsync(
                     set =>
-                        set.SetProperty(j => j.Status, _ => AtomizerEntityJobStatus.Failed)
-                            .SetProperty(j => j.Attempts, j => j.Attempts + 1)
-                            .SetProperty(j => j.FailedAt, _ => failedAt)
+                        set.SetProperty(j => j.Status, AtomizerEntityJobStatus.Failed)
+                            .SetProperty(j => j.Attempts, job.Attempts)
+                            .SetProperty(j => j.FailedAt, failedAt)
                             .SetProperty(j => j.VisibleAt, _ => null)
                             .SetProperty(j => j.LeaseToken, _ => null),
                     cancellationToken
                 );
 
+            JobErrorEntities.Add(error.ToEntity());
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
             if (affected == 0)
             {
-                _logger.LogWarning(
+                _logger.LogError(
                     "Failed to mark job {JobId} as failed with lease token {LeaseToken}. Job may not exist",
-                    jobId,
+                    job.Id,
                     leaseToken
                 );
             }
             else
             {
-                _logger.LogError(
-                    error,
+                _logger.LogInformation(
                     "Job {JobId} marked as failed with lease token {LeaseToken}",
-                    jobId,
+                    job.Id,
                     leaseToken
                 );
             }
         }
 
         public async Task RescheduleAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
-            int attemptCount,
+            AtomizerJob job,
             DateTimeOffset visibleAt,
+            AtomizerJobError? error,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             var updated = await JobEntities
-                .Where(j => j.Id == jobId && j.LeaseToken == leaseToken.Token)
+                .Where(j => j.Id == job.Id && j.LeaseToken == leaseToken.Token)
                 .ExecuteUpdateCompatAsync(
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)
-                            .SetProperty(j => j.Attempts, attemptCount)
+                            .SetProperty(j => j.Attempts, job.Attempts)
                             .SetProperty(j => j.VisibleAt, visibleAt)
                             .SetProperty(j => j.LeaseToken, _ => null),
                     cancellationToken
                 );
 
+            if (error != null)
+            {
+                JobErrorEntities.Add(error.ToEntity());
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+
             if (updated == 0)
             {
                 _logger.LogWarning(
                     "Failed to reschedule job {JobId} with lease token {LeaseToken}. Job may not exist or lease token mismatch",
-                    jobId,
+                    job.Id,
                     leaseToken
                 );
             }
@@ -275,32 +281,11 @@ namespace Atomizer.EntityFrameworkCore.Storage
             {
                 _logger.LogDebug(
                     "Job {JobId} rescheduled with lease token {LeaseToken} for visibility at {VisibleAt}",
-                    jobId,
+                    job.Id,
                     leaseToken,
                     visibleAt
                 );
             }
-        }
-
-        public async Task<Guid> InsertErrorAsync(AtomizerJobError error, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var errorEntity = error.ToEntity();
-
-            try
-            {
-                JobErrorEntities.Add(errorEntity);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to insert job error for job {JobId}", error.JobId);
-            }
-
-            _logger.LogDebug("Inserted error {ErrorId} for job {JobId}", errorEntity.Id, errorEntity.JobId);
-
-            return errorEntity.Id;
         }
     }
 }

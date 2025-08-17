@@ -41,8 +41,6 @@ namespace Atomizer.Storage
 
         public Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             lock (_insertEvictGate)
             {
                 if (enforceIdempotency && !string.IsNullOrWhiteSpace(job.IdempotencyKey))
@@ -83,6 +81,16 @@ namespace Atomizer.Storage
             return Task.FromResult(job.Id);
         }
 
+        public Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _jobs[job.Id] = job; // Update the job in the dictionary
+
+            _logger.LogDebug("Updated job {JobId} in '{Queue}'", job.Id, job.QueueKey);
+            return Task.CompletedTask;
+        }
+
         public Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
             QueueKey queueKey,
             int batchSize,
@@ -118,7 +126,6 @@ namespace Atomizer.Storage
                     if (_jobs.TryGetValue(job.Id, out var stored))
                     {
                         stored.Status = AtomizerJobStatus.Processing;
-                        stored.Attempts += 1;
                         stored.VisibleAt = now + visibilityTimeout;
                         stored.LeaseToken = leaseToken;
                         // reflect mutations in the dictionary (stored is a reference type)
@@ -142,7 +149,7 @@ namespace Atomizer.Storage
             {
                 foreach (
                     var job in _jobs.Values.Where(j =>
-                        j.LeaseToken == leaseToken && j.Status == AtomizerJobStatus.Processing
+                        j.LeaseToken?.Token == leaseToken.Token && j.Status == AtomizerJobStatus.Processing
                     )
                 )
                 {
@@ -159,81 +166,72 @@ namespace Atomizer.Storage
         }
 
         public Task MarkCompletedAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
+            AtomizerJob job,
             DateTimeOffset completedAt,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (_jobs.TryGetValue(jobId, out var j) && j.LeaseToken == leaseToken)
+            if (_jobs.TryGetValue(job.Id, out var j) && j.LeaseToken?.Token == leaseToken.Token)
             {
                 j.Status = AtomizerJobStatus.Completed;
                 j.CompletedAt = completedAt;
-                j.VisibleAt = null;
-                _jobs[jobId] = j;
+                j.VisibleAt = null; // Clear visibility to make it available for eviction
+                j.LeaseToken = null; // Clear lease token
+                j.Attempts = job.Attempts; // Keep the attempt count
+                _jobs[job.Id] = j; // Update the job in the dictionary
             }
             return Task.CompletedTask;
         }
 
         public Task MarkFailedAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
-            Exception error,
+            AtomizerJob job,
             DateTimeOffset failedAt,
+            AtomizerJobError error,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (_jobs.TryGetValue(jobId, out var j) && j.LeaseToken == leaseToken)
+            if (_jobs.TryGetValue(job.Id, out var j) && j.LeaseToken?.Token == leaseToken.Token)
             {
                 j.Status = AtomizerJobStatus.Failed;
                 j.FailedAt = failedAt;
-                j.VisibleAt = null;
-                _jobs[jobId] = j;
+                j.VisibleAt = null; // Clear visibility to make it available for eviction
+                j.Attempts = job.Attempts;
+                j.LeaseToken = null; // Clear lease token
+                j.Errors.Add(error);
+                _jobs[job.Id] = j; // Update the job in the dictionary
             }
             return Task.CompletedTask;
         }
 
         public Task RescheduleAsync(
-            Guid jobId,
-            LeaseToken leaseToken,
-            int attemptCount,
+            AtomizerJob job,
             DateTimeOffset visibleAt,
+            AtomizerJobError? error,
+            LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (_jobs.TryGetValue(jobId, out var j) && j.LeaseToken == leaseToken)
+            if (_jobs.TryGetValue(job.Id, out var j) && j.LeaseToken?.Token == leaseToken.Token)
             {
                 j.Status = AtomizerJobStatus.Pending;
-                j.Attempts = attemptCount;
-                j.VisibleAt = visibleAt;
-                _jobs[jobId] = j;
+                j.VisibleAt = visibleAt; // Set new visibility time
+                j.LeaseToken = null;
+                j.Attempts = job.Attempts;
+                if (error != null)
+                {
+                    j.Errors.Add(error);
+                }
+                _jobs[job.Id] = j; // Update the job in the dictionary
             }
             return Task.CompletedTask;
-        }
-
-        public Task<Guid> InsertErrorAsync(AtomizerJobError error, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            // Find the job associated with this error
-            if (_jobs.TryGetValue(error.JobId, out var job))
-            {
-                job.Errors.Add(error);
-                _jobs[job.Id] = job; // Update the job in the dictionary
-            }
-            else
-            {
-                _logger.LogWarning("Failed to insert error for non-existent job {JobId}", error.JobId);
-            }
-
-            _logger.LogDebug("Inserted error {ErrorId} for job {JobId}", error.Id, error.JobId);
-            return Task.FromResult(error.Id);
         }
 
         private void EvictWhileOverCapacity(int max)

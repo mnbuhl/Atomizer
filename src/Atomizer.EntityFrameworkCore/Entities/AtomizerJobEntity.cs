@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Atomizer.Models;
 
 namespace Atomizer.EntityFrameworkCore.Entities
@@ -51,6 +52,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 IdempotencyKey = job.IdempotencyKey,
                 LeaseToken = job.LeaseToken?.Token,
                 MaxAttempts = job.MaxAttempts,
+                Errors = job.Errors.Select(err => err.ToEntity()).ToList(),
             };
         }
 
@@ -73,6 +75,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 IdempotencyKey = entity.IdempotencyKey,
                 LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
                 MaxAttempts = entity.MaxAttempts,
+                Errors = entity.Errors.Select(err => err.ToAtomizerJobError()).ToList(),
             };
         }
     }

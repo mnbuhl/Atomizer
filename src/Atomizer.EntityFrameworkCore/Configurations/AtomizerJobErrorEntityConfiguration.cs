@@ -17,7 +17,7 @@ public class AtomizerJobErrorEntityConfiguration : IEntityTypeConfiguration<Atom
     {
         builder.ToTable("AtomizerJobErrors", _schema);
         builder.HasKey(error => error.Id);
-        builder.Property(error => error.Id).ValueGeneratedNever();
+        builder.Property(error => error.Id).ValueGeneratedOnAdd();
         builder.Property(error => error.JobId).IsRequired();
         builder.Property(error => error.ErrorMessage).HasMaxLength(2048);
         builder.Property(error => error.StackTrace).HasMaxLength(5120);

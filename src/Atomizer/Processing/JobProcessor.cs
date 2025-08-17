@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
@@ -42,6 +41,8 @@ namespace Atomizer.Processing
 
             try
             {
+                job.Attempts++;
+
                 _logger.LogDebug(
                     "Executing job {JobId} (attempt {Attempt}) on '{Queue}'",
                     job.Id,
@@ -51,7 +52,12 @@ namespace Atomizer.Processing
 
                 await _dispatcher.DispatchAsync(job, ct);
 
-                await _storage.MarkCompletedAsync(job.Id, _leaseToken, _clock.UtcNow, ct);
+                job.CompletedAt = _clock.UtcNow;
+                job.LeaseToken = null;
+                job.Status = AtomizerJobStatus.Completed;
+                job.VisibleAt = null;
+
+                await _storage.UpdateAsync(job, ct);
 
                 _logger.LogInformation(
                     "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
@@ -76,31 +82,47 @@ namespace Atomizer.Processing
 
         private async Task HandleFailureAsync(AtomizerJob job, Exception ex, CancellationToken ct)
         {
-            var attempt = job.Attempts + 1;
-
             try
             {
                 var retryCtx = new AtomizerRetryContext(job);
                 var retryPolicy = new DefaultRetryPolicy(retryCtx);
 
-                if (retryPolicy.ShouldRetry(attempt))
+                job.Errors.Add(
+                    new AtomizerJobError
+                    {
+                        Attempt = job.Attempts,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ErrorMessage = ex.Message,
+                        ExceptionType = ex.GetType().FullName,
+                        StackTrace = ex.StackTrace?.Length > 5120 ? ex.StackTrace[..5120] : ex.StackTrace,
+                        JobId = job.Id,
+                        RuntimeIdentity = job.LeaseToken?.InstanceId,
+                    }
+                );
+                job.LeaseToken = null;
+
+                if (retryPolicy.ShouldRetry(job.Attempts))
                 {
-                    var delay = retryPolicy.GetBackoff(attempt, ex);
+                    var delay = retryPolicy.GetBackoff(job.Attempts, ex);
                     var nextVisible = _clock.UtcNow + delay;
 
-                    await _storage.RescheduleAsync(job.Id, _leaseToken, attempt, nextVisible, ct);
+                    job.VisibleAt = nextVisible;
+                    job.Status = AtomizerJobStatus.Pending;
 
                     _logger.LogWarning(
                         "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
                         job.Id,
-                        attempt,
+                        job.Attempts,
                         _queue.QueueKey,
-                        (int)delay.TotalMilliseconds
+                        delay.TotalMilliseconds
                     );
                 }
                 else
                 {
-                    await _storage.MarkFailedAsync(job.Id, _leaseToken, ex, _clock.UtcNow, ct);
+                    var now = _clock.UtcNow;
+                    job.Status = AtomizerJobStatus.Failed;
+                    job.VisibleAt = null; // Clear visibility to make it available for eviction
+                    job.FailedAt = now;
 
                     _logger.LogError(
                         "Job {JobId} exhausted retries and was marked as failed on '{Queue}'",
@@ -109,19 +131,7 @@ namespace Atomizer.Processing
                     );
                 }
 
-                var jobError = new AtomizerJobError
-                {
-                    Id = Guid.NewGuid(),
-                    Attempt = attempt,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ErrorMessage = ex.Message,
-                    ExceptionType = ex.GetType().FullName,
-                    StackTrace = ex.StackTrace?.Length > 5120 ? ex.StackTrace[..5120] : ex.StackTrace,
-                    JobId = job.Id,
-                    RuntimeIdentity = job.LeaseToken?.InstanceId,
-                };
-
-                await _storage.InsertErrorAsync(jobError, ct);
+                await _storage.UpdateAsync(job, ct);
             }
             catch (Exception jobFailureEx)
             {
@@ -130,7 +140,7 @@ namespace Atomizer.Processing
                     "Error while handling failure of job {JobId} on '{Queue}' on attempt {Attempt}",
                     job.Id,
                     _queue.QueueKey,
-                    attempt
+                    job.Attempts
                 );
             }
         }
