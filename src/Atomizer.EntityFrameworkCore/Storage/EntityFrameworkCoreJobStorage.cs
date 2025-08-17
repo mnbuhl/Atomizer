@@ -20,6 +20,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
         private readonly ILogger<EntityFrameworkCoreJobStorage<TDbContext>> _logger;
 
         private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
+        private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
 
         public EntityFrameworkCoreJobStorage(
             TDbContext dbContext,
@@ -280,6 +281,27 @@ namespace Atomizer.EntityFrameworkCore.Storage
                     visibleAt
                 );
             }
+        }
+
+        public async Task<Guid> InsertErrorAsync(AtomizerJobError error, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var errorEntity = error.ToEntity();
+
+            try
+            {
+                JobErrorEntities.Add(errorEntity);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to insert job error for job {JobId}", error.JobId);
+            }
+
+            _logger.LogDebug("Inserted error {ErrorId} for job {JobId}", errorEntity.Id, errorEntity.JobId);
+
+            return errorEntity.Id;
         }
     }
 }

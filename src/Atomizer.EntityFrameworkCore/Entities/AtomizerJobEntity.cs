@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Atomizer.Models;
 
 namespace Atomizer.EntityFrameworkCore.Entities
@@ -19,6 +20,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
         public DateTimeOffset? FailedAt { get; set; }
         public string? IdempotencyKey { get; set; }
         public string? LeaseToken { get; set; }
+        public List<AtomizerJobErrorEntity> Errors { get; set; } = new List<AtomizerJobErrorEntity>();
     }
 
     public enum AtomizerEntityJobStatus
@@ -29,7 +31,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
         Failed = 4,
     }
 
-    public static class AtomizerJobEntityExtensions
+    public static class AtomizerJobEntityMapper
     {
         public static AtomizerJobEntity ToEntity(this AtomizerJob job)
         {
@@ -50,10 +52,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 LeaseToken = job.LeaseToken,
             };
         }
-    }
 
-    public static class AtomizerJobEntityMapper
-    {
         public static AtomizerJob ToAtomizerJob(this AtomizerJobEntity entity)
         {
             return new AtomizerJob
@@ -71,7 +70,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 CompletedAt = entity.CompletedAt,
                 FailedAt = entity.FailedAt,
                 IdempotencyKey = entity.IdempotencyKey,
-                LeaseToken = entity.LeaseToken,
+                LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
             };
         }
     }

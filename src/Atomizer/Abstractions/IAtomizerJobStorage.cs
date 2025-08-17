@@ -40,5 +40,7 @@ namespace Atomizer.Abstractions
             DateTimeOffset visibleAt,
             CancellationToken cancellationToken
         );
+
+        Task<Guid> InsertErrorAsync(AtomizerJobError error, CancellationToken cancellationToken);
     }
 }

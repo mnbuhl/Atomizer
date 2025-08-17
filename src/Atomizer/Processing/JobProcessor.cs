@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
@@ -79,6 +80,17 @@ namespace Atomizer.Processing
 
             try
             {
+                var jobError = new AtomizerJobError
+                {
+                    Id = Guid.NewGuid(),
+                    Attempt = job.Attempts,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ErrorMessage = ex.Message,
+                    StackTrace = ex.StackTrace[..5120],
+                    JobId = job.Id,
+                    RuntimeIdentity = job.LeaseToken?.InstanceId,
+                };
+
                 var retryCtx = new AtomizerRetryContext(job);
                 var retryPolicy = new DefaultRetryPolicy(retryCtx);
 

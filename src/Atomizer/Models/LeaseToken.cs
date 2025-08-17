@@ -2,7 +2,7 @@
 
 namespace Atomizer.Models
 {
-    public readonly struct LeaseToken : IEquatable<LeaseToken>
+    public sealed class LeaseToken : IEquatable<LeaseToken>
     {
         public string Token { get; }
 

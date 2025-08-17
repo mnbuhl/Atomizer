@@ -217,6 +217,25 @@ namespace Atomizer.Storage
             return Task.CompletedTask;
         }
 
+        public Task<Guid> InsertErrorAsync(AtomizerJobError error, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Find the job associated with this error
+            if (_jobs.TryGetValue(error.JobId, out var job))
+            {
+                job.Errors.Add(error);
+                _jobs[job.Id] = job; // Update the job in the dictionary
+            }
+            else
+            {
+                _logger.LogWarning("Failed to insert error for non-existent job {JobId}", error.JobId);
+            }
+
+            _logger.LogDebug("Inserted error {ErrorId} for job {JobId}", error.Id, error.JobId);
+            return Task.FromResult(error.Id);
+        }
+
         private void EvictWhileOverCapacity(int max)
         {
             while (_jobs.Count > max && _insertionOrder.Count > 0)
