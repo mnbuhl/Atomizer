@@ -8,6 +8,7 @@ namespace Atomizer.EntityFrameworkCore.Extensions
         public static ModelBuilder AddAtomizerEntities(this ModelBuilder builder, string schema = "Atomizer")
         {
             builder.ApplyConfiguration(new AtomizerJobEntityConfiguration(schema));
+            builder.ApplyConfiguration(new AtomizerJobErrorEntityConfiguration(schema));
             return builder;
         }
     }

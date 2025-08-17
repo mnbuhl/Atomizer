@@ -49,7 +49,8 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 CompletedAt = job.CompletedAt,
                 FailedAt = job.FailedAt,
                 IdempotencyKey = job.IdempotencyKey,
-                LeaseToken = job.LeaseToken,
+                LeaseToken = job.LeaseToken?.Token,
+                MaxAttempts = job.MaxAttempts,
             };
         }
 
@@ -71,6 +72,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 FailedAt = entity.FailedAt,
                 IdempotencyKey = entity.IdempotencyKey,
                 LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
+                MaxAttempts = entity.MaxAttempts,
             };
         }
     }

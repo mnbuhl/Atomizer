@@ -12,15 +12,15 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Atomizer.EFCore.Example.Data.PostgresMigrations
 {
     [DbContext(typeof(ExampleDbContext))]
-    [Migration("20250814131940_AddedLeaseTokenToAtomizerJobsTable")]
-    partial class AddedLeaseTokenToAtomizerJobsTable
+    [Migration("20250817120940_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.7")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -54,19 +54,11 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Attempt")
+                    b.Property<int>("Attempts")
                         .HasColumnType("integer");
-
-                    b.Property<string>("CausationId")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
 
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -79,8 +71,11 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                         .HasColumnType("character varying(255)");
 
                     b.Property<string>("LeaseToken")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Payload")
                         .IsRequired()
@@ -93,8 +88,8 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<DateTimeOffset>("ScheduledAt")
                         .HasColumnType("timestamp with time zone");
@@ -108,6 +103,53 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                     b.HasKey("Id");
 
                     b.ToTable("AtomizerJobs", "Atomizer");
+                });
+
+            modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobErrorEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RuntimeIdentity")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StackTrace")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId");
+
+                    b.ToTable("AtomizerJobErrorEntity");
+                });
+
+            modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobErrorEntity", b =>
+                {
+                    b.HasOne("Atomizer.EntityFrameworkCore.Entities.AtomizerJobEntity", "Job")
+                        .WithMany("Errors")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Job");
+                });
+
+            modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobEntity", b =>
+                {
+                    b.Navigation("Errors");
                 });
 #pragma warning restore 612, 618
         }

@@ -90,7 +90,6 @@ namespace Atomizer.EntityFrameworkCore.Storage
                     )
                 )
                 .OrderBy(j => j.ScheduledAt)
-                .ThenBy(j => j.CreatedAt)
                 .Select(j => j.Id)
                 .Take(batchSize)
                 .ToListAsync(cancellationToken);
@@ -155,7 +154,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             cancellationToken.ThrowIfCancellationRequested();
 
             var releasedCount = await JobEntities
-                .Where(j => j.LeaseToken == leaseToken && j.Status == AtomizerEntityJobStatus.Processing)
+                .Where(j => j.LeaseToken == leaseToken.Token && j.Status == AtomizerEntityJobStatus.Processing)
                 .ExecuteUpdateCompatAsync(
                     s =>
                         s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)

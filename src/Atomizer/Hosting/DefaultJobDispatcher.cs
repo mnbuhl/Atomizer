@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
@@ -66,7 +67,7 @@ namespace Atomizer.Hosting
                     job.Id,
                     handlerType.Name
                 );
-                throw ex.InnerException!; // Re-throw the inner exception for proper handling
+                ExceptionDispatchInfo.Capture(ex.InnerException!).Throw(); // Re-throw the inner exception for proper handling
             }
             catch (Exception ex)
             {

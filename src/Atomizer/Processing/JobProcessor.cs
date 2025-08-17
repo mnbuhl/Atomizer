@@ -80,17 +80,6 @@ namespace Atomizer.Processing
 
             try
             {
-                var jobError = new AtomizerJobError
-                {
-                    Id = Guid.NewGuid(),
-                    Attempt = job.Attempts,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ErrorMessage = ex.Message,
-                    StackTrace = ex.StackTrace[..5120],
-                    JobId = job.Id,
-                    RuntimeIdentity = job.LeaseToken?.InstanceId,
-                };
-
                 var retryCtx = new AtomizerRetryContext(job);
                 var retryPolicy = new DefaultRetryPolicy(retryCtx);
 
@@ -119,6 +108,20 @@ namespace Atomizer.Processing
                         _queue.QueueKey
                     );
                 }
+
+                var jobError = new AtomizerJobError
+                {
+                    Id = Guid.NewGuid(),
+                    Attempt = attempt,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ErrorMessage = ex.Message,
+                    ExceptionType = ex.GetType().FullName,
+                    StackTrace = ex.StackTrace?.Length > 5120 ? ex.StackTrace[..5120] : ex.StackTrace,
+                    JobId = job.Id,
+                    RuntimeIdentity = job.LeaseToken?.InstanceId,
+                };
+
+                await _storage.InsertErrorAsync(jobError, ct);
             }
             catch (Exception jobFailureEx)
             {

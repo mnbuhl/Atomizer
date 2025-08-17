@@ -5,17 +5,17 @@
 namespace Atomizer.EFCore.Example.Data.PostgresMigrations
 {
     /// <inheritdoc />
-    public partial class AddedLeaseTokenToAtomizerJobsTable : Migration
+    public partial class AddedExceptionTypeToErrorsTable : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "LeaseToken",
+                name: "ExceptionType",
                 schema: "Atomizer",
-                table: "AtomizerJobs",
-                type: "character varying(255)",
-                maxLength: 255,
+                table: "AtomizerJobErrors",
+                type: "character varying(1024)",
+                maxLength: 1024,
                 nullable: true);
         }
 
@@ -23,9 +23,9 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "LeaseToken",
+                name: "ExceptionType",
                 schema: "Atomizer",
-                table: "AtomizerJobs");
+                table: "AtomizerJobErrors");
         }
     }
 }

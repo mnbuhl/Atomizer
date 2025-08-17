@@ -10,6 +10,7 @@ public class AtomizerJobErrorEntity
     public AtomizerJobEntity? Job { get; set; }
     public string? ErrorMessage { get; set; }
     public string? StackTrace { get; set; }
+    public string? ExceptionType { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public int Attempt { get; set; }
     public string? RuntimeIdentity { get; set; }
@@ -28,6 +29,7 @@ public static class AtomizerJobErrorEntityMapper
             CreatedAt = error.CreatedAt,
             Attempt = error.Attempt,
             RuntimeIdentity = error.RuntimeIdentity,
+            ExceptionType = error.ExceptionType,
         };
     }
 
@@ -42,6 +44,7 @@ public static class AtomizerJobErrorEntityMapper
             CreatedAt = entity.CreatedAt,
             Attempt = entity.Attempt,
             RuntimeIdentity = entity.RuntimeIdentity,
+            ExceptionType = entity.ExceptionType,
         };
     }
 }

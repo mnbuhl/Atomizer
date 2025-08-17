@@ -6,13 +6,18 @@ namespace Atomizer.Models
     {
         public string Token { get; }
 
-        public string InstanceId => Token.Split(":*:")[0];
-        public QueueKey QueueKey => Token.Split(":*:")[1];
-        public string LeaseId => Token.Split(":*:")[2];
+        public string InstanceId { get; }
+        public QueueKey QueueKey { get; }
+        public string LeaseId { get; }
 
         public LeaseToken(string token)
         {
             Token = token;
+
+            var parts = token.Split(":*:");
+            InstanceId = parts.Length > 0 ? parts[0] : string.Empty;
+            QueueKey = parts.Length > 1 ? new QueueKey(parts[1]) : QueueKey.Default;
+            LeaseId = parts.Length > 2 ? parts[2] : string.Empty;
         }
 
         public bool Equals(LeaseToken other)
