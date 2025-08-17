@@ -34,7 +34,7 @@ builder.Services.AddAtomizer(options =>
             queue.StorageCheckInterval = TimeSpan.FromSeconds(5);
         }
     );
-    options.AddHandlersFrom<Logger>();
+    options.AddHandlersFrom<LoggerJob>();
     options.UseInMemoryStorage();
 });
 builder.Services.AddAtomizerProcessing();
@@ -52,7 +52,7 @@ app.MapPost(
     "/log",
     async ([FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerClient.EnqueueAsync(new LoggerJob("Hello, Atomizer!", LogLevel.Information));
+        await atomizerClient.EnqueueAsync(new LoggerJobPayload("Hello, Atomizer!", LogLevel.Information));
     }
 );
 
@@ -78,7 +78,7 @@ app.MapPost(
     {
         var runAt = DateTimeOffset.UtcNow.AddSeconds(runInSeconds);
         await atomizerClient.ScheduleAsync(
-            new LoggerJob("This job is scheduled to run in 1 minute.", LogLevel.Information),
+            new LoggerJobPayload("This job is scheduled to run in 1 minute.", LogLevel.Information),
             runAt
         );
     }
@@ -89,7 +89,7 @@ app.MapPost(
     async (string queue, [FromServices] IAtomizerClient atomizerClient) =>
     {
         await atomizerClient.EnqueueAsync(
-            new LoggerJob($"Logging to {queue} queue!", LogLevel.Information),
+            new LoggerJobPayload($"Logging to {queue} queue!", LogLevel.Information),
             options => options.Queue = queue
         );
     }
