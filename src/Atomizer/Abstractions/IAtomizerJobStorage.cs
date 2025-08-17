@@ -22,26 +22,5 @@ namespace Atomizer.Abstractions
         );
 
         Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
-
-        Task MarkCompletedAsync(
-            AtomizerJob job,
-            DateTimeOffset completedAt,
-            LeaseToken leaseToken,
-            CancellationToken cancellationToken
-        );
-        Task MarkFailedAsync(
-            AtomizerJob job,
-            DateTimeOffset failedAt,
-            AtomizerJobError error,
-            LeaseToken leaseToken,
-            CancellationToken cancellationToken
-        );
-        Task RescheduleAsync(
-            AtomizerJob job,
-            DateTimeOffset visibleAt,
-            AtomizerJobError? error,
-            LeaseToken leaseToken,
-            CancellationToken cancellationToken
-        );
     }
 }
