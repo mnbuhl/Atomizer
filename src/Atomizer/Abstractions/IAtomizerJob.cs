@@ -1,12 +1,11 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using Atomizer.Abstractions;
 using Atomizer.Models;
 
 // ReSharper disable once CheckNamespace
 namespace Atomizer
 {
-    public interface IAtomizerJobHandler<in TPayload>
+    public interface IAtomizerJob<in TPayload>
     {
         Task HandleAsync(TPayload payload, JobContext context);
     }

@@ -1,5 +1,4 @@
 using Atomizer;
-using Atomizer.Abstractions;
 using Atomizer.Configuration;
 using Atomizer.Example.Handlers;
 using Atomizer.Models;
@@ -35,7 +34,7 @@ builder.Services.AddAtomizer(options =>
             queue.StorageCheckInterval = TimeSpan.FromSeconds(5);
         }
     );
-    options.AddHandlersFrom<LoggerHandler>();
+    options.AddHandlersFrom<Logger>();
     options.UseInMemoryStorage();
 });
 builder.Services.AddAtomizerProcessing();
@@ -61,7 +60,7 @@ app.MapPost(
     "/exception",
     async ([FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerClient.EnqueueAsync(new ExceptionJob("This job will always fail!"));
+        await atomizerClient.EnqueueAsync(new ExceptionJobPayload("This job will always fail!"));
     }
 );
 
@@ -69,7 +68,7 @@ app.MapPost(
     "/empty",
     async ([FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerClient.EnqueueAsync(new EmptyPayloadJob());
+        await atomizerClient.EnqueueAsync(new EmptyPayload());
     }
 );
 
@@ -100,7 +99,7 @@ app.MapPost(
     "/long-running",
     async ([FromQuery] int durationInSeconds, [FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerClient.EnqueueAsync(new LongRunningJob(durationInSeconds));
+        await atomizerClient.EnqueueAsync(new LongRunningJobPayload(durationInSeconds));
     }
 );
 

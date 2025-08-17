@@ -4,12 +4,12 @@ namespace Atomizer.EFCore.Example.Handlers;
 
 public record AssignStock(Guid ProductId, int Quantity);
 
-public class AssignStockJobHandler : IAtomizerJobHandler<AssignStock>
+public class AssignStockJob : IAtomizerJob<AssignStock>
 {
     private readonly ExampleDbContext _dbContext;
-    private readonly ILogger<AssignStockJobHandler> _logger;
+    private readonly ILogger<AssignStockJob> _logger;
 
-    public AssignStockJobHandler(ExampleDbContext dbContext, ILogger<AssignStockJobHandler> logger)
+    public AssignStockJob(ExampleDbContext dbContext, ILogger<AssignStockJob> logger)
     {
         _dbContext = dbContext;
         _logger = logger;

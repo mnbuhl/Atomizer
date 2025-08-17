@@ -2,11 +2,11 @@
 
 public record GenericPayload<TPayload>(TPayload Payload);
 
-public class GenericPayloadJobHandler : IAtomizerJobHandler<GenericPayload<string>>
+public class GenericPayloadJob : IAtomizerJob<GenericPayload<string>>
 {
-    private readonly ILogger<GenericPayloadJobHandler> _logger;
+    private readonly ILogger<GenericPayloadJob> _logger;
 
-    public GenericPayloadJobHandler(ILogger<GenericPayloadJobHandler> logger)
+    public GenericPayloadJob(ILogger<GenericPayloadJob> logger)
     {
         _logger = logger;
     }

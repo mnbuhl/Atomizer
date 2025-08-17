@@ -54,7 +54,7 @@ namespace Atomizer.Configuration
                 foreach (var impl in types)
                 {
                     var handlerInterfaces = impl.GetInterfaces()
-                        .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAtomizerJobHandler<>));
+                        .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAtomizerJob<>));
 
                     foreach (var handlerInterface in handlerInterfaces)
                     {

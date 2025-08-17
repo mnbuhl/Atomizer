@@ -24,7 +24,7 @@ builder.Services.AddDbContext<ExampleDbContext>(o =>
 
 builder.Services.AddAtomizer(options =>
 {
-    options.AddHandlersFrom<AssignStockJobHandler>();
+    options.AddHandlersFrom<AssignStockJob>();
     options.UseEntityFrameworkCoreStorage<ExampleDbContext>();
 });
 builder.Services.AddAtomizerProcessing(options =>

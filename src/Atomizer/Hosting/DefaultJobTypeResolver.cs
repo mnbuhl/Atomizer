@@ -16,7 +16,7 @@ namespace Atomizer.Hosting
         {
             return _cache.GetOrAdd(
                 payloadType.AssemblyQualifiedName!,
-                typeof(IAtomizerJobHandler<>).MakeGenericType(payloadType)
+                typeof(IAtomizerJob<>).MakeGenericType(payloadType)
             );
         }
     }

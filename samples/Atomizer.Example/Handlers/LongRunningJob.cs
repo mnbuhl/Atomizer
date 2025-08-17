@@ -1,17 +1,17 @@
-﻿namespace Atomizer.EFCore.Example.Handlers;
+﻿namespace Atomizer.Example.Handlers;
 
-public record LongRunningJob(int DurationInSeconds);
+public record LongRunningJobPayload(int DurationInSeconds);
 
-public class LongRunningJobHandler : IAtomizerJobHandler<LongRunningJob>
+public class LongRunningJob : IAtomizerJob<LongRunningJobPayload>
 {
-    private readonly ILogger<LongRunningJobHandler> _logger;
+    private readonly ILogger<LongRunningJob> _logger;
 
-    public LongRunningJobHandler(ILogger<LongRunningJobHandler> logger)
+    public LongRunningJob(ILogger<LongRunningJob> logger)
     {
         _logger = logger;
     }
 
-    public async Task HandleAsync(LongRunningJob payload, JobContext context)
+    public async Task HandleAsync(LongRunningJobPayload payload, JobContext context)
     {
         _logger.LogInformation(
             "Handling LongRunningJob with ID: {JobId}, Duration: {Duration} seconds",

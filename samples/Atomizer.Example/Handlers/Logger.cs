@@ -2,11 +2,11 @@
 
 public record LoggerJob(string Message, LogLevel Level);
 
-public class LoggerHandler : IAtomizerJobHandler<LoggerJob>
+public class Logger : IAtomizerJob<LoggerJob>
 {
-    private readonly ILogger<LoggerHandler> _logger;
+    private readonly ILogger<Logger> _logger;
 
-    public LoggerHandler(ILogger<LoggerHandler> logger)
+    public Logger(ILogger<Logger> logger)
     {
         _logger = logger;
     }
