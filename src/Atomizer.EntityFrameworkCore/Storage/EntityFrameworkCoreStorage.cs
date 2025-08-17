@@ -73,7 +73,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
+        public async Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
             QueueKey queueKey,
             int batchSize,
             DateTimeOffset now,
@@ -168,6 +168,16 @@ namespace Atomizer.EntityFrameworkCore.Storage
                 );
 
             return releasedCount;
+        }
+
+        public Task<IReadOnlyList<AtomizerRecurringJob>> LeaseDueRecurringAsync(
+            QueueKey queueKey,
+            DateTimeOffset now,
+            LeaseToken leaseToken,
+            CancellationToken cancellationToken
+        )
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -53,7 +53,7 @@ namespace Atomizer.Clients
             return EnqueueInternalAsync(payload, runAt, options, cancellation);
         }
 
-        private Task<Guid> EnqueueInternalAsync<TPayload>(
+        private async Task<Guid> EnqueueInternalAsync<TPayload>(
             TPayload payload,
             DateTimeOffset when,
             EnqueueOptions options,
@@ -77,15 +77,17 @@ namespace Atomizer.Clients
 
             var enforceIdem = !string.IsNullOrEmpty(job.IdempotencyKey);
 
+            var jobId = await _storage.InsertAsync(job, enforceIdem, ct);
+
             _logger.LogDebug(
                 "Enqueuing job {JobId} with payload type {PayloadType} to queue {QueueKey} at {ScheduledAt}",
-                job.Id,
+                jobId,
                 job.PayloadType.FullName,
                 job.QueueKey,
                 job.ScheduledAt
             );
 
-            return _storage.InsertAsync(job, enforceIdem, ct);
+            return jobId;
         }
     }
 }

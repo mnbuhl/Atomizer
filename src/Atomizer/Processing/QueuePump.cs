@@ -53,7 +53,7 @@ namespace Atomizer.Processing
             var identity = serviceProvider.GetRequiredService<AtomizerRuntimeIdentity>();
             _leaseToken = new LeaseToken($"{identity.InstanceId}:*:{_queue.QueueKey}:*:{Guid.NewGuid():N}");
 
-            _storageScopeFactory = new ServiceProviderStorageScopeFactory(serviceProvider);
+            _storageScopeFactory = serviceProvider.GetRequiredService<IAtomizerStorageScopeFactory>();
 
             _poller = new QueuePoller(
                 _queue,

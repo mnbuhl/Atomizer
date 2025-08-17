@@ -21,6 +21,8 @@ namespace Atomizer.Processing
 
         private DateTimeOffset _lastStorageCheck;
 
+        private static readonly TimeSpan DefaultTickInterval = TimeSpan.FromSeconds(1);
+
         public QueuePoller(
             QueueOptions queue,
             IAtomizerClock clock,
@@ -42,7 +44,6 @@ namespace Atomizer.Processing
 
         public async Task RunAsync(CancellationToken ct)
         {
-            var tick = _queue.TickInterval;
             var storageCheckInterval = _queue.StorageCheckInterval;
 
             while (!ct.IsCancellationRequested)
@@ -58,7 +59,7 @@ namespace Atomizer.Processing
 
                         _lastStorageCheck = now;
 
-                        var leased = await storage.TryLeaseBatchAsync(
+                        var leased = await storage.LeaseBatchAsync(
                             _queue.QueueKey,
                             _queue.BatchSize,
                             now,
@@ -94,7 +95,7 @@ namespace Atomizer.Processing
 
                 try
                 {
-                    await Task.Delay(tick, ct);
+                    await Task.Delay(DefaultTickInterval, ct);
                 }
                 catch (TaskCanceledException)
                 {

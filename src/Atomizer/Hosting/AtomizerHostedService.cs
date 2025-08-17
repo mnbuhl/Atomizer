@@ -7,14 +7,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Hosting
 {
-    public class AtomizerHostedService : BackgroundService
+    internal sealed class AtomizerHostedService : BackgroundService
     {
-        private readonly IQueueCoordinator _coordinator;
+        private readonly QueueCoordinator _coordinator;
         private readonly AtomizerProcessingOptions _options;
         private readonly ILogger<AtomizerHostedService> _logger;
 
         public AtomizerHostedService(
-            IQueueCoordinator coordinator,
+            QueueCoordinator coordinator,
             AtomizerProcessingOptions options,
             ILogger<AtomizerHostedService> logger
         )

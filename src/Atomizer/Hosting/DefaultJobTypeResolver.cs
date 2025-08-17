@@ -8,7 +8,7 @@ namespace Atomizer.Hosting
         Type Resolve(Type payloadType);
     }
 
-    public class DefaultJobTypeResolver : IAtomizerJobTypeResolver
+    internal sealed class DefaultJobTypeResolver : IAtomizerJobTypeResolver
     {
         private readonly ConcurrentDictionary<string, Type> _cache = new ConcurrentDictionary<string, Type>();
 

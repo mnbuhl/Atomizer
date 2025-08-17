@@ -15,7 +15,7 @@ namespace Atomizer.Hosting
         Task DispatchAsync(AtomizerJob job, CancellationToken cancellationToken);
     }
 
-    internal class DefaultJobDispatcher : IAtomizerJobDispatcher
+    internal sealed class DefaultJobDispatcher : IAtomizerJobDispatcher
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAtomizerJobTypeResolver _typeResolver;

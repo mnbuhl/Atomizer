@@ -9,7 +9,7 @@ namespace Atomizer.Hosting
         DateTimeOffset MaxValue { get; }
     }
 
-    public class AtomizerClock : IAtomizerClock
+    internal sealed class AtomizerClock : IAtomizerClock
     {
         public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
         public DateTimeOffset MinValue => DateTimeOffset.MinValue;

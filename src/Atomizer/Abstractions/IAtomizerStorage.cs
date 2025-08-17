@@ -12,7 +12,7 @@ namespace Atomizer.Abstractions
 
         Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken);
 
-        Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
+        Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
             QueueKey queueKey,
             int batchSize,
             DateTimeOffset now,
@@ -22,5 +22,12 @@ namespace Atomizer.Abstractions
         );
 
         Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
+
+        Task<IReadOnlyList<AtomizerRecurringJob>> LeaseDueRecurringAsync(
+            QueueKey queueKey,
+            DateTimeOffset now,
+            LeaseToken leaseToken,
+            CancellationToken cancellationToken
+        );
     }
 }

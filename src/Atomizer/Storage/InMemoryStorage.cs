@@ -91,7 +91,7 @@ namespace Atomizer.Storage
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<AtomizerJob>> TryLeaseBatchAsync(
+        public Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
             QueueKey queueKey,
             int batchSize,
             DateTimeOffset now,
@@ -163,6 +163,16 @@ namespace Atomizer.Storage
 
             _logger.LogDebug("Released {Count} leased job(s) with token '{LeaseToken}'", releasedCount, leaseToken);
             return Task.FromResult(releasedCount);
+        }
+
+        public Task<IReadOnlyList<AtomizerRecurringJob>> LeaseDueRecurringAsync(
+            QueueKey queueKey,
+            DateTimeOffset now,
+            LeaseToken leaseToken,
+            CancellationToken cancellationToken
+        )
+        {
+            throw new NotImplementedException();
         }
 
         private void EvictWhileOverCapacity(int max)

@@ -7,13 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
-    public interface IQueueCoordinator
-    {
-        Task StartAsync(CancellationToken ct);
-        Task StopAsync(TimeSpan gracePeriod, CancellationToken ct);
-    }
-
-    internal sealed class QueueCoordinator : IQueueCoordinator
+    internal sealed class QueueCoordinator
     {
         private readonly AtomizerOptions _options;
         private readonly ILogger<QueueCoordinator> _logger;
