@@ -16,12 +16,12 @@ namespace Atomizer.Hosting
     internal sealed class ServiceProviderStorageScope : IAtomizerStorageScope
     {
         private readonly IServiceScope _scope;
-        public IAtomizerJobStorage Storage { get; }
+        public IAtomizerStorage Storage { get; }
 
         public ServiceProviderStorageScope(IServiceScope scope)
         {
             _scope = scope;
-            Storage = scope.ServiceProvider.GetRequiredService<IAtomizerJobStorage>();
+            Storage = scope.ServiceProvider.GetRequiredService<IAtomizerStorage>();
         }
 
         public void Dispose() => _scope.Dispose();

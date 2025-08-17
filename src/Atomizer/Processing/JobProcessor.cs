@@ -14,7 +14,7 @@ namespace Atomizer.Processing
         private readonly QueueOptions _queue;
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerJobDispatcher _dispatcher;
-        private readonly IAtomizerJobStorage _storage;
+        private readonly IAtomizerStorage _storage;
         private readonly ILogger _logger;
         private readonly LeaseToken _leaseToken;
 
@@ -22,7 +22,7 @@ namespace Atomizer.Processing
             QueueOptions queue,
             IAtomizerClock clock,
             IAtomizerJobDispatcher dispatcher,
-            IAtomizerJobStorage storage,
+            IAtomizerStorage storage,
             ILogger logger,
             LeaseToken leaseToken
         )

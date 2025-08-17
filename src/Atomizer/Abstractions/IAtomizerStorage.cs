@@ -6,7 +6,7 @@ using Atomizer.Models;
 
 namespace Atomizer.Abstractions
 {
-    public interface IAtomizerJobStorage
+    public interface IAtomizerStorage
     {
         Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken);
 

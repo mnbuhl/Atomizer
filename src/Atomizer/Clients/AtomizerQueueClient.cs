@@ -10,19 +10,19 @@ namespace Atomizer.Clients
 {
     public class AtomizerQueueClient : IAtomizerQueueClient
     {
-        private readonly IAtomizerJobStorage _jobStorage;
+        private readonly IAtomizerStorage _storage;
         private readonly IAtomizerJobSerializer _jobSerializer;
         private readonly IAtomizerClock _clock;
         private readonly ILogger<AtomizerQueueClient> _logger;
 
         public AtomizerQueueClient(
-            IAtomizerJobStorage jobStorage,
+            IAtomizerStorage storage,
             IAtomizerJobSerializer jobSerializer,
             IAtomizerClock clock,
             ILogger<AtomizerQueueClient> logger
         )
         {
-            _jobStorage = jobStorage;
+            _storage = storage;
             _jobSerializer = jobSerializer;
             _clock = clock;
             _logger = logger;
@@ -85,7 +85,7 @@ namespace Atomizer.Clients
                 job.ScheduledAt
             );
 
-            return _jobStorage.InsertAsync(job, enforceIdem, ct);
+            return _storage.InsertAsync(job, enforceIdem, ct);
         }
     }
 }

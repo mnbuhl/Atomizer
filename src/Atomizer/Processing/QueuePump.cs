@@ -41,8 +41,13 @@ namespace Atomizer.Processing
 
             _logger = _loggerFactory.CreateLogger<QueuePump>();
 
-            _channel = ChannelFactory.CreateBounded<AtomizerJob>(
-                capacity: Math.Max(1, _queue.DegreeOfParallelism) * Math.Max(1, _queue.BatchSize)
+            _channel = Channel.CreateBounded<AtomizerJob>(
+                new BoundedChannelOptions(Math.Max(1, _queue.DegreeOfParallelism) * Math.Max(1, _queue.BatchSize))
+                {
+                    SingleReader = false,
+                    SingleWriter = true,
+                    FullMode = BoundedChannelFullMode.Wait,
+                }
             );
 
             var identity = serviceProvider.GetRequiredService<AtomizerRuntimeIdentity>();

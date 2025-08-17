@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage
 {
-    internal sealed class InMemoryJobStorage : IAtomizerJobStorage
+    internal sealed class InMemoryStorage : IAtomizerStorage
     {
         // Global store of jobs
         private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new ConcurrentDictionary<Guid, AtomizerJob>();
@@ -31,9 +31,9 @@ namespace Atomizer.Storage
 
         // Options for configuring the in-memory job storage
         private readonly InMemoryJobStorageOptions _options;
-        private readonly ILogger<InMemoryJobStorage> _logger;
+        private readonly ILogger<InMemoryStorage> _logger;
 
-        public InMemoryJobStorage(InMemoryJobStorageOptions options, ILogger<InMemoryJobStorage> logger)
+        public InMemoryStorage(InMemoryJobStorageOptions options, ILogger<InMemoryStorage> logger)
         {
             _options = options;
             _logger = logger;

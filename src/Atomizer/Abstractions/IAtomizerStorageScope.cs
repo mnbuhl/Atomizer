@@ -9,6 +9,6 @@ namespace Atomizer.Abstractions
 
     public interface IAtomizerStorageScope : IDisposable
     {
-        IAtomizerJobStorage Storage { get; }
+        IAtomizerStorage Storage { get; }
     }
 }

@@ -12,20 +12,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.EntityFrameworkCore.Storage
 {
-    internal sealed class EntityFrameworkCoreJobStorage<TDbContext> : IAtomizerJobStorage
+    internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         where TDbContext : DbContext
     {
         private readonly TDbContext _dbContext;
         private readonly EntityFrameworkCoreJobStorageOptions _options;
-        private readonly ILogger<EntityFrameworkCoreJobStorage<TDbContext>> _logger;
+        private readonly ILogger<EntityFrameworkCoreStorage<TDbContext>> _logger;
 
         private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
         private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
 
-        public EntityFrameworkCoreJobStorage(
+        public EntityFrameworkCoreStorage(
             TDbContext dbContext,
             EntityFrameworkCoreJobStorageOptions options,
-            ILogger<EntityFrameworkCoreJobStorage<TDbContext>> logger
+            ILogger<EntityFrameworkCoreStorage<TDbContext>> logger
         )
         {
             _dbContext = dbContext;

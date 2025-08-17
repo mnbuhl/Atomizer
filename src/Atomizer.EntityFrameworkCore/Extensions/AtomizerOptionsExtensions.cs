@@ -20,10 +20,10 @@ namespace Atomizer.EntityFrameworkCore.Extensions
             configure?.Invoke(efOptions);
 
             options.JobStorageOptions = new JobStorageOptions(
-                sp => new EntityFrameworkCoreJobStorage<TDbContext>(
+                sp => new EntityFrameworkCoreStorage<TDbContext>(
                     sp.GetRequiredService<TDbContext>(),
                     efOptions,
-                    sp.GetRequiredService<ILogger<EntityFrameworkCoreJobStorage<TDbContext>>>()
+                    sp.GetRequiredService<ILogger<EntityFrameworkCoreStorage<TDbContext>>>()
                 ),
                 ServiceLifetime.Scoped
             );

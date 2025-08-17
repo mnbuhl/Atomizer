@@ -15,9 +15,9 @@ namespace Atomizer.Configuration
         {
             var inMemoryOptions = new InMemoryJobStorageOptions();
             configure?.Invoke(inMemoryOptions);
-            options.JobStorageOptions = new JobStorageOptions(sp => new InMemoryJobStorage(
+            options.JobStorageOptions = new JobStorageOptions(sp => new InMemoryStorage(
                 inMemoryOptions,
-                sp.GetRequiredService<ILogger<InMemoryJobStorage>>()
+                sp.GetRequiredService<ILogger<InMemoryStorage>>()
             ));
             return options;
         }

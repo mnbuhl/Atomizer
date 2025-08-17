@@ -13,7 +13,7 @@ namespace Atomizer.Processing
         Task StopAsync(TimeSpan gracePeriod, CancellationToken ct);
     }
 
-    public class QueueCoordinator : IQueueCoordinator
+    internal sealed class QueueCoordinator : IQueueCoordinator
     {
         private readonly AtomizerOptions _options;
         private readonly ILogger<QueueCoordinator> _logger;
