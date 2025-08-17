@@ -13,9 +13,10 @@ namespace Atomizer.Scheduling
     {
         private readonly SchedulerOptions _options;
         private readonly IAtomizerClock _clock;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<Scheduler> _logger;
-        private readonly LeaseToken _leaseToken;
         private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+        private readonly LeaseToken _leaseToken;
 
         private DateTimeOffset _lastStorageCheck;
 
@@ -24,14 +25,15 @@ namespace Atomizer.Scheduling
         public Scheduler(
             AtomizerOptions options,
             IAtomizerClock clock,
-            ILogger<Scheduler> logger,
+            ILoggerFactory loggerFactory,
             AtomizerRuntimeIdentity identity,
             IAtomizerStorageScopeFactory storageScopeFactory
         )
         {
             _options = options.SchedulerOptions;
             _clock = clock;
-            _logger = logger;
+            _loggerFactory = loggerFactory;
+            _logger = loggerFactory.CreateLogger<Scheduler>();
             _storageScopeFactory = storageScopeFactory;
 
             _lastStorageCheck = _clock.MinValue;
@@ -45,8 +47,43 @@ namespace Atomizer.Scheduling
 
             while (!ct.IsCancellationRequested)
             {
-                var now = _clock.UtcNow;
-                if (now - _lastStorageCheck >= storageCheckInterval) { }
+                try
+                {
+                    var now = _clock.UtcNow;
+
+                    if (now - _lastStorageCheck >= storageCheckInterval)
+                    {
+                        using var scope = _storageScopeFactory.CreateScope();
+                        var storage = scope.Storage;
+                        _lastStorageCheck = now;
+
+                        // Poll for jobs that are due to run
+                        var leased = await storage.LeaseDueRecurringAsync(
+                            _options.DefaultQueue,
+                            now + storageCheckInterval, // account for delay
+                            _leaseToken,
+                            ct
+                        );
+
+                        foreach (var recurringJob in leased)
+                        {
+                            _logger.LogDebug("Queuing scheduled job: {JobName}", recurringJob.Name);
+                            await ProcessScheduleAsync(recurringJob, ct);
+                        }
+                    }
+
+                    await Task.Delay(DefaultTickInterval, ct);
+                }
+                catch (TaskCanceledException)
+                {
+                    // Cancellation requested, exit the loop
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in scheduler loop");
+                    await Task.Delay(DefaultTickInterval, ct);
+                }
             }
         }
 
@@ -54,5 +91,7 @@ namespace Atomizer.Scheduling
         {
             // Logic to stop the scheduler
         }
+
+        private async Task ProcessScheduleAsync(AtomizerRecurringJob recurringJob, CancellationToken ct) { }
     }
 }

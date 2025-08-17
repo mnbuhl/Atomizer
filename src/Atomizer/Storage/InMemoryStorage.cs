@@ -175,6 +175,11 @@ namespace Atomizer.Storage
             throw new NotImplementedException();
         }
 
+        public Task<int> ReleaseLeasedRecurringAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         private void EvictWhileOverCapacity(int max)
         {
             while (_jobs.Count > max && _insertionOrder.Count > 0)

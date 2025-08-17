@@ -131,7 +131,7 @@ namespace Atomizer.Processing
                 }
                 catch
                 {
-                    /* ignore */
+                    _logger.LogDebug("Error cancelling execution for queue '{QueueKey}'", _queue.QueueKey);
                 }
                 try
                 {
@@ -139,7 +139,7 @@ namespace Atomizer.Processing
                 }
                 catch
                 {
-                    /* ignore */
+                    _logger.LogDebug("Error waiting for workers to finish for queue '{QueueKey}'", _queue.QueueKey);
                 }
             }
 
@@ -150,7 +150,7 @@ namespace Atomizer.Processing
             }
             catch
             {
-                /* ignore */
+                _logger.LogDebug("Error waiting for poller to finish for queue '{QueueKey}'", _queue.QueueKey);
             }
 
             // 4) Release any remaining leases for this pump

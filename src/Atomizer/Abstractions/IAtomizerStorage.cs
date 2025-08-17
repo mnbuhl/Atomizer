@@ -29,5 +29,7 @@ namespace Atomizer.Abstractions
             LeaseToken leaseToken,
             CancellationToken cancellationToken
         );
+
+        Task<int> ReleaseLeasedRecurringAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
     }
 }
