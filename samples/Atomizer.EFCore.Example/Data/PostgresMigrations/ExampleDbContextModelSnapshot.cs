@@ -49,6 +49,7 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobEntity", b =>
                 {
                     b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<int>("Attempts")
@@ -62,10 +63,6 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
 
                     b.Property<DateTimeOffset?>("FailedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("LeaseToken")
                         .HasMaxLength(512)
@@ -105,6 +102,7 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobErrorEntity", b =>
                 {
                     b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<int>("Attempt")

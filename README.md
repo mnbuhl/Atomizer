@@ -7,15 +7,17 @@ Atomizer is a lightweight, extensible job scheduling & queueing framework for AS
 It supports multiple storage backends, graceful shutdowns, all while being easy to extend.
 
 ## Features
-- Entity Framework Core driver — First-class support for EF Core 7 with database-backed queues.
+- Entity Framework Core driver — First-class support for EF Core 7+ with database-backed queues.
 - In-memory driver — Great for testing and development (use at your own risk in production).
 - Multiple queues — Configure different processing options per queue.
+- Retry policies — Automatic retries with custom retry counts.
 - Graceful shutdown — Ensure in-flight jobs complete or are released back for re-processing.
-- Idempotency support — Avoid double-processing when desired.
 
 ## Planned Features
 - Recurring scheduled jobs (cron-like recurring execution).
+- Configurable retry policies (backoff strategies and fixed intervals).
 - Dashboard (live monitoring and retry/dead-letter management).
+- FIFO processing (ensuring jobs are processed in the order they were enqueued without overlap).
 - Redis driver (for fast, distributed, in-memory queues).
 
 ## Quick Start
@@ -30,8 +32,21 @@ Example with EF Core storage and a single queue:
 ```csharp
 builder.Services.AddAtomizer(options =>
 {
-    // Add the default queue
-    options.AddQueue(QueueKey.Default);
+    // Configure the default queue
+    options.AddQueue(QueueKey.Default, queue => 
+    {
+        queue.DegreeOfParallelism = 4; // Maximum 4 jobs processed concurrently
+        queue.BatchSize = 10; // Retrieve 10 jobs from the storage at a time
+        queue.VisibilityTimeout = TimeSpan.FromMinutes(5); // Jobs will be invisible for 5 minutes after being fetched
+        queue.StorageCheckInterval = TimeSpan.FromSeconds(15); // Check for new jobs every 30 seconds
+    });
+    
+    // Configure a custom queue for product job processing
+    options.AddQueue("product", queue => 
+    {
+        queue.DegreeOfParallelism = 2; // Maximum 2 jobs processed concurrently
+        queue.BatchSize = 5; // Retrieve 5 jobs from the storage at a time
+    };
 
     // Register all job handlers from an assembly
     options.AddHandlersFrom<AssignStockJobHandler>();
@@ -55,49 +70,52 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 ### 3. Define a Job Handler
 ```csharp
-public record SendEmailCommand(string Email, string Subject, string Body);
+public record SendNewsletterCommand(Product Product);
 
-public class SendEmailJobHandler : IAtomizerJobHandler<SendEmailCommand>
+public class SendNewsletterJob(INewsletterService newsletterService, IEmailService emailService)
+    : IAtomizerJob<SendNewsletterCommand>
 {
-    private readonly IEmailService _email;
-    
-    public SendEmailJobHandler(IEmailService email) => _email = email;
-
-    public async Task HandleAsync(SendEmailCommand payload, JobContext context)
+    public async Task HandleAsync(SendNewsletterCommand payload, JobContext context)
     {
-        await _email.SendAsync(
-            payload.Email,
-            payload.Subject,
-            payload.Body,
-            context.CancellationToken 
-        );
+        var subscribers = await newsletterService.GetSubscribersAsync(payload.Product.CategoryId);
+
+        var emails = new List<Email>();
+
+        foreach (var subscriber in subscribers)
+        {
+            emails.Add(
+                new Email
+                {
+                    ...
+                }
+            );
+        }
+
+        await Task.WhenAll(emails.ConvertAll(email => emailService.SendEmailAsync(email)));
     }
 }
 ```
 
 ### 4. Enqueue (or schedule) a Job
 ```csharp
-public class MyController : ControllerBase
-{
-    private readonly IAtomizerClient _atomizerClient;
-
-    public MyController(IAtomizerClient atomizerClient) => _atomizerClient = atomizerClient;
-
-    [HttpPost("send-email")]
-    public async Task<IActionResult> SendEmail([FromBody] SendEmailJob job)
+app.MapPost(
+    "/products",
+    async ([FromServices] IAtomizerClient atomizerClient, [FromServices] ExampleDbContext dbContext) =>
     {
-        await _atomizerClient.EnqueueAsync(
-            new SendEmailJob("someone@example.com, "Welcome!", "Hello and welcome!")
-        );
-        
-        await _atomizerClient.ScheduleAsync(
-            new SendEmailJob("someone@example.com, "Onboarding", "Let's get started!"), 
-            DateTime.UtcNow.AddMinutes(5)
-        );
-            
-        ....
+        var product = new Product
+        {
+            ...,
+            CategoryId = Guid.NewGuid(),
+        };
+
+        dbContext.Products.Add(product);
+        await dbContext.SaveChangesAsync();
+
+        await atomizerClient.EnqueueAsync(new SendNewsletterCommand(product));
+
+        return Results.Created($"/products/{product.Id}", product);
     }
-}
+);
 ```
 
 ## Contributing

@@ -16,6 +16,6 @@
         <ProjectReference Include="..\..\src\Atomizer.EntityFrameworkCore\Atomizer.EntityFrameworkCore.csproj" />
     </ItemGroup>
     <ItemGroup>
-        <Folder Include="Data\PostgresMigrations\" />
+        <Folder Include="Mocks\" />
     </ItemGroup>
 </Project>

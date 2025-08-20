@@ -47,7 +47,7 @@ await db.Database.MigrateAsync();
 
 app.MapPost(
     "/products",
-    async ([FromServices] ExampleDbContext dbContext) =>
+    async ([FromServices] ExampleDbContext dbContext, [FromServices] IAtomizerClient atomizerClient) =>
     {
         var product = new Product
         {

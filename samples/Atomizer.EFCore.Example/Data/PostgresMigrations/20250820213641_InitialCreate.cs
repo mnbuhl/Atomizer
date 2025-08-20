@@ -31,7 +31,6 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     FailedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    IdempotencyKey = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     LeaseToken = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true)
                 },
                 constraints: table =>
@@ -55,22 +54,24 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "AtomizerJobErrorEntity",
+                name: "AtomizerJobErrors",
+                schema: "Atomizer",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     JobId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ErrorMessage = table.Column<string>(type: "text", nullable: true),
-                    StackTrace = table.Column<string>(type: "text", nullable: true),
+                    ErrorMessage = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
+                    StackTrace = table.Column<string>(type: "character varying(5120)", maxLength: 5120, nullable: true),
+                    ExceptionType = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     Attempt = table.Column<int>(type: "integer", nullable: false),
-                    RuntimeIdentity = table.Column<string>(type: "text", nullable: true)
+                    RuntimeIdentity = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_AtomizerJobErrorEntity", x => x.Id);
+                    table.PrimaryKey("PK_AtomizerJobErrors", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_AtomizerJobErrorEntity_AtomizerJobs_JobId",
+                        name: "FK_AtomizerJobErrors_AtomizerJobs_JobId",
                         column: x => x.JobId,
                         principalSchema: "Atomizer",
                         principalTable: "AtomizerJobs",
@@ -79,8 +80,9 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_AtomizerJobErrorEntity_JobId",
-                table: "AtomizerJobErrorEntity",
+                name: "IX_AtomizerJobErrors_JobId",
+                schema: "Atomizer",
+                table: "AtomizerJobErrors",
                 column: "JobId");
         }
 
@@ -88,7 +90,8 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "AtomizerJobErrorEntity");
+                name: "AtomizerJobErrors",
+                schema: "Atomizer");
 
             migrationBuilder.DropTable(
                 name: "Products");

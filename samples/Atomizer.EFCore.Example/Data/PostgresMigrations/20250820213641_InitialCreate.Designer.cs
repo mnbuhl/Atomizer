@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Atomizer.EFCore.Example.Data.PostgresMigrations
 {
     [DbContext(typeof(ExampleDbContext))]
-    [Migration("20250817120940_InitialCreate")]
+    [Migration("20250820213641_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -52,6 +52,7 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobEntity", b =>
                 {
                     b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<int>("Attempts")
@@ -65,10 +66,6 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
 
                     b.Property<DateTimeOffset?>("FailedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("LeaseToken")
                         .HasMaxLength(512)
@@ -118,22 +115,29 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ErrorMessage")
-                        .HasColumnType("text");
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("ExceptionType")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
 
                     b.Property<Guid>("JobId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("RuntimeIdentity")
-                        .HasColumnType("text");
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("StackTrace")
-                        .HasColumnType("text");
+                        .HasMaxLength(5120)
+                        .HasColumnType("character varying(5120)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("JobId");
 
-                    b.ToTable("AtomizerJobErrorEntity");
+                    b.ToTable("AtomizerJobErrors", "Atomizer");
                 });
 
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobErrorEntity", b =>
