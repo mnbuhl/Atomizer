@@ -1,0 +1,103 @@
+﻿name: Bump version & Release NuGet package
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Select the type of version bump"
+        default: patch
+        type: choice
+        required: true
+        options: [patch, minor, major]
+
+permissions:
+  contents: write # tag + release
+
+jobs:
+  bump_release_publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG_PREFIX: ""
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Determine next version (from all existing SemVer tags)
+        id: bump
+        shell: bash
+        run: |
+          set -eo pipefail
+          bump="${{ github.event.inputs.bump }}"
+          prefix="${TAG_PREFIX}"
+
+          mapfile -t TAGS < <(git tag --list | grep -E "^(${prefix})?[0-9]+\.[0-9]+\.[0-9]+$" || true)
+
+          normalize() {
+            local t="$1"
+            [[ -n "$prefix" ]] && t="${t#"$prefix"}"
+            echo "$t"
+          }
+
+          latest="0.0.0"
+          if (( ${#TAGS[@]} > 0 )); then
+            latest="$(printf '%s\n' "${TAGS[@]}" | while read -r t; do normalize "$t"; done | sort -V | tail -n1)"
+          fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$latest"
+
+          case "$bump" in
+            patch)
+              if [[ "$latest" == "0.0.0" && ${#TAGS[@]} -eq 0 ]]; then NEW="0.0.1"
+              else NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"; fi
+              ;;
+            minor)
+              if [[ "$latest" == "0.0.0" && ${#TAGS[@]} -eq 0 ]]; then NEW="0.1.0"
+              else NEW="${MAJOR}.$((MINOR + 1)).0"; fi
+              ;;
+            major)
+              if [[ "$latest" == "0.0.0" && ${#TAGS[@]} -eq 0 ]]; then NEW="1.0.0"
+              else NEW="$((MAJOR + 1)).0.0"; fi
+              ;;
+            *) echo "Unsupported bump: $bump" >&2; exit 1 ;;
+          esac
+
+          NEW_TAG="${prefix}${NEW}"
+
+          if git rev-parse -q --verify "refs/tags/${NEW_TAG}" >/dev/null; then
+            echo "Tag ${NEW_TAG} already exists. Aborting." >&2
+            exit 1
+          fi
+
+          # Tag the *selected branch* HEAD
+          git tag -a "${NEW_TAG}" -m "Release ${NEW_TAG}" "${GITHUB_SHA}"
+          git push origin "${NEW_TAG}"
+
+          echo "new_version=${NEW}" >> "$GITHUB_OUTPUT"
+          echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish NuGet package
+        uses: ./.github/workflows/release-reuse.yml
+        with:
+          PACKAGE_ID: "['Atomizer', 'Atomizer.EntityFrameworkCore']"
+          PACKAGE_VERSION: ${{ steps.bump.outputs.new_version }}
+        secrets: inherit
+
+      - name: Create GitHub Release and attach nupkg
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}
+          generate_release_notes: true
+          files: artifacts/*.nupkg
+
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}   # <-- add this repo/org secret
+        run: |
+          dotnet nuget push "out/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source "${{ github.event.inputs.nuget_source }}" \
+            --skip-duplicate
