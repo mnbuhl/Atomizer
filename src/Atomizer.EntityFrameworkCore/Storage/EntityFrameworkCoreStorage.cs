@@ -33,31 +33,8 @@ namespace Atomizer.EntityFrameworkCore.Storage
             _logger = logger;
         }
 
-        public async Task<Guid> InsertAsync(
-            AtomizerJob job,
-            bool enforceIdempotency,
-            CancellationToken cancellationToken
-        )
+        public async Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
         {
-            // Idempotency (simple lookup; relies on app-level uniqueness of IdempotencyKey)
-            if (enforceIdempotency && !string.IsNullOrWhiteSpace(job.IdempotencyKey))
-            {
-                var existingId = await JobEntities
-                    .Where(j => j.IdempotencyKey == job.IdempotencyKey)
-                    .Select(j => j.Id)
-                    .FirstOrDefaultAsync(cancellationToken);
-
-                if (existingId != null && existingId != Guid.Empty)
-                {
-                    _logger.LogInformation(
-                        "Insert idempotent-hit for key {Key} -> {JobId}",
-                        job.IdempotencyKey,
-                        existingId
-                    );
-                    return existingId;
-                }
-            }
-
             var entity = job.ToEntity();
             JobEntities.Add(entity);
             await _dbContext.SaveChangesAsync(cancellationToken);

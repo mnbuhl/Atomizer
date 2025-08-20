@@ -18,7 +18,6 @@ namespace Atomizer.Models
         public DateTimeOffset? LastOccurrence { get; set; }
         public bool Paused { get; set; }
         public AtomizerMisfirePolicy MisfirePolicy { get; set; } = AtomizerMisfirePolicy.RunNow;
-        public AtomizerConcurrencyPolicy ConcurrencyPolicy { get; set; } = AtomizerConcurrencyPolicy.Allow;
         public LeaseToken? LeaseToken { get; set; }
     }
 
@@ -27,11 +26,5 @@ namespace Atomizer.Models
         Ignore = 1,
         RunNow = 2,
         CatchUp = 3,
-    }
-
-    public enum AtomizerConcurrencyPolicy
-    {
-        Allow = 1,
-        SkipIfRunning = 2,
     }
 }

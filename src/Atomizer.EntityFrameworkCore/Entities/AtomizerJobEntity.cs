@@ -19,7 +19,6 @@ namespace Atomizer.EntityFrameworkCore.Entities
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
-        public string? IdempotencyKey { get; set; }
         public string? LeaseToken { get; set; }
         public List<AtomizerJobErrorEntity> Errors { get; set; } = new List<AtomizerJobErrorEntity>();
     }
@@ -49,7 +48,6 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 CreatedAt = job.CreatedAt,
                 CompletedAt = job.CompletedAt,
                 FailedAt = job.FailedAt,
-                IdempotencyKey = job.IdempotencyKey,
                 LeaseToken = job.LeaseToken?.Token,
                 MaxAttempts = job.MaxAttempts,
                 Errors = job.Errors.Select(err => err.ToEntity()).ToList(),
@@ -72,7 +70,6 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 CreatedAt = entity.CreatedAt,
                 CompletedAt = entity.CompletedAt,
                 FailedAt = entity.FailedAt,
-                IdempotencyKey = entity.IdempotencyKey,
                 LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
                 MaxAttempts = entity.MaxAttempts,
                 Errors = entity.Errors.Select(err => err.ToAtomizerJobError()).ToList(),

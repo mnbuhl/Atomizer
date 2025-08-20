@@ -29,7 +29,6 @@ namespace Atomizer.EntityFrameworkCore.Configurations
             builder.Property(job => job.CreatedAt).IsRequired();
             builder.Property(job => job.CompletedAt).IsRequired(false);
             builder.Property(job => job.FailedAt).IsRequired(false);
-            builder.Property(job => job.IdempotencyKey).HasMaxLength(255);
             builder.Property(job => job.LeaseToken).HasMaxLength(512);
         }
     }

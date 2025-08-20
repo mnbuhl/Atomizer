@@ -17,8 +17,7 @@ namespace Atomizer.EntityFrameworkCore.Entities
         public DateTimeOffset NextOccurrence { get; set; }
         public DateTimeOffset? LastOccurrence { get; set; }
         public bool Paused { get; set; }
-        public AtomizerEntityMisfirePolicy EntityMisfirePolicy { get; set; } = AtomizerEntityMisfirePolicy.RunNow;
-        public AtomizerEntityConcurrencyPolicy ConcurrencyPolicy { get; set; } = AtomizerEntityConcurrencyPolicy.Allow;
+        public AtomizerEntityMisfirePolicy MisfirePolicy { get; set; } = AtomizerEntityMisfirePolicy.RunNow;
         public string? LeaseToken { get; set; }
     }
 
@@ -27,11 +26,5 @@ namespace Atomizer.EntityFrameworkCore.Entities
         Ignore = 1,
         RunNow = 2,
         CatchUp = 3,
-    }
-
-    public enum AtomizerEntityConcurrencyPolicy
-    {
-        Allow = 1,
-        SkipIfRunning = 2,
     }
 }

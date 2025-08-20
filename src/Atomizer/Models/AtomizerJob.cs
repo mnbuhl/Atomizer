@@ -17,7 +17,6 @@ namespace Atomizer.Models
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
-        public string? IdempotencyKey { get; set; }
         public LeaseToken? LeaseToken { get; set; }
         public List<AtomizerJobError> Errors { get; set; } = new List<AtomizerJobError>();
         public Guid? ScheduledJobId { get; set; }

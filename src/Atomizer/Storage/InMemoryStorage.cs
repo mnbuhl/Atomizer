@@ -15,11 +15,6 @@ namespace Atomizer.Storage
         // Global store of jobs
         private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new ConcurrentDictionary<Guid, AtomizerJob>();
 
-        // Optional idempotency index: idempotencyKey -> jobId
-        private readonly ConcurrentDictionary<string, Guid> _idempotency = new ConcurrentDictionary<string, Guid>(
-            StringComparer.Ordinal
-        );
-
         // Single process-wide lock to ensure atomic leasing batches.
         private readonly object _leaseGate = new object();
 
@@ -39,34 +34,16 @@ namespace Atomizer.Storage
             _logger = logger;
         }
 
-        public Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken)
+        public Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
         {
             lock (_insertEvictGate)
             {
-                if (enforceIdempotency && !string.IsNullOrWhiteSpace(job.IdempotencyKey))
-                {
-                    if (_idempotency.TryGetValue(job.IdempotencyKey, out var existing))
-                    {
-                        _logger.LogInformation(
-                            "Idempotent hit for key '{Key}' -> {JobId}",
-                            job.IdempotencyKey,
-                            existing
-                        );
-                        return Task.FromResult(existing);
-                    }
-                }
-
                 if (!_jobs.TryAdd(job.Id, job))
                 {
                     throw new InvalidOperationException($"Job with Id {job.Id} already exists.");
                 }
 
                 _insertionOrder.Enqueue(job.Id);
-
-                if (enforceIdempotency && !string.IsNullOrWhiteSpace(job.IdempotencyKey))
-                {
-                    _idempotency.TryAdd(job.IdempotencyKey, job.Id);
-                }
 
                 _logger.LogDebug(
                     "Inserted job {JobId} into '{Queue}' (count={Count})",
@@ -187,14 +164,8 @@ namespace Atomizer.Storage
                 var id = _insertionOrder.Dequeue();
 
                 // if already removed (e.g., completed & later evicted), continue
-                if (_jobs.TryRemove(id, out var job))
+                if (_jobs.TryRemove(id, out _))
                 {
-                    // Remove from idempotency index if it exists
-                    if (!string.IsNullOrWhiteSpace(job.IdempotencyKey))
-                    {
-                        _idempotency.TryRemove(job.IdempotencyKey, out _);
-                    }
-
                     _logger.LogInformation(
                         "Evicted job {JobId} due to capacity limit ({Current}/{Max})",
                         id,

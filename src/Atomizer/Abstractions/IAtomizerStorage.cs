@@ -8,7 +8,7 @@ namespace Atomizer.Abstractions
 {
     public interface IAtomizerStorage
     {
-        Task<Guid> InsertAsync(AtomizerJob job, bool enforceIdempotency, CancellationToken cancellationToken);
+        Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken);
 
         Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken);
 

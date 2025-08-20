@@ -70,14 +70,11 @@ namespace Atomizer.Clients
                 VisibleAt = null,
                 Status = AtomizerJobStatus.Pending,
                 Attempts = 0,
-                IdempotencyKey = options.IdempotencyKey,
                 CreatedAt = _clock.UtcNow,
                 MaxAttempts = options.MaxAttempts,
             };
 
-            var enforceIdem = !string.IsNullOrEmpty(job.IdempotencyKey);
-
-            var jobId = await _storage.InsertAsync(job, enforceIdem, ct);
+            var jobId = await _storage.InsertAsync(job, ct);
 
             _logger.LogDebug(
                 "Enqueuing job {JobId} with payload type {PayloadType} to queue {QueueKey} at {ScheduledAt}",
