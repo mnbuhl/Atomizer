@@ -25,6 +25,11 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
           fetch-tags: true
+          
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Determine next version (from all existing SemVer tags)
         id: bump
