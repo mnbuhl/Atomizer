@@ -10,8 +10,6 @@ namespace Atomizer.Configuration
     {
         public JobStorageOptions? JobStorageOptions { get; set; }
 
-        public SchedulerOptions SchedulerOptions { get; } = new SchedulerOptions();
-
         internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
         internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
 
