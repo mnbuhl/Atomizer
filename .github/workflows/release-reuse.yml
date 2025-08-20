@@ -11,14 +11,9 @@ on:
         type: string
         description: 'The version to publish.'
 
-jobs:
-  verify:
-    uses: ./.github/workflows/verify.yml
-    secrets: inherit
-  
+jobs:  
   publish:
     runs-on: ubuntu-latest
-    needs: verify
     strategy:
       matrix:
         package_id: ${{ fromJson(inputs.PACKAGE_ID) }}
