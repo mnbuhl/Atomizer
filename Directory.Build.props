@@ -9,4 +9,8 @@
         <Copyright>Copyright © 2025 Mikkel Buhl</Copyright>
         <PackageTags>atomizer;queue;queueing;scheduler;scheduling;jobs;tasks;background</PackageTags>
     </PropertyGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\" />
+        <None Include="LICENSE" Pack="true" PackagePath="\" />
+    </ItemGroup>
 </Project>
