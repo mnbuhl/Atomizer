@@ -5,6 +5,7 @@
         <OutputType>Exe</OutputType>
         <RootNamespace>Atomizer.EntityFrameworkCore.Tests</RootNamespace>
         <TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
+        <IsPackable>false</IsPackable>
         <!--
         To enable the Microsoft Testing Platform 'dotnet test' experience, add property:
           <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
