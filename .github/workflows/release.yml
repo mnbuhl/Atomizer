@@ -14,7 +14,7 @@ permissions:
   contents: write # tag + release
 
 jobs:
-  bump_release_publish:
+  bump-release:
     runs-on: ubuntu-latest
     env:
       TAG_PREFIX: ""
@@ -84,7 +84,6 @@ jobs:
         with:
           PACKAGE_ID: "['Atomizer', 'Atomizer.EntityFrameworkCore']"
           PACKAGE_VERSION: ${{ steps.bump.outputs.new_version }}
-        secrets: inherit
 
       - name: Create GitHub Release and attach nupkg
         uses: softprops/action-gh-release@v2
@@ -92,12 +91,3 @@ jobs:
           tag_name: ${{ steps.bump.outputs.new_tag }}
           generate_release_notes: true
           files: artifacts/*.nupkg
-
-      - name: Publish to NuGet
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}   # <-- add this repo/org secret
-        run: |
-          dotnet nuget push "out/*.nupkg" \
-            --api-key "$NUGET_API_KEY" \
-            --source "${{ github.event.inputs.nuget_source }}" \
-            --skip-duplicate

@@ -37,4 +37,4 @@ jobs:
         run: dotnet pack --configuration Release src/${{ matrix.package_id }} --output ./artifacts /p:PackageVersion=${{ inputs.PACKAGE_VERSION }} /p:ContinuousIntegrationBuild=true
 
       - name: Publish NuGet package
-        run: dotnet nuget push ./artifacts/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push ./artifacts/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
