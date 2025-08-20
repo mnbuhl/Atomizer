@@ -50,34 +50,34 @@ if (app.Environment.IsDevelopment())
 
 app.MapPost(
     "/log",
-    async ([FromServices] IAtomizerQueueClient atomizerQueueClient) =>
+    async ([FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerQueueClient.EnqueueAsync(new LoggerJobPayload("Hello, Atomizer!", LogLevel.Information));
+        await atomizerClient.EnqueueAsync(new LoggerJobPayload("Hello, Atomizer!", LogLevel.Information));
     }
 );
 
 app.MapPost(
     "/exception",
-    async ([FromServices] IAtomizerQueueClient atomizerQueueClient) =>
+    async ([FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerQueueClient.EnqueueAsync(new ExceptionJobPayload("This job will always fail!"));
+        await atomizerClient.EnqueueAsync(new ExceptionJobPayload("This job will always fail!"));
     }
 );
 
 app.MapPost(
     "/empty",
-    async ([FromServices] IAtomizerQueueClient atomizerQueueClient) =>
+    async ([FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerQueueClient.EnqueueAsync(new EmptyPayload());
+        await atomizerClient.EnqueueAsync(new EmptyPayload());
     }
 );
 
 app.MapPost(
     "/schedule",
-    async ([FromQuery] int runInSeconds, [FromServices] IAtomizerQueueClient atomizerQueueClient) =>
+    async ([FromQuery] int runInSeconds, [FromServices] IAtomizerClient atomizerClient) =>
     {
         var runAt = DateTimeOffset.UtcNow.AddSeconds(runInSeconds);
-        await atomizerQueueClient.ScheduleAsync(
+        await atomizerClient.ScheduleAsync(
             new LoggerJobPayload("This job is scheduled to run in 1 minute.", LogLevel.Information),
             runAt
         );
@@ -86,9 +86,9 @@ app.MapPost(
 
 app.MapPost(
     "/log-to-queue",
-    async (string queue, [FromServices] IAtomizerQueueClient atomizerQueueClient) =>
+    async (string queue, [FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerQueueClient.EnqueueAsync(
+        await atomizerClient.EnqueueAsync(
             new LoggerJobPayload($"Logging to {queue} queue!", LogLevel.Information),
             options => options.Queue = queue
         );
@@ -97,9 +97,9 @@ app.MapPost(
 
 app.MapPost(
     "/long-running",
-    async ([FromQuery] int durationInSeconds, [FromServices] IAtomizerQueueClient atomizerQueueClient) =>
+    async ([FromQuery] int durationInSeconds, [FromServices] IAtomizerClient atomizerClient) =>
     {
-        await atomizerQueueClient.EnqueueAsync(new LongRunningJobPayload(durationInSeconds));
+        await atomizerClient.EnqueueAsync(new LongRunningJobPayload(durationInSeconds));
     }
 );
 

@@ -34,7 +34,7 @@ namespace Atomizer.Configuration
 
             services.AddSingleton(options);
             services.Add(options.Handlers);
-            services.AddScoped<IAtomizerQueueClient, AtomizerQueueClient>();
+            services.AddScoped<IAtomizerClient, AtomizerClient>();
             services.AddSingleton<IAtomizerClock, AtomizerClock>();
             services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
             services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();

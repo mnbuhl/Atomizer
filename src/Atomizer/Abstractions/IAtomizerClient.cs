@@ -6,7 +6,7 @@ using Atomizer.Models;
 // ReSharper disable once CheckNamespace
 namespace Atomizer
 {
-    public interface IAtomizerQueueClient
+    public interface IAtomizerClient
     {
         Task<Guid> EnqueueAsync<TPayload>(
             TPayload payload,

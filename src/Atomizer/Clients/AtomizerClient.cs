@@ -8,18 +8,18 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Clients
 {
-    public class AtomizerQueueClient : IAtomizerQueueClient
+    public class AtomizerClient : IAtomizerClient
     {
         private readonly IAtomizerStorage _storage;
         private readonly IAtomizerJobSerializer _jobSerializer;
         private readonly IAtomizerClock _clock;
-        private readonly ILogger<AtomizerQueueClient> _logger;
+        private readonly ILogger<AtomizerClient> _logger;
 
-        public AtomizerQueueClient(
+        public AtomizerClient(
             IAtomizerStorage storage,
             IAtomizerJobSerializer jobSerializer,
             IAtomizerClock clock,
-            ILogger<AtomizerQueueClient> logger
+            ILogger<AtomizerClient> logger
         )
         {
             _storage = storage;
