@@ -157,7 +157,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
             throw new NotImplementedException();
         }
 
-        public Task<int> ReleaseLeasedRecurringAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+        public Task UpdateRecurringAsync(AtomizerRecurringJob recurringJob, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

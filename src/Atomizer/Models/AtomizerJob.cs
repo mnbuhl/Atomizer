@@ -11,7 +11,7 @@ namespace Atomizer.Models
         public string Payload { get; set; } = string.Empty;
         public DateTimeOffset ScheduledAt { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }
-        public AtomizerJobStatus Status { get; set; } = AtomizerJobStatus.Pending;
+        public AtomizerJobStatus Status { get; set; }
         public int Attempts { get; set; }
         public int MaxAttempts { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
@@ -20,6 +20,30 @@ namespace Atomizer.Models
         public LeaseToken? LeaseToken { get; set; }
         public List<AtomizerJobError> Errors { get; set; } = new List<AtomizerJobError>();
         public Guid? ScheduledJobId { get; set; }
+
+        public static AtomizerJob Create(
+            QueueKey queueKey,
+            Type payloadType,
+            string payload,
+            DateTimeOffset scheduledAt,
+            int maxAttempts = 3,
+            Guid? scheduledJobId = null
+        )
+        {
+            return new AtomizerJob
+            {
+                Id = Guid.NewGuid(),
+                QueueKey = queueKey,
+                PayloadType = payloadType,
+                Payload = payload,
+                ScheduledAt = scheduledAt,
+                Status = AtomizerJobStatus.Pending,
+                Attempts = 0,
+                MaxAttempts = maxAttempts,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ScheduledJobId = scheduledJobId,
+            };
+        }
     }
 
     public enum AtomizerJobStatus

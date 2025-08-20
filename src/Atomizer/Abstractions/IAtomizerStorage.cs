@@ -30,6 +30,6 @@ namespace Atomizer.Abstractions
             CancellationToken cancellationToken
         );
 
-        Task<int> ReleaseLeasedRecurringAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
+        Task UpdateRecurringAsync(AtomizerRecurringJob recurringJob, CancellationToken cancellationToken);
     }
 }
