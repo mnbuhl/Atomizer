@@ -146,20 +146,5 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
             return releasedCount;
         }
-
-        public Task<IReadOnlyList<AtomizerRecurringJob>> LeaseDueRecurringAsync(
-            QueueKey queueKey,
-            DateTimeOffset now,
-            LeaseToken leaseToken,
-            CancellationToken cancellationToken
-        )
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task UpdateRecurringAsync(AtomizerRecurringJob recurringJob, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

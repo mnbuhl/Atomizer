@@ -5,7 +5,6 @@ using Atomizer.Clients;
 using Atomizer.Hosting;
 using Atomizer.Models;
 using Atomizer.Processing;
-using Atomizer.Scheduling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -75,7 +74,6 @@ namespace Atomizer.Configuration
 
             services.AddSingleton(options);
             services.AddSingleton<QueueCoordinator>();
-            services.AddSingleton<Scheduler>();
             services.AddHostedService<AtomizerHostedService>();
             services.AddSingleton<AtomizerRuntimeIdentity>();
             services.AddSingleton<IAtomizerStorageScopeFactory, ServiceProviderStorageScopeFactory>();

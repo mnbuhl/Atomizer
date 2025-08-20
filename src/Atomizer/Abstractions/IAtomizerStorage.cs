@@ -22,14 +22,5 @@ namespace Atomizer.Abstractions
         );
 
         Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
-
-        Task<IReadOnlyList<AtomizerRecurringJob>> LeaseDueRecurringAsync(
-            QueueKey queueKey,
-            DateTimeOffset now,
-            LeaseToken leaseToken,
-            CancellationToken cancellationToken
-        );
-
-        Task UpdateRecurringAsync(AtomizerRecurringJob recurringJob, CancellationToken cancellationToken);
     }
 }
