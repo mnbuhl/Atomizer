@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   bump:
+    name: Bump version and create tag
     runs-on: ubuntu-latest
     env:
       TAG_PREFIX: ""
