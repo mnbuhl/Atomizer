@@ -3,8 +3,8 @@
 > Breaking complexity into atoms — The name “Atomizer” comes from the concept of taking complex, large-scale job processing and breaking it down into the smallest possible executable units (atoms), making distributed processing simpler, more reliable, and easier to reason about.
 
 ## Overview
-Atomizer is a lightweight, extensible job processing framework for ASP.NET Core, designed for high throughput and low friction in modern distributed applications.
-It supports multiple storage backends, pluggable job handlers, and graceful shutdowns, while being easy to extend.
+Atomizer is a lightweight, extensible job scheduling & queueing framework for ASP.NET Core, designed for high throughput and low friction in modern distributed applications.
+It supports multiple storage backends, graceful shutdowns, all while being easy to extend.
 
 ## Features
 - Entity Framework Core driver — First-class support for EF Core 7 with database-backed queues.
