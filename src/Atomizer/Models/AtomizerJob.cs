@@ -19,15 +19,13 @@ namespace Atomizer.Models
         public DateTimeOffset? FailedAt { get; set; }
         public LeaseToken? LeaseToken { get; set; }
         public List<AtomizerJobError> Errors { get; set; } = new List<AtomizerJobError>();
-        public Guid? ScheduledJobId { get; set; }
 
         public static AtomizerJob Create(
             QueueKey queueKey,
             Type payloadType,
             string payload,
             DateTimeOffset scheduledAt,
-            int maxAttempts = 3,
-            Guid? scheduledJobId = null
+            int maxAttempts = 3
         )
         {
             return new AtomizerJob
@@ -41,7 +39,6 @@ namespace Atomizer.Models
                 Attempts = 0,
                 MaxAttempts = maxAttempts,
                 CreatedAt = DateTimeOffset.UtcNow,
-                ScheduledJobId = scheduledJobId,
             };
         }
     }
