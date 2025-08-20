@@ -1,0 +1,37 @@
+﻿name: Verify
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'src/**', 'tests/**' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'src/**', 'tests/**' ]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet-version: [ '6.0', '8.0' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Restore dependencies
+        run: dotnet restore --locked-mode
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal

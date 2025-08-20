@@ -20,9 +20,9 @@ namespace Atomizer.Models
             LeaseId = parts.Length > 2 ? parts[2] : string.Empty;
         }
 
-        public bool Equals(LeaseToken other)
+        public bool Equals(LeaseToken? other)
         {
-            return Token == other.Token;
+            return Token == other?.Token;
         }
 
         public override bool Equals(object? obj)

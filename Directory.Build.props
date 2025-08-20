@@ -1,0 +1,12 @@
+<Project>
+    <PropertyGroup>
+        <Authors>Mikkel Buhl</Authors>
+        <PackageProjectUrl>https://github.com/mnbuhl/Atomizer</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/mnbuhl/Atomizer</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Copyright>Copyright © 2025 Mikkel Buhl</Copyright>
+        <PackageTags>atomizer;queue;queueing;scheduler;scheduling;jobs;tasks;background</PackageTags>
+    </PropertyGroup>
+</Project>
