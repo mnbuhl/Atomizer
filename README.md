@@ -4,7 +4,7 @@
 > Atomizer transforms large-scale job processing into atomic, reliable, and easily managed units—making distributed systems simple, robust, and a joy to work with.
 
 ## Overview
-Atomizer is a modern, high-performance job scheduling and queueing framework for ASP.NET Core. Built for cloud-native, distributed applications, but also perfect for smaller setups.
+Atomizer is a modern, high-performance job scheduling and queueing framework for ASP.NET Core. Built for cloud-native, distributed applications as well as smaller setups and local development, Atomizer provides a powerful yet easy-to-use solution for processing background jobs, handling complex workflows, and scaling your applications effortlessly.
 
 - **Effortless distributed scaling:** Atomizer works seamlessly in clustered setups, letting you process jobs across multiple servers for true horizontal scalability.
 - **Flexible architecture:** Plug in your preferred storage backend, configure multiple queues, and extend with custom drivers or handlers.
@@ -17,7 +17,7 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - 🔀 **Multiple Queues** — Configure independent queues with custom processing options for each workload.
 - 🧩 **Extensible Drivers & Handlers** — Easily add new storage drivers or job handlers; auto-register handlers from assemblies.
 - ♻️ **Retry Policies** — Automatic, configurable retries to keep your jobs running smoothly—even when things go wrong.
-- 🛑 **Graceful Shutdown** — Ensure in-flight jobs finish or are safely released for re-processing during shutdowns.
+- 🛑 **Graceful Shutdown** — Ensure in-flight jobs finish and pending batched jobs are safely released for re-processing during shutdowns.
 - 📦 **Batch Processing** — Tune throughput with batch size and parallelism settings per queue.
 - ⏳ **Visibility Timeout** — Prevent job duplication by locking jobs during processing.
 - 🧪 **In-Memory Driver** — Perfect for local development and testing; spin up queues instantly with zero setup.
@@ -46,12 +46,12 @@ Set up Atomizer in your ASP.NET Core project:
 builder.Services.AddAtomizer(options =>
 {
     // Configure the default queue 
-    // (optional, a default queue is created automatically as below)
+    // (optional, a default queue is created automatically with configuration like below)
     options.AddQueue(QueueKey.Default, queue => 
     {
         queue.DegreeOfParallelism = 4; // Max 4 jobs processed concurrently
         queue.BatchSize = 10; // Retrieve 10 jobs at a time
-        queue.VisibilityTimeout = TimeSpan.FromMinutes(5); // Lock jobs for 5 minutes
+        queue.VisibilityTimeout = TimeSpan.FromMinutes(5); // Prevent job duplication by "hiding" jobs for 5 minutes while processing
         queue.StorageCheckInterval = TimeSpan.FromSeconds(15); // Poll for new jobs every 15 seconds
     });
     
@@ -61,13 +61,20 @@ builder.Services.AddAtomizer(options =>
         queue.DegreeOfParallelism = 2;
         queue.BatchSize = 5;
     });
+    
     // Register job handlers automatically
     options.AddHandlersFrom<AssignStockJobHandler>();
+    
     // Use EF Core-backed job storage
     options.UseEntityFrameworkCoreStorage<ExampleDbContext>();
 });
+
 // Add Atomizer processing services
-builder.Services.AddAtomizerProcessing();
+builder.Services.AddAtomizerProcessing(options =>
+{
+    options.StartupDelay = TimeSpan.FromSeconds(5); // Delay startup to allow other services to initialize
+    options.GracefulShutdownTimeout = TimeSpan.FromSeconds(30); // Allow up to 30 seconds for jobs to finish on shutdown
+});
 ```
 
 Inside your `DbContext`:
@@ -78,6 +85,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     // ...other model config...
 }
 ```
+Make sure to run migrations to create the necessary tables.
 
 ### 3. Define a Job Handler
 Create a handler for your job payload:
@@ -91,10 +99,12 @@ public class SendNewsletterJob(INewsletterService newsletterService, IEmailServi
     {
         var subscribers = await newsletterService.GetSubscribersAsync(payload.Product.CategoryId);
         var emails = new List<Email>();
+        
         foreach (var subscriber in subscribers)
         {
             emails.Add(new Email { /* ... */ });
         }
+        
         await Task.WhenAll(emails.ConvertAll(email => emailService.SendEmailAsync(email)));
     }
 }
