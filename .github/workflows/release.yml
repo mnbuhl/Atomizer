@@ -14,7 +14,7 @@ permissions:
   contents: write # tag + release
 
 jobs:
-  bump-release:
+  bump:
     runs-on: ubuntu-latest
     env:
       TAG_PREFIX: ""
@@ -83,16 +83,21 @@ jobs:
 
           echo "new_version=${NEW}" >> "$GITHUB_OUTPUT"
           echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Publish NuGet package
-        uses: ./.github/workflows/release-reuse.yml
-        with:
-          PACKAGE_ID: "['Atomizer', 'Atomizer.EntityFrameworkCore']"
-          PACKAGE_VERSION: ${{ steps.bump.outputs.new_version }}
-
-      - name: Create GitHub Release and attach nupkg
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.bump.outputs.new_tag }}
-          generate_release_notes: true
-          files: artifacts/*.nupkg
+          
+  publish-nuget:
+    name: Publish NuGet package
+    needs: bump
+    uses: ./.github/workflows/release-reuse.yml
+    with:
+      PACKAGE_ID: "['Atomizer', 'Atomizer.EntityFrameworkCore']"
+      PACKAGE_VERSION: ${{ needs.bump.outputs.new_version }}
+    secrets: inherit
+    
+  create-release:
+    name: Create GitHub Release and attach nupkg
+    needs: [bump, publish-nuget]
+    uses: softprops/action-gh-release@v2
+    with:
+      tag_name: ${{ needs.bump.outputs.new_tag }}
+      generate_release_notes: true
+      files: artifacts/*.nupkg
