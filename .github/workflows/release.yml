@@ -84,6 +84,9 @@ jobs:
 
           echo "new_version=${NEW}" >> "$GITHUB_OUTPUT"
           echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+    outputs: 
+      new_version: ${{ steps.bump.outputs.new_version }}
+      new_tag: ${{ steps.bump.outputs.new_tag }}
           
   publish-nuget:
     name: Publish NuGet package
@@ -107,21 +110,3 @@ jobs:
           tag_name: ${{ needs.bump.outputs.new_tag }}
           generate_release_notes: true
           files: artifacts/*.nupkg
-
-  cleanup-version-on-failure:
-    name: Cleanup version on failure
-    needs: bump
-    if: ${{ failure() && needs.bump.outputs.new_tag != '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout selected branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Remove last tag
-        run: |
-          git tag -d "${{ needs.bump.outputs.new_tag }}"
-          git push origin :refs/tags/"${{ needs.bump.outputs.new_tag }}"
