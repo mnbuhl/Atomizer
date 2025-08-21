@@ -53,6 +53,34 @@ namespace Atomizer.Clients
             return EnqueueInternalAsync(payload, runAt, options, cancellation);
         }
 
+        public Task<Guid> ScheduleRecurringAsync<TPayload>(
+            TPayload payload,
+            JobKey name,
+            string cronExpression,
+            Action<RecurringOptions>? configure = null,
+            CancellationToken cancellation = default
+        )
+        {
+            var options = new RecurringOptions();
+            configure?.Invoke(options);
+
+            var schedule = AtomizerSchedule.Create(
+                name,
+                options.Queue,
+                typeof(TPayload),
+                _jobSerializer.Serialize(payload),
+                cronExpression,
+                options.TimeZone,
+                _clock.UtcNow,
+                options.MisfirePolicy,
+                options.MaxCatchUp,
+                options.Enabled,
+                options.MaxAttempts
+            );
+
+            return _storage.UpsertScheduleAsync(schedule, cancellation);
+        }
+
         private async Task<Guid> EnqueueInternalAsync<TPayload>(
             TPayload payload,
             DateTimeOffset when,

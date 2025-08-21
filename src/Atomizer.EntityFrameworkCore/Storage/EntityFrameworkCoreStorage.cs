@@ -197,7 +197,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
             var candidateIds = await ScheduleEntities
                 .AsNoTracking()
-                .Where(s => s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now))
+                .Where(s => s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now) && s.Enabled)
                 .OrderBy(s => s.NextRunAt)
                 .Select(s => s.Id)
                 .ToListAsync(cancellationToken);

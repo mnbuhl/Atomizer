@@ -28,6 +28,42 @@ namespace Atomizer.Models
         public CronExpression ParsedCronExpression =>
             Cronos.CronExpression.Parse(CronExpression, CronFormat.IncludeSeconds);
 
+        public static AtomizerSchedule Create(
+            JobKey jobKey,
+            QueueKey queueKey,
+            Type payloadType,
+            string payload,
+            string cronExpression,
+            TimeZoneInfo timeZone,
+            DateTimeOffset createdAt,
+            MisfirePolicy misfirePolicy = MisfirePolicy.ExecuteNow,
+            int maxCatchUp = 5,
+            bool enabled = true,
+            int maxAttempts = 3
+        )
+        {
+            var schedule = new AtomizerSchedule
+            {
+                JobKey = jobKey,
+                QueueKey = queueKey,
+                PayloadType = payloadType,
+                Payload = payload,
+                CronExpression = cronExpression,
+                TimeZone = timeZone,
+                MisfirePolicy = misfirePolicy,
+                MaxCatchUp = maxCatchUp,
+                Enabled = enabled,
+                MaxAttempts = maxAttempts,
+                CreatedAt = createdAt,
+                UpdatedAt = createdAt,
+            };
+
+            schedule.NextRunAt =
+                schedule.ParsedCronExpression.GetNextOccurrence(createdAt, timeZone) ?? DateTimeOffset.MaxValue;
+
+            return schedule;
+        }
+
         public List<DateTimeOffset> GetOccurrences(DateTimeOffset now)
         {
             var occurrences = new List<DateTimeOffset>();
