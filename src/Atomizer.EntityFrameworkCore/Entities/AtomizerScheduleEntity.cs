@@ -151,7 +151,7 @@ public static class AtomizerScheduleEntityMapper
             PayloadType =
                 Type.GetType(entity.PayloadType) ?? throw new InvalidOperationException("Invalid payload type"),
             Payload = entity.Payload,
-            Schedule = Schedule.Parse(entity.Schedule),
+            Schedule = Schedule.Cron(entity.Schedule),
             TimeZone = TimeZoneInfo.FindSystemTimeZoneById(entity.TimeZone),
             MisfirePolicy = (MisfirePolicy)(int)entity.MisfirePolicy,
             MaxCatchUp = entity.MaxCatchUp,

@@ -36,7 +36,7 @@ namespace Atomizer
         public static Schedule Weekly => new Schedule("0", "0", "0", "*", "*", "*");
         public static Schedule Monthly => new Schedule("0", "0", "0", "*", "*", "?");
 
-        public static Schedule Parse(string cronExpression)
+        public static Schedule Cron(string cronExpression)
         {
             var parts = cronExpression.Split(' ');
 

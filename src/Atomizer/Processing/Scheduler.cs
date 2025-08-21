@@ -70,11 +70,11 @@ namespace Atomizer.Processing
 
             try
             {
-                await _processingTask;
+                await _processingTask.ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogError(ex, "An error occurred while stopping the scheduler");
+                _logger.LogDebug("Scheduler processing task completed with errors");
             }
 
             try
