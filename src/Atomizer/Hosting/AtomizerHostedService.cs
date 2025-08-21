@@ -9,12 +9,12 @@ namespace Atomizer.Hosting
 {
     internal sealed class AtomizerHostedService : BackgroundService
     {
-        private readonly QueueCoordinator _coordinator;
+        private readonly AtomizerCoordinator _coordinator;
         private readonly AtomizerProcessingOptions _options;
         private readonly ILogger<AtomizerHostedService> _logger;
 
         public AtomizerHostedService(
-            QueueCoordinator coordinator,
+            AtomizerCoordinator coordinator,
             AtomizerProcessingOptions options,
             ILogger<AtomizerHostedService> logger
         )

@@ -73,7 +73,7 @@ namespace Atomizer.Configuration
             }
 
             services.AddSingleton(options);
-            services.AddSingleton<QueueCoordinator>();
+            services.AddSingleton<AtomizerCoordinator>();
             services.AddHostedService<AtomizerHostedService>();
             services.AddSingleton<AtomizerRuntimeIdentity>();
             services.AddSingleton<IAtomizerStorageScopeFactory, ServiceProviderStorageScopeFactory>();

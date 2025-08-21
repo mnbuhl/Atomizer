@@ -7,17 +7,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
-    internal sealed class QueueCoordinator
+    internal sealed class AtomizerCoordinator
     {
         private readonly AtomizerOptions _options;
-        private readonly ILogger<QueueCoordinator> _logger;
+        private readonly ILogger<AtomizerCoordinator> _logger;
         private readonly IServiceProvider _serviceProvider;
 
         private readonly List<QueuePump> _queuePumps = new List<QueuePump>();
 
-        public QueueCoordinator(
+        public AtomizerCoordinator(
             AtomizerOptions options,
-            ILogger<QueueCoordinator> logger,
+            ILogger<AtomizerCoordinator> logger,
             IServiceProvider serviceProvider
         )
         {
