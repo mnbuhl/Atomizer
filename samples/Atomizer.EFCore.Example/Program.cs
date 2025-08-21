@@ -76,6 +76,14 @@ await Task.WhenAll(
     sqlServer.Database.MigrateAsync()
 );
 
+var atomizerClient = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
+
+await atomizerClient.ScheduleRecurringAsync(
+    new LoggerJobPayload("Recurring job started", LogLevel.Information),
+    "LoggerJob",
+    "0 * * * * *"
+);
+
 app.MapPost(
     "/products",
     async ([FromServices] ExamplePostgresContext dbContext, [FromServices] IAtomizerClient atomizerClient) =>
