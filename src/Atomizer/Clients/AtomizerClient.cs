@@ -68,7 +68,8 @@ namespace Atomizer.Clients
                 serializedPayload,
                 _clock.UtcNow,
                 when,
-                options.MaxAttempts
+                options.MaxAttempts,
+                options.IdempotencyKey
             );
 
             var jobId = await _storage.InsertAsync(job, ct);

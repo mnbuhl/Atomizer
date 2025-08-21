@@ -31,14 +31,8 @@ namespace Atomizer.EntityFrameworkCore.Configurations
             builder.Property(job => job.FailedAt).IsRequired(false);
             builder.Property(job => job.LeaseToken).HasMaxLength(512);
             builder.Property(job => job.ScheduleJobKey).HasMaxLength(512);
-            builder.Property(job => job.IdempotencyKey).HasMaxLength(512).HasColumnName("idempotency_key");
+            builder.Property(job => job.IdempotencyKey).HasMaxLength(512);
             builder.Property(job => job.UpdatedAt).IsRequired();
-
-            builder
-                .HasIndex(job => job.IdempotencyKey)
-                .HasDatabaseName("IX_AtomizerJobs_IdempotencyKey")
-                .IsUnique()
-                .HasFilter("idempotency_key IS NOT NULL");
         }
     }
 }

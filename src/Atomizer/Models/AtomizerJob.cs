@@ -29,7 +29,9 @@ namespace Atomizer.Models
             string payload,
             DateTimeOffset createdAt,
             DateTimeOffset scheduledAt,
-            int maxAttempts = 3
+            int maxAttempts = 3,
+            string? idempotencyKey = null,
+            JobKey? scheduleJobKey = null
         )
         {
             return new AtomizerJob
@@ -44,6 +46,8 @@ namespace Atomizer.Models
                 MaxAttempts = maxAttempts,
                 CreatedAt = createdAt,
                 UpdatedAt = createdAt,
+                IdempotencyKey = idempotencyKey,
+                ScheduleJobKey = scheduleJobKey,
             };
         }
     }

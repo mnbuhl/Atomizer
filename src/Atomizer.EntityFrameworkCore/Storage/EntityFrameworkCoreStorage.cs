@@ -21,6 +21,7 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
         private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
         private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
+        private DbSet<AtomizerScheduleEntity> ScheduleEntities => _dbContext.Set<AtomizerScheduleEntity>();
 
         public EntityFrameworkCoreStorage(
             TDbContext dbContext,
@@ -36,9 +37,28 @@ namespace Atomizer.EntityFrameworkCore.Storage
         public async Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
         {
             var entity = job.ToEntity();
+
+            var enforceIdempotency = job.IdempotencyKey != null;
+
+            if (enforceIdempotency)
+            {
+                var existing = await JobEntities
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(j => j.IdempotencyKey == job.IdempotencyKey, cancellationToken);
+
+                if (existing != null)
+                {
+                    _logger.LogDebug(
+                        "Job with idempotency key {IdempotencyKey} already exists with ID {JobId}",
+                        job.IdempotencyKey,
+                        existing.Id
+                    );
+                    return existing.Id;
+                }
+            }
+
             JobEntities.Add(entity);
             await _dbContext.SaveChangesAsync(cancellationToken);
-
             return entity.Id;
         }
 

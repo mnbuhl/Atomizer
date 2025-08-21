@@ -52,7 +52,11 @@ namespace Atomizer.Processing
 
                 await _dispatcher.DispatchAsync(job, ct);
 
-                job.CompletedAt = _clock.UtcNow;
+                var now = _clock.UtcNow;
+
+                job.CompletedAt = now;
+                job.UpdatedAt = now;
+                job.IdempotencyKey = null;
                 job.LeaseToken = null;
                 job.Status = AtomizerJobStatus.Completed;
                 job.VisibleAt = null;
@@ -99,6 +103,7 @@ namespace Atomizer.Processing
                         RuntimeIdentity = job.LeaseToken?.InstanceId,
                     }
                 );
+
                 job.LeaseToken = null;
 
                 if (retryPolicy.ShouldRetry(job.Attempts))
@@ -108,6 +113,7 @@ namespace Atomizer.Processing
 
                     job.VisibleAt = nextVisible;
                     job.Status = AtomizerJobStatus.Pending;
+                    job.UpdatedAt = _clock.UtcNow;
 
                     _logger.LogWarning(
                         "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
@@ -123,6 +129,8 @@ namespace Atomizer.Processing
                     job.Status = AtomizerJobStatus.Failed;
                     job.VisibleAt = null; // Clear visibility to make it available for eviction
                     job.FailedAt = now;
+                    job.UpdatedAt = now;
+                    job.IdempotencyKey = null;
 
                     _logger.LogError(
                         "Job {JobId} exhausted retries and was marked as failed on '{Queue}'",
