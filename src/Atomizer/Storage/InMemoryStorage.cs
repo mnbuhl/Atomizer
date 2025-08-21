@@ -142,17 +142,17 @@ namespace Atomizer.Storage
             return Task.FromResult(releasedCount);
         }
 
+        public Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
             LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task UpdateScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

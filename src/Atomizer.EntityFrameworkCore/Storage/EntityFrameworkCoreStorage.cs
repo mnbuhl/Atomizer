@@ -167,24 +167,88 @@ namespace Atomizer.EntityFrameworkCore.Storage
             return releasedCount;
         }
 
-        public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+        public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
+        {
+            var entity = schedule.ToEntity();
+
+            var exists = await ScheduleEntities.AsNoTracking().AnyAsync(s => s.Id == entity.Id, cancellationToken);
+
+            if (exists)
+            {
+                ScheduleEntities.Update(entity);
+            }
+            else
+            {
+                ScheduleEntities.Add(entity);
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return entity.Id;
+        }
+
+        public async Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
             LeaseToken leaseToken,
             CancellationToken cancellationToken
         )
         {
-            throw new NotImplementedException();
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var candidateIds = await ScheduleEntities
+                .AsNoTracking()
+                .Where(s => s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now))
+                .OrderBy(s => s.NextRunAt)
+                .Select(s => s.Id)
+                .ToListAsync(cancellationToken);
+
+            if (candidateIds.Count == 0)
+            {
+                _logger.LogDebug("No due schedules found at {Now}", now);
+                return Array.Empty<AtomizerSchedule>();
+            }
+
+            var updatedCount = await ScheduleEntities
+                .Where(s => candidateIds.Contains(s.Id) && (s.VisibleAt == null || s.VisibleAt <= now))
+                .ExecuteUpdateCompatAsync(
+                    s =>
+                        s.SetProperty(sch => sch.VisibleAt, now.Add(visibilityTimeout))
+                            .SetProperty(sch => sch.LeaseToken, leaseToken.Token),
+                    cancellationToken
+                );
+
+            if (updatedCount == 0)
+            {
+                _logger.LogDebug("No schedules updated for lease token {LeaseToken} at {Now}", leaseToken, now);
+                return Array.Empty<AtomizerSchedule>();
+            }
+
+            _logger.LogInformation(
+                "Leased {Count} schedules with lease token {LeaseToken} at {Now}",
+                updatedCount,
+                leaseToken,
+                now
+            );
+
+            var leasedSchedules = await ScheduleEntities
+                .AsNoTracking()
+                .Where(s => candidateIds.Contains(s.Id) && s.LeaseToken == leaseToken.Token)
+                .Select(s => s.ToAtomizerSchedule())
+                .ToListAsync(cancellationToken);
+
+            return leasedSchedules;
         }
 
-        public Task UpdateScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
+        public async Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
-        }
+            var releasedCount = await ScheduleEntities
+                .Where(s => s.LeaseToken == leaseToken.Token)
+                .ExecuteUpdateCompatAsync(
+                    s => s.SetProperty(sch => sch.VisibleAt, _ => null).SetProperty(sch => sch.LeaseToken, _ => null),
+                    cancellationToken
+                );
 
-        public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
+            return releasedCount;
         }
     }
 }

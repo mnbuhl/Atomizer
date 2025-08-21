@@ -23,13 +23,14 @@ namespace Atomizer.Abstractions
 
         Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
 
+        Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
+
         Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
             DateTimeOffset now,
             TimeSpan visibilityTimeout,
             LeaseToken leaseToken,
             CancellationToken cancellationToken
         );
-        Task UpdateScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
         Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
     }
 }

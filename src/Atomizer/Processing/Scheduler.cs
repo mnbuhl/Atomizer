@@ -60,9 +60,37 @@ namespace Atomizer.Processing
             {
                 _logger.LogDebug("Scheduler stop was cancelled");
             }
-            finally
+
+            try
             {
                 _executionCts.Cancel();
+            }
+            catch
+            {
+                _logger.LogDebug("Error cancelling execution token for scheduler");
+            }
+
+            try
+            {
+                await _processingTask;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while stopping the scheduler");
+            }
+
+            try
+            {
+                using var scope = _storageScopeFactory.CreateScope();
+                var released = await scope.Storage.ReleaseLeasedSchedulesAsync(_leaseToken, cancellationToken);
+                _logger.LogDebug("Released {Count} schedules with lease token {LeaseToken}", released, _leaseToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to release schedules with lease token {LeaseToken}", _leaseToken);
+            }
+            finally
+            {
                 _ioCts.Dispose();
                 _executionCts.Dispose();
                 _logger.LogInformation("Atomizer Scheduler stopped");
@@ -163,7 +191,7 @@ namespace Atomizer.Processing
             schedule.Update(horizon, now);
             try
             {
-                await storage.UpdateScheduleAsync(schedule, execToken);
+                await storage.UpsertScheduleAsync(schedule, execToken);
                 _logger.LogDebug(
                     "Updated schedule {ScheduleKey} to next occurrence at {NextOccurrence}",
                     schedule.JobKey,
