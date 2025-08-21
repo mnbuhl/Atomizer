@@ -56,7 +56,7 @@ namespace Atomizer.Clients
         public Task<Guid> ScheduleRecurringAsync<TPayload>(
             TPayload payload,
             JobKey name,
-            string cronExpression,
+            Schedule schedule,
             Action<RecurringOptions>? configure = null,
             CancellationToken cancellation = default
         )
@@ -64,12 +64,12 @@ namespace Atomizer.Clients
             var options = new RecurringOptions();
             configure?.Invoke(options);
 
-            var schedule = AtomizerSchedule.Create(
+            var atomizerSchedule = AtomizerSchedule.Create(
                 name,
                 options.Queue,
                 typeof(TPayload),
                 _jobSerializer.Serialize(payload),
-                cronExpression,
+                schedule,
                 options.TimeZone,
                 _clock.UtcNow,
                 options.MisfirePolicy,
@@ -78,7 +78,7 @@ namespace Atomizer.Clients
                 options.MaxAttempts
             );
 
-            return _storage.UpsertScheduleAsync(schedule, cancellation);
+            return _storage.UpsertScheduleAsync(atomizerSchedule, cancellation);
         }
 
         private async Task<Guid> EnqueueInternalAsync<TPayload>(

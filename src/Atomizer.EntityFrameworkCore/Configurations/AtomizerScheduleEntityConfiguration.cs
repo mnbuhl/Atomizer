@@ -25,7 +25,7 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
         builder.Property(e => e.QueueKey).IsRequired().HasMaxLength(512);
         builder.Property(e => e.PayloadType).IsRequired().HasMaxLength(1024);
         builder.Property(e => e.Payload).IsRequired();
-        builder.Property(e => e.CronExpression).IsRequired().HasMaxLength(1024);
+        builder.Property(e => e.Schedule).IsRequired().HasMaxLength(1024);
         builder.Property(e => e.TimeZone).IsRequired().HasMaxLength(64);
         builder.Property(e => e.MisfirePolicy).IsRequired();
         builder.Property(e => e.MaxCatchUp).IsRequired();

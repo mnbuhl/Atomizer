@@ -24,7 +24,7 @@ namespace Atomizer
         Task<Guid> ScheduleRecurringAsync<TPayload>(
             TPayload payload,
             JobKey name,
-            string cronExpression,
+            Schedule schedule,
             Action<RecurringOptions>? configure = null,
             CancellationToken cancellation = default
         );

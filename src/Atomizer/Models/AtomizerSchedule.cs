@@ -12,7 +12,7 @@ namespace Atomizer.Models
         public QueueKey QueueKey { get; set; } = QueueKey.Default;
         public Type PayloadType { get; set; } = null!;
         public string Payload { get; set; } = string.Empty;
-        public string CronExpression { get; set; } = "0 0 0 * *"; // Daily at midnight
+        public Schedule Schedule { get; set; } = Schedule.Default;
         public TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;
         public MisfirePolicy MisfirePolicy { get; set; } = MisfirePolicy.ExecuteNow;
         public int MaxCatchUp { get; set; } = 5; // Default to catching up 5 missed runs
@@ -25,15 +25,14 @@ namespace Atomizer.Models
         public LeaseToken? LeaseToken { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }
 
-        public CronExpression ParsedCronExpression =>
-            Cronos.CronExpression.Parse(CronExpression, CronFormat.IncludeSeconds);
+        private CronExpression CronExpression => CronExpression.Parse(Schedule.ToString(), CronFormat.IncludeSeconds);
 
         public static AtomizerSchedule Create(
             JobKey jobKey,
             QueueKey queueKey,
             Type payloadType,
             string payload,
-            string cronExpression,
+            Schedule schedule,
             TimeZoneInfo timeZone,
             DateTimeOffset createdAt,
             MisfirePolicy misfirePolicy = MisfirePolicy.ExecuteNow,
@@ -42,13 +41,13 @@ namespace Atomizer.Models
             int maxAttempts = 3
         )
         {
-            var schedule = new AtomizerSchedule
+            var atomizerSchedule = new AtomizerSchedule
             {
                 JobKey = jobKey,
                 QueueKey = queueKey,
                 PayloadType = payloadType,
                 Payload = payload,
-                CronExpression = cronExpression,
+                Schedule = schedule,
                 TimeZone = timeZone,
                 MisfirePolicy = misfirePolicy,
                 MaxCatchUp = maxCatchUp,
@@ -58,10 +57,10 @@ namespace Atomizer.Models
                 UpdatedAt = createdAt,
             };
 
-            schedule.NextRunAt =
-                schedule.ParsedCronExpression.GetNextOccurrence(createdAt, timeZone) ?? DateTimeOffset.MaxValue;
+            atomizerSchedule.NextRunAt =
+                atomizerSchedule.CronExpression.GetNextOccurrence(createdAt, timeZone) ?? DateTimeOffset.MaxValue;
 
-            return schedule;
+            return atomizerSchedule;
         }
 
         public List<DateTimeOffset> GetOccurrences(DateTimeOffset now)
@@ -82,7 +81,7 @@ namespace Atomizer.Models
                     break;
                 case MisfirePolicy.CatchUp:
                     occurrences.AddRange(
-                        ParsedCronExpression
+                        CronExpression
                             .GetOccurrences(LastEnqueueAt ?? CreatedAt, now, TimeZone)
                             .OrderBy(dt => dt)
                             .Take(MaxCatchUp)
@@ -101,7 +100,7 @@ namespace Atomizer.Models
 
         public void Update(DateTimeOffset horizon, DateTimeOffset now)
         {
-            var nextOccurrence = ParsedCronExpression.GetNextOccurrence(horizon, TimeZone);
+            var nextOccurrence = CronExpression.GetNextOccurrence(horizon, TimeZone);
             NextRunAt = nextOccurrence ?? DateTimeOffset.MaxValue; // No further occurrences
 
             LastEnqueueAt = horizon;

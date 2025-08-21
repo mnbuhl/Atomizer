@@ -36,7 +36,7 @@ public class AtomizerScheduleEntity
     /// <summary>
     /// Cron expression for scheduling.
     /// </summary>
-    public string CronExpression { get; set; } = "0 0 0 * *";
+    public string Schedule { get; set; } = "0 0 0 * *";
 
     /// <summary>
     /// Time zone identifier.
@@ -112,7 +112,7 @@ public static class AtomizerScheduleEntityMapper
             QueueKey = schedule.QueueKey.ToString(),
             PayloadType = schedule.PayloadType.AssemblyQualifiedName ?? string.Empty,
             Payload = schedule.Payload,
-            CronExpression = schedule.CronExpression,
+            Schedule = schedule.Schedule.ToString(),
             TimeZone = schedule.TimeZone.Id,
             MisfirePolicy = (MisfirePolicyEntity)(int)schedule.MisfirePolicy,
             MaxCatchUp = schedule.MaxCatchUp,
@@ -137,7 +137,7 @@ public static class AtomizerScheduleEntityMapper
             PayloadType =
                 Type.GetType(entity.PayloadType) ?? throw new InvalidOperationException("Invalid payload type"),
             Payload = entity.Payload,
-            CronExpression = entity.CronExpression,
+            Schedule = Schedule.Parse(entity.Schedule),
             TimeZone = TimeZoneInfo.FindSystemTimeZoneById(entity.TimeZone),
             MisfirePolicy = (MisfirePolicy)(int)entity.MisfirePolicy,
             MaxCatchUp = entity.MaxCatchUp,

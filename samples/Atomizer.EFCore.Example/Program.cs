@@ -82,13 +82,13 @@ var atomizerClient = scope.ServiceProvider.GetRequiredService<IAtomizerClient>()
 await atomizerClient.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJob",
-    "0 * * * * *"
+    new ScheduleBuilder().EveryMinute().Build()
 );
 
 await atomizerClient.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJobCatchUp",
-    "0/5 * * * * *", // Every 5 seconds,
+    Schedule.Parse("0 * * * * *"), // Every 5 seconds,
     options => options.MisfirePolicy = MisfirePolicy.CatchUp
 );
 
