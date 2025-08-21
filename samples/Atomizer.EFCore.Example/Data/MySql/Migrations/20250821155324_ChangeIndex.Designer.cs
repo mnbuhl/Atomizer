@@ -4,6 +4,7 @@ using Atomizer.EFCore.Example.Data.MySql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Atomizer.EFCore.Example.Data.MySql.Migrations
 {
     [DbContext(typeof(ExampleMySqlContext))]
-    partial class ExampleMySqlContextModelSnapshot : ModelSnapshot
+    [Migration("20250821155324_ChangeIndex")]
+    partial class ChangeIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

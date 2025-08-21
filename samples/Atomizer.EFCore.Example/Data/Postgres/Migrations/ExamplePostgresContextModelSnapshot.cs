@@ -66,8 +66,7 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
 
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("idempotency_key");
+                        .HasColumnType("character varying(512)");
 
                     b.Property<string>("LeaseToken")
                         .HasMaxLength(512)
@@ -107,11 +106,6 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique()
-                        .HasDatabaseName("IX_AtomizerJobs_IdempotencyKey")
-                        .HasFilter("idempotency_key IS NOT NULL");
 
                     b.ToTable("AtomizerJobs", "Atomizer");
                 });

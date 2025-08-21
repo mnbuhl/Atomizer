@@ -66,8 +66,7 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
 
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
-                        .HasColumnName("idempotency_key");
+                        .HasColumnType("nvarchar(512)");
 
                     b.Property<string>("LeaseToken")
                         .HasMaxLength(512)
@@ -107,11 +106,6 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique()
-                        .HasDatabaseName("IX_AtomizerJobs_IdempotencyKey")
-                        .HasFilter("idempotency_key IS NOT NULL");
 
                     b.ToTable("AtomizerJobs", "Atomizer");
                 });

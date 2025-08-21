@@ -19,6 +19,7 @@ namespace Atomizer.Processing
         private readonly LeaseToken _leaseToken;
 
         private Task _processingTask = Task.CompletedTask;
+        private DateTimeOffset _lastStorageCheck;
 
         private CancellationTokenSource _ioCts = new CancellationTokenSource();
         private CancellationTokenSource _executionCts = new CancellationTokenSource();
@@ -31,10 +32,12 @@ namespace Atomizer.Processing
             _logger = provider.GetRequiredService<ILogger<Scheduler>>();
             var identity = provider.GetRequiredService<AtomizerRuntimeIdentity>();
             _leaseToken = new LeaseToken($"{identity.InstanceId}:*:{QueueKey.Scheduler}:*:{Guid.NewGuid():N}");
+            _lastStorageCheck = _clock.MinValue;
         }
 
         public void Start(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Starting Atomizer Scheduler");
             _ioCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _executionCts = new CancellationTokenSource();
             _processingTask = Task.Run(
@@ -73,21 +76,26 @@ namespace Atomizer.Processing
                 try
                 {
                     var now = _clock.UtcNow;
-                    var horizon = now + _options.ScheduleLeadTime!.Value;
 
-                    using var scope = _storageScopeFactory.CreateScope();
-                    var storage = scope.Storage;
-
-                    var dueSchedules = await storage.LeaseDueSchedulesAsync(
-                        horizon,
-                        _options.VisibilityTimeout,
-                        _leaseToken,
-                        ioToken
-                    );
-
-                    foreach (var schedule in dueSchedules)
+                    if (now - _lastStorageCheck >= _options.StorageCheckInterval)
                     {
-                        await ProcessScheduleAsync(schedule, horizon, execToken);
+                        _lastStorageCheck = now;
+                        var horizon = now + _options.ScheduleLeadTime!.Value;
+
+                        using var scope = _storageScopeFactory.CreateScope();
+                        var storage = scope.Storage;
+
+                        var dueSchedules = await storage.LeaseDueSchedulesAsync(
+                            horizon,
+                            _options.VisibilityTimeout,
+                            _leaseToken,
+                            ioToken
+                        );
+
+                        foreach (var schedule in dueSchedules)
+                        {
+                            await ProcessScheduleAsync(schedule, horizon, execToken);
+                        }
                     }
                 }
                 catch (OperationCanceledException) when (ioToken.IsCancellationRequested)
@@ -98,8 +106,6 @@ namespace Atomizer.Processing
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "An error occurred while processing the schedule");
-                    await Task.Delay(_options.TickInterval, ioToken);
-                    continue;
                 }
 
                 await Task.Delay(_options.TickInterval, ioToken);
