@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Cronos;
 
 namespace Atomizer.Models
 {
@@ -21,6 +24,55 @@ namespace Atomizer.Models
         public DateTimeOffset UpdatedAt { get; set; }
         public LeaseToken? LeaseToken { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }
+
+        public CronExpression ParsedCronExpression =>
+            Cronos.CronExpression.Parse(CronExpression, CronFormat.IncludeSeconds);
+
+        public List<DateTimeOffset> GetOccurrences(DateTimeOffset now)
+        {
+            var occurrences = new List<DateTimeOffset>();
+
+            if (NextRunAt > now)
+            {
+                return occurrences;
+            }
+
+            switch (MisfirePolicy)
+            {
+                case MisfirePolicy.Ignore:
+                    break;
+                case MisfirePolicy.ExecuteNow:
+                    occurrences.Add(now);
+                    break;
+                case MisfirePolicy.CatchUp:
+                    occurrences.AddRange(
+                        ParsedCronExpression
+                            .GetOccurrences(LastEnqueueAt ?? CreatedAt, now, TimeZone)
+                            .OrderBy(dt => dt)
+                            .Take(MaxCatchUp)
+                    );
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(MisfirePolicy),
+                        MisfirePolicy,
+                        "Invalid misfire policy"
+                    );
+            }
+
+            return occurrences;
+        }
+
+        public void Update(DateTimeOffset horizon, DateTimeOffset now)
+        {
+            var nextOccurrence = ParsedCronExpression.GetNextOccurrence(horizon, TimeZone);
+            NextRunAt = nextOccurrence ?? DateTimeOffset.MaxValue; // No further occurrences
+
+            LastEnqueueAt = horizon;
+            UpdatedAt = now;
+            VisibleAt = null;
+            LeaseToken = null;
+        }
     }
 
     public enum MisfirePolicy

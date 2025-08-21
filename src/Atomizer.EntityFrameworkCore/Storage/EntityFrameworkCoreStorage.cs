@@ -166,5 +166,25 @@ namespace Atomizer.EntityFrameworkCore.Storage
 
             return releasedCount;
         }
+
+        public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+            DateTimeOffset now,
+            TimeSpan visibilityTimeout,
+            LeaseToken leaseToken,
+            CancellationToken cancellationToken
+        )
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UpdateScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

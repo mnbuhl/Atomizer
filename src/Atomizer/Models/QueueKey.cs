@@ -5,6 +5,7 @@ namespace Atomizer.Models
     public sealed class QueueKey : IEquatable<QueueKey>
     {
         public static readonly QueueKey Default = new QueueKey("default");
+        internal static readonly QueueKey Scheduler = new QueueKey("scheduler");
 
         public QueueKey(string key)
         {

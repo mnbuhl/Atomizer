@@ -142,6 +142,26 @@ namespace Atomizer.Storage
             return Task.FromResult(releasedCount);
         }
 
+        public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+            DateTimeOffset now,
+            TimeSpan visibilityTimeout,
+            LeaseToken leaseToken,
+            CancellationToken cancellationToken
+        )
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UpdateScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         private void EvictWhileOverCapacity(int max)
         {
             while (_jobs.Count > max && _insertionOrder.Count > 0)
