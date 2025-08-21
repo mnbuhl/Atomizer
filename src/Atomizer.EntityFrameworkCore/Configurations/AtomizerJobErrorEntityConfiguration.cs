@@ -6,9 +6,9 @@ namespace Atomizer.EntityFrameworkCore.Configurations;
 
 public class AtomizerJobErrorEntityConfiguration : IEntityTypeConfiguration<AtomizerJobErrorEntity>
 {
-    private readonly string _schema;
+    private readonly string? _schema;
 
-    public AtomizerJobErrorEntityConfiguration(string schema)
+    public AtomizerJobErrorEntityConfiguration(string? schema)
     {
         _schema = schema;
     }

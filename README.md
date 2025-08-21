@@ -81,11 +81,14 @@ Inside your `DbContext`:
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
-    modelBuilder.AddAtomizerEntities();
+    modelBuilder.AddAtomizerEntities(schema: "atomizer");
     // ...other model config...
 }
 ```
 Make sure to run migrations to create the necessary tables.
+
+Note:
+>If using MySql, set schema to 'null' or configure schema behavior in your `DbContext` as MySql is not compatible with EF Core schemas.
 
 ### 3. Define a Job Handler
 Create a handler for your job payload:

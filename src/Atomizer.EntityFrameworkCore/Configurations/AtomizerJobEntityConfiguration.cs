@@ -6,9 +6,9 @@ namespace Atomizer.EntityFrameworkCore.Configurations
 {
     public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJobEntity>
     {
-        private readonly string _schema;
+        private readonly string? _schema;
 
-        public AtomizerJobEntityConfiguration(string schema)
+        public AtomizerJobEntityConfiguration(string? schema)
         {
             _schema = schema;
         }
@@ -30,6 +30,15 @@ namespace Atomizer.EntityFrameworkCore.Configurations
             builder.Property(job => job.CompletedAt).IsRequired(false);
             builder.Property(job => job.FailedAt).IsRequired(false);
             builder.Property(job => job.LeaseToken).HasMaxLength(512);
+            builder.Property(job => job.ScheduleJobKey).HasMaxLength(512);
+            builder.Property(job => job.IdempotencyKey).HasMaxLength(512).HasColumnName("idempotency_key");
+            builder.Property(job => job.UpdatedAt).IsRequired();
+
+            builder
+                .HasIndex(job => job.IdempotencyKey)
+                .HasDatabaseName("IX_AtomizerJobs_IdempotencyKey")
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
         }
     }
 }

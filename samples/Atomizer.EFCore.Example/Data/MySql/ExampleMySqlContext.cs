@@ -2,15 +2,15 @@
 using Atomizer.EntityFrameworkCore.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-namespace Atomizer.EFCore.Example.Data;
+namespace Atomizer.EFCore.Example.Data.MySql;
 
-public class ExampleDbContext(DbContextOptions<ExampleDbContext> options) : DbContext(options)
+public class ExampleMySqlContext(DbContextOptions<ExampleMySqlContext> options) : DbContext(options)
 {
     public DbSet<Product> Products => Set<Product>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.AddAtomizerEntities();
+        modelBuilder.AddAtomizerEntities(schema: null);
 
         base.OnModelCreating(modelBuilder);
     }
