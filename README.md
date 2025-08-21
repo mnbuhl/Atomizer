@@ -12,6 +12,7 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - **Developer-friendly:** Atomizer integrates with ASP.NET Core DI, logging, and modern C# features, so you can focus on your business logic.
 
 ## Features
+- ⏰ **Recurring Scheduled Jobs** — Cron-like recurring execution for time-based workflows.
 - 🚀 **Distributed Processing** — Scale out to as many servers as your storage backend supports; Atomizer coordinates job execution across the cluster.
 - 🗄️ **Multiple Storage Backends** — Use Entity Framework Core for durable, database-backed queues; in-memory for fast local development & testing; Redis support coming soon.
 - 🔀 **Multiple Queues** — Configure independent queues with custom processing options for each workload.
@@ -24,7 +25,6 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - 🔔 **ASP.NET Core Integration** — Works with DI, logging, and modern C# idioms.
 
 ## Planned Features
-- ⏰ **Recurring Scheduled Jobs** — Cron-like recurring execution for time-based workflows.
 - 📈 **Dashboard** — Live monitoring, retry/dead-letter management, and operational insights.
 - 🕒 **FIFO Processing** — Guarantee jobs are processed in strict order, without overlap.
 - ⚡ **Redis Driver** — Lightning-fast, distributed, in-memory queues for massive scale.
@@ -113,7 +113,7 @@ public class SendNewsletterJob(INewsletterService newsletterService, IEmailServi
 }
 ```
 
-### 4. Enqueue (or schedule) a Job
+### 4. Enqueue or schedule a Job
 Add jobs to the queue from your application code:
 ```csharp
 app.MapPost(
@@ -129,6 +129,24 @@ app.MapPost(
         return Results.Created($"/products/{product.Id}", product);
     }
 );
+```
+
+### 5. Schedule Recurring Jobs
+in Program.cs:
+```csharp
+...
+var app = builder.Build();
+
+using var scope = app.Services.CreateScope();
+var atomizer = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
+
+await atomizer.ScheduleRecurringAsync(
+    new LoggerJobPayload("Recurring job started", LogLevel.Information),
+    "LoggerJob",
+    Schedule.EveryMinute
+);
+
+...
 ```
 
 ## Contributing

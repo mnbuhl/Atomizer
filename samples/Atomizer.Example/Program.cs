@@ -52,7 +52,7 @@ var atomizer = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
 await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJob",
-    Schedule.Create().EveryMinute().Build()
+    Schedule.EveryMinute
 );
 
 await atomizer.ScheduleRecurringAsync(

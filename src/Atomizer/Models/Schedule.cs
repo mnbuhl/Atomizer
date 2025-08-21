@@ -4,12 +4,12 @@ namespace Atomizer
 {
     public sealed class Schedule
     {
-        public string Seconds { get; }
-        public string Minutes { get; }
-        public string Hours { get; }
-        public string DayOfMonth { get; }
-        public string Month { get; }
-        public string DayOfWeek { get; }
+        public string Seconds { get; private set; } = "*";
+        public string Minutes { get; private set; } = "*";
+        public string Hours { get; private set; } = "*";
+        public string DayOfMonth { get; private set; } = "*";
+        public string Month { get; private set; } = "*";
+        public string DayOfWeek { get; private set; } = "*";
 
         internal Schedule(
             string seconds,
@@ -29,6 +29,12 @@ namespace Atomizer
         }
 
         public static Schedule Default => new Schedule("*", "*", "*", "*", "*", "*");
+        public static Schedule EverySecond => new Schedule("*", "*", "*", "*", "*", "*");
+        public static Schedule EveryMinute => new Schedule("0", "*", "*", "*", "*", "*");
+        public static Schedule Hourly => new Schedule("0", "0", "*", "*", "*", "*");
+        public static Schedule Daily => new Schedule("0", "0", "0", "*", "*", "*");
+        public static Schedule Weekly => new Schedule("0", "0", "0", "*", "*", "*");
+        public static Schedule Monthly => new Schedule("0", "0", "0", "*", "*", "?");
 
         public static Schedule Parse(string cronExpression)
         {
@@ -42,72 +48,6 @@ namespace Atomizer
             };
         }
 
-        public static ScheduleBuilder Create() => new ScheduleBuilder();
-
         public override string ToString() => string.Join(" ", Seconds, Minutes, Hours, DayOfMonth, Month, DayOfWeek);
-    }
-
-    public sealed class ScheduleBuilder
-    {
-        private string _seconds = "*";
-        private string _minutes = "*";
-        private string _hours = "*";
-        private string _dayOfMonth = "*";
-        private string _month = "*";
-        private string _dayOfWeek = "*";
-
-        public ScheduleBuilder EverySecond()
-        {
-            _seconds = "*";
-            return this;
-        }
-
-        public ScheduleBuilder EveryMinute()
-        {
-            _seconds = "0";
-            _minutes = "*";
-            return this;
-        }
-
-        public ScheduleBuilder Hourly()
-        {
-            _seconds = "0";
-            _minutes = "0";
-            _hours = "*";
-            return this;
-        }
-
-        public ScheduleBuilder Daily()
-        {
-            _seconds = "0";
-            _minutes = "0";
-            _hours = "0";
-            _dayOfMonth = "*";
-            return this;
-        }
-
-        public ScheduleBuilder Weekly()
-        {
-            _seconds = "0";
-            _minutes = "0";
-            _hours = "0";
-            _dayOfMonth = "*";
-            _month = "*";
-            _dayOfWeek = "*";
-            return this;
-        }
-
-        public ScheduleBuilder Monthly()
-        {
-            _seconds = "0";
-            _minutes = "0";
-            _hours = "0";
-            _dayOfMonth = "*";
-            _month = "*";
-            _dayOfWeek = "?";
-            return this;
-        }
-
-        public Schedule Build() => new Schedule(_seconds, _minutes, _hours, _dayOfMonth, _month, _dayOfWeek);
     }
 }
