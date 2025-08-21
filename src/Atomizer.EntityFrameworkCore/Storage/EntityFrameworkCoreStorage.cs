@@ -170,21 +170,45 @@ namespace Atomizer.EntityFrameworkCore.Storage
         {
             var entity = schedule.ToEntity();
 
-            var existing = await ScheduleEntities
+            var exists = await ScheduleEntities
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
+                .AnyAsync(s => s.JobKey == entity.JobKey, cancellationToken);
 
-            if (existing != null)
+            if (exists)
             {
-                entity.Id = existing.Id;
-                ScheduleEntities.Update(entity);
+                await ScheduleEntities
+                    .Where(s => s.JobKey == entity.JobKey)
+                    .ExecuteUpdateCompatAsync(
+                        s =>
+                            s.SetProperty(sch => sch.QueueKey, entity.QueueKey)
+                                .SetProperty(sch => sch.PayloadType, entity.PayloadType)
+                                .SetProperty(sch => sch.Payload, entity.Payload)
+                                .SetProperty(sch => sch.Schedule, entity.Schedule)
+                                .SetProperty(sch => sch.TimeZone, entity.TimeZone)
+                                .SetProperty(sch => sch.MisfirePolicy, entity.MisfirePolicy)
+                                .SetProperty(sch => sch.MaxCatchUp, entity.MaxCatchUp)
+                                .SetProperty(sch => sch.Enabled, entity.Enabled)
+                                .SetProperty(sch => sch.MaxAttempts, entity.MaxAttempts)
+                                .SetProperty(sch => sch.NextRunAt, entity.NextRunAt)
+                                .SetProperty(sch => sch.UpdatedAt, entity.UpdatedAt)
+                                .SetProperty(sch => sch.VisibleAt, entity.VisibleAt)
+                                .SetProperty(sch => sch.LeaseToken, entity.LeaseToken)
+                                .SetProperty(
+                                    sch => sch.LastEnqueueAt,
+                                    sch =>
+                                        sch.LastEnqueueAt > entity.LastEnqueueAt
+                                            ? sch.LastEnqueueAt
+                                            : entity.LastEnqueueAt
+                                ),
+                        cancellationToken
+                    );
             }
             else
             {
                 ScheduleEntities.Add(entity);
+                await _dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            await _dbContext.SaveChangesAsync(cancellationToken);
             return entity.Id;
         }
 

@@ -50,6 +50,32 @@ namespace Atomizer
                 ScheduleJobKey = scheduleJobKey,
             };
         }
+
+        public void MarkAsCompleted(DateTimeOffset completedAt)
+        {
+            CompletedAt = completedAt;
+            UpdatedAt = completedAt;
+            Status = AtomizerJobStatus.Completed;
+            LeaseToken = null;
+            VisibleAt = null;
+        }
+
+        public void MarkAsFailed(DateTimeOffset failedAt)
+        {
+            FailedAt = failedAt;
+            UpdatedAt = failedAt;
+            Status = AtomizerJobStatus.Failed;
+            LeaseToken = null;
+            VisibleAt = null;
+        }
+
+        public void Retry(DateTimeOffset nextVisibleAt, DateTimeOffset now)
+        {
+            VisibleAt = nextVisibleAt;
+            Status = AtomizerJobStatus.Pending;
+            UpdatedAt = now;
+            LeaseToken = null;
+        }
     }
 
     public enum AtomizerJobStatus

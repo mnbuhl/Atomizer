@@ -91,6 +91,21 @@ public class AtomizerScheduleEntity
     /// When the schedule becomes visible.
     /// </summary>
     public DateTimeOffset? VisibleAt { get; set; }
+
+    public void MapSafePropertiesFrom(AtomizerScheduleEntity source)
+    {
+        QueueKey = source.QueueKey;
+        PayloadType = source.PayloadType;
+        Payload = source.Payload;
+        Schedule = source.Schedule;
+        TimeZone = source.TimeZone;
+        MisfirePolicy = source.MisfirePolicy;
+        MaxCatchUp = source.MaxCatchUp;
+        Enabled = source.Enabled;
+        MaxAttempts = source.MaxAttempts;
+        NextRunAt = source.NextRunAt;
+        UpdatedAt = source.UpdatedAt;
+    }
 }
 
 public enum MisfirePolicyEntity
