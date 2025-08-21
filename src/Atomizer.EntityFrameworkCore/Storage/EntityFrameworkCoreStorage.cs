@@ -171,10 +171,13 @@ namespace Atomizer.EntityFrameworkCore.Storage
         {
             var entity = schedule.ToEntity();
 
-            var exists = await ScheduleEntities.AsNoTracking().AnyAsync(s => s.Id == entity.Id, cancellationToken);
+            var existing = await ScheduleEntities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
 
-            if (exists)
+            if (existing != null)
             {
+                entity.Id = existing.Id;
                 ScheduleEntities.Update(entity);
             }
             else

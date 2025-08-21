@@ -78,7 +78,7 @@ namespace Atomizer.Models
                 case MisfirePolicy.Ignore:
                     break;
                 case MisfirePolicy.ExecuteNow:
-                    occurrences.Add(now);
+                    occurrences.Add(NextRunAt);
                     break;
                 case MisfirePolicy.CatchUp:
                     occurrences.AddRange(

@@ -7,6 +7,7 @@ using Atomizer.EFCore.Example.Data.SqlServer;
 using Atomizer.EFCore.Example.Entities;
 using Atomizer.EFCore.Example.Handlers;
 using Atomizer.EntityFrameworkCore.Extensions;
+using Atomizer.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -82,6 +83,13 @@ await atomizerClient.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJob",
     "0 * * * * *"
+);
+
+await atomizerClient.ScheduleRecurringAsync(
+    new LoggerJobPayload("Recurring job started", LogLevel.Information),
+    "LoggerJobCatchUp",
+    "0/5 * * * * *", // Every 5 seconds,
+    options => options.MisfirePolicy = MisfirePolicy.CatchUp
 );
 
 app.MapPost(
