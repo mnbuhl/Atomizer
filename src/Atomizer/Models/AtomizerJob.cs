@@ -15,15 +15,19 @@ namespace Atomizer.Models
         public int Attempts { get; set; }
         public int MaxAttempts { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset UpdatedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
         public LeaseToken? LeaseToken { get; set; }
+        public JobKey? ScheduleJobKey { get; set; }
+        public string? IdempotencyKey { get; set; }
         public List<AtomizerJobError> Errors { get; set; } = new List<AtomizerJobError>();
 
         public static AtomizerJob Create(
             QueueKey queueKey,
             Type payloadType,
             string payload,
+            DateTimeOffset createdAt,
             DateTimeOffset scheduledAt,
             int maxAttempts = 3
         )
@@ -38,7 +42,8 @@ namespace Atomizer.Models
                 Status = AtomizerJobStatus.Pending,
                 Attempts = 0,
                 MaxAttempts = maxAttempts,
-                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedAt = createdAt,
+                UpdatedAt = createdAt,
             };
         }
     }

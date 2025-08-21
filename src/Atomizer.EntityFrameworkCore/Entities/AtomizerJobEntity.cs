@@ -17,9 +17,12 @@ namespace Atomizer.EntityFrameworkCore.Entities
         public int Attempts { get; set; }
         public int MaxAttempts { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset UpdatedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public DateTimeOffset? FailedAt { get; set; }
         public string? LeaseToken { get; set; }
+        public string? ScheduleJobKey { get; set; }
+        public string? IdempotencyKey { get; set; }
         public List<AtomizerJobErrorEntity> Errors { get; set; } = new List<AtomizerJobErrorEntity>();
     }
 
@@ -46,10 +49,13 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 Status = (AtomizerEntityJobStatus)(int)job.Status,
                 Attempts = job.Attempts,
                 CreatedAt = job.CreatedAt,
+                UpdatedAt = job.UpdatedAt,
                 CompletedAt = job.CompletedAt,
                 FailedAt = job.FailedAt,
                 LeaseToken = job.LeaseToken?.Token,
                 MaxAttempts = job.MaxAttempts,
+                ScheduleJobKey = job.ScheduleJobKey?.ToString(),
+                IdempotencyKey = job.IdempotencyKey,
                 Errors = job.Errors.Select(err => err.ToEntity()).ToList(),
             };
         }
@@ -68,10 +74,13 @@ namespace Atomizer.EntityFrameworkCore.Entities
                 Status = (AtomizerJobStatus)(int)entity.Status,
                 Attempts = entity.Attempts,
                 CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt,
                 CompletedAt = entity.CompletedAt,
                 FailedAt = entity.FailedAt,
                 LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
                 MaxAttempts = entity.MaxAttempts,
+                ScheduleJobKey = entity.ScheduleJobKey != null ? new JobKey(entity.ScheduleJobKey) : null,
+                IdempotencyKey = entity.IdempotencyKey,
                 Errors = entity.Errors.Select(err => err.ToAtomizerJobError()).ToList(),
             };
         }

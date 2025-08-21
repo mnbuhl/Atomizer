@@ -61,18 +61,15 @@ namespace Atomizer.Clients
         )
         {
             var serializedPayload = _jobSerializer.Serialize(payload);
-            var job = new AtomizerJob
-            {
-                QueueKey = options.Queue,
-                PayloadType = options.TypeOverride ?? typeof(TPayload),
-                Payload = serializedPayload,
-                ScheduledAt = when,
-                VisibleAt = null,
-                Status = AtomizerJobStatus.Pending,
-                Attempts = 0,
-                CreatedAt = _clock.UtcNow,
-                MaxAttempts = options.MaxAttempts,
-            };
+
+            var job = AtomizerJob.Create(
+                options.Queue,
+                options.TypeOverride ?? typeof(TPayload),
+                serializedPayload,
+                _clock.UtcNow,
+                when,
+                options.MaxAttempts
+            );
 
             var jobId = await _storage.InsertAsync(job, ct);
 

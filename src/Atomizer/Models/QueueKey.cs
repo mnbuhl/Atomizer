@@ -2,7 +2,7 @@
 
 namespace Atomizer.Models
 {
-    public readonly struct QueueKey : IEquatable<QueueKey>
+    public sealed class QueueKey : IEquatable<QueueKey>
     {
         public static readonly QueueKey Default = new QueueKey("default");
 
@@ -29,14 +29,15 @@ namespace Atomizer.Models
 
         public override string ToString() => Key;
 
-        public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Key);
+        public override int GetHashCode() => Key.GetHashCode();
 
         public override bool Equals(object? obj) => obj is QueueKey other && Equals(other);
 
-        public bool Equals(QueueKey other) => string.Equals(Key, other.Key, StringComparison.OrdinalIgnoreCase);
+        public bool Equals(QueueKey? other) => string.Equals(Key, other?.Key, StringComparison.OrdinalIgnoreCase);
 
-        public static bool operator ==(QueueKey left, QueueKey right) => left.Equals(right);
+        public static bool operator ==(QueueKey? left, QueueKey? right) =>
+            left is null && right is null || left?.Equals(right) == true;
 
-        public static bool operator !=(QueueKey left, QueueKey right) => !left.Equals(right);
+        public static bool operator !=(QueueKey? left, QueueKey? right) => !(left == right);
     }
 }
