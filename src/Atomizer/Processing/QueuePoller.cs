@@ -3,9 +3,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing

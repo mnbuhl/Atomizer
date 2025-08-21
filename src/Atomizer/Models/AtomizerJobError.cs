@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Atomizer.Models
+namespace Atomizer
 {
     public class AtomizerJobError
     {

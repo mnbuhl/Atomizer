@@ -2,9 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

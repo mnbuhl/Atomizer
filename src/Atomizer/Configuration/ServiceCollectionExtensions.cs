@@ -3,12 +3,11 @@ using System.Linq;
 using Atomizer.Abstractions;
 using Atomizer.Clients;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Atomizer.Processing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Atomizer.Configuration
+namespace Atomizer
 {
     public static class ServiceCollectionExtensions
     {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Atomizer.Models
+namespace Atomizer
 {
     public sealed class LeaseToken : IEquatable<LeaseToken>
     {

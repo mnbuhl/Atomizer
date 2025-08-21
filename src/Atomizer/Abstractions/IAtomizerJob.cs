@@ -1,6 +1,5 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using Atomizer.Models;
 
 // ReSharper disable once CheckNamespace
 namespace Atomizer

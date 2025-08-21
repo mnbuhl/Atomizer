@@ -1,7 +1,7 @@
 ﻿using Atomizer.EntityFrameworkCore.Configurations;
 using Microsoft.EntityFrameworkCore;
 
-namespace Atomizer.EntityFrameworkCore.Extensions
+namespace Atomizer.EntityFrameworkCore
 {
     public static class ModelBuilderExtensions
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Atomizer.Configuration
+namespace Atomizer
 {
     public sealed class AtomizerOptions
     {

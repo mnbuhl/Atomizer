@@ -2,7 +2,7 @@
 using Atomizer.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Atomizer.Configuration
+namespace Atomizer
 {
     public class JobStorageOptions
     {

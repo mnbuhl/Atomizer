@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Extensions;
-using Atomizer.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using Atomizer.Models;
 
 namespace Atomizer.EntityFrameworkCore.Entities;
 

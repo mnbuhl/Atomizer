@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Atomizer.Models
+namespace Atomizer
 {
     public class AtomizerJob
     {

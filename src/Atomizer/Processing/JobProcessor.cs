@@ -2,9 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -16,15 +14,13 @@ namespace Atomizer.Processing
         private readonly IAtomizerJobDispatcher _dispatcher;
         private readonly IAtomizerStorage _storage;
         private readonly ILogger _logger;
-        private readonly LeaseToken _leaseToken;
 
         public JobProcessor(
             QueueOptions queue,
             IAtomizerClock clock,
             IAtomizerJobDispatcher dispatcher,
             IAtomizerStorage storage,
-            ILogger logger,
-            LeaseToken leaseToken
+            ILogger logger
         )
         {
             _queue = queue;
@@ -32,7 +28,6 @@ namespace Atomizer.Processing
             _dispatcher = dispatcher;
             _storage = storage;
             _logger = logger;
-            _leaseToken = leaseToken;
         }
 
         public async Task ProcessAsync(AtomizerJob job, CancellationToken ct)

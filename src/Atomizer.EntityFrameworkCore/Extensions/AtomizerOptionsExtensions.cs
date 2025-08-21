@@ -1,12 +1,10 @@
 ﻿using System;
-using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.EntityFrameworkCore.Extensions
+namespace Atomizer.EntityFrameworkCore
 {
     public static class AtomizerOptionsExtensions
     {

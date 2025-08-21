@@ -4,9 +4,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -84,15 +82,7 @@ namespace Atomizer.Processing
             for (int i = 0; i < workers; i++)
             {
                 var workerId = $"{_queue.QueueKey}-{i}";
-                var worker = new JobWorker(
-                    workerId,
-                    _queue,
-                    _clock,
-                    _dispatcher,
-                    _storageScopeFactory,
-                    _loggerFactory,
-                    _leaseToken
-                );
+                var worker = new JobWorker(workerId, _queue, _clock, _dispatcher, _storageScopeFactory, _loggerFactory);
 
                 var task = Task.Run(
                     async () => await worker.RunAsync(_channel.Reader, _ioCts.Token, _executionCts.Token),

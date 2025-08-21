@@ -3,9 +3,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -19,7 +17,6 @@ namespace Atomizer.Processing
         private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILogger _logger;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly LeaseToken _leaseToken;
 
         public JobWorker(
             string workerId,
@@ -27,8 +24,7 @@ namespace Atomizer.Processing
             IAtomizerClock clock,
             IAtomizerJobDispatcher dispatcher,
             IAtomizerStorageScopeFactory storageScopeFactory,
-            ILoggerFactory loggerFactory,
-            LeaseToken leaseToken
+            ILoggerFactory loggerFactory
         )
         {
             _workerId = workerId;
@@ -37,7 +33,6 @@ namespace Atomizer.Processing
             _dispatcher = dispatcher;
             _storageScopeFactory = storageScopeFactory;
             _loggerFactory = loggerFactory;
-            _leaseToken = leaseToken;
 
             _logger = loggerFactory.CreateLogger($"Worker.{workerId}");
         }
@@ -72,7 +67,7 @@ namespace Atomizer.Processing
                 var storage = scope.Storage;
 
                 var jobLogger = _loggerFactory.CreateLogger($"Worker.{_workerId}-{job.Id}");
-                var processor = new JobProcessor(_queue, _clock, _dispatcher, storage, jobLogger, _leaseToken);
+                var processor = new JobProcessor(_queue, _clock, _dispatcher, storage, jobLogger);
 
                 try
                 {

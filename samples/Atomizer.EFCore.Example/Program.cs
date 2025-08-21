@@ -1,13 +1,11 @@
 using Atomizer;
-using Atomizer.Configuration;
 using Atomizer.EFCore.Example.Data.MySql;
 using Atomizer.EFCore.Example.Data.Postgres;
 using Atomizer.EFCore.Example.Data.Sqlite;
 using Atomizer.EFCore.Example.Data.SqlServer;
 using Atomizer.EFCore.Example.Entities;
 using Atomizer.EFCore.Example.Handlers;
-using Atomizer.EntityFrameworkCore.Extensions;
-using Atomizer.Models;
+using Atomizer.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -77,15 +75,15 @@ await Task.WhenAll(
     sqlServer.Database.MigrateAsync()
 );
 
-var atomizerClient = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
+var atomizer = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
 
-await atomizerClient.ScheduleRecurringAsync(
+await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJob",
-    new ScheduleBuilder().EveryMinute().Build()
+    Schedule.Create().EveryMinute().Build()
 );
 
-await atomizerClient.ScheduleRecurringAsync(
+await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJobCatchUp",
     Schedule.Parse("0 * * * * *"), // Every 5 seconds,

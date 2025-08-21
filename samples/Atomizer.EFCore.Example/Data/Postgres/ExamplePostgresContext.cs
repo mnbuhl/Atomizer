@@ -1,5 +1,5 @@
 ﻿using Atomizer.EFCore.Example.Entities;
-using Atomizer.EntityFrameworkCore.Extensions;
+using Atomizer.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Atomizer.EFCore.Example.Data.Postgres;
