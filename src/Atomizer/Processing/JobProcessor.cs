@@ -2,9 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Configuration;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -16,15 +14,13 @@ namespace Atomizer.Processing
         private readonly IAtomizerJobDispatcher _dispatcher;
         private readonly IAtomizerStorage _storage;
         private readonly ILogger _logger;
-        private readonly LeaseToken _leaseToken;
 
         public JobProcessor(
             QueueOptions queue,
             IAtomizerClock clock,
             IAtomizerJobDispatcher dispatcher,
             IAtomizerStorage storage,
-            ILogger logger,
-            LeaseToken leaseToken
+            ILogger logger
         )
         {
             _queue = queue;
@@ -32,12 +28,11 @@ namespace Atomizer.Processing
             _dispatcher = dispatcher;
             _storage = storage;
             _logger = logger;
-            _leaseToken = leaseToken;
         }
 
         public async Task ProcessAsync(AtomizerJob job, CancellationToken ct)
         {
-            var swStart = _clock.UtcNow;
+            var now = _clock.UtcNow;
 
             try
             {
@@ -52,17 +47,14 @@ namespace Atomizer.Processing
 
                 await _dispatcher.DispatchAsync(job, ct);
 
-                job.CompletedAt = _clock.UtcNow;
-                job.LeaseToken = null;
-                job.Status = AtomizerJobStatus.Completed;
-                job.VisibleAt = null;
+                job.MarkAsCompleted(now);
 
                 await _storage.UpdateAsync(job, ct);
 
                 _logger.LogInformation(
                     "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
                     job.Id,
-                    (int)(_clock.UtcNow - swStart).TotalMilliseconds,
+                    (int)(_clock.UtcNow - now).TotalMilliseconds,
                     _queue.QueueKey
                 );
             }
@@ -87,11 +79,13 @@ namespace Atomizer.Processing
                 var retryCtx = new AtomizerRetryContext(job);
                 var retryPolicy = new DefaultRetryPolicy(retryCtx);
 
+                var now = _clock.UtcNow;
+
                 job.Errors.Add(
                     new AtomizerJobError
                     {
                         Attempt = job.Attempts,
-                        CreatedAt = DateTimeOffset.UtcNow,
+                        CreatedAt = now,
                         ErrorMessage = ex.Message,
                         ExceptionType = ex.GetType().FullName,
                         StackTrace = ex.StackTrace?.Length > 5120 ? ex.StackTrace[..5120] : ex.StackTrace,
@@ -99,15 +93,13 @@ namespace Atomizer.Processing
                         RuntimeIdentity = job.LeaseToken?.InstanceId,
                     }
                 );
-                job.LeaseToken = null;
 
                 if (retryPolicy.ShouldRetry(job.Attempts))
                 {
                     var delay = retryPolicy.GetBackoff(job.Attempts, ex);
-                    var nextVisible = _clock.UtcNow + delay;
+                    var nextVisible = now + delay;
 
-                    job.VisibleAt = nextVisible;
-                    job.Status = AtomizerJobStatus.Pending;
+                    job.Retry(nextVisible, now);
 
                     _logger.LogWarning(
                         "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
@@ -119,10 +111,7 @@ namespace Atomizer.Processing
                 }
                 else
                 {
-                    var now = _clock.UtcNow;
-                    job.Status = AtomizerJobStatus.Failed;
-                    job.VisibleAt = null; // Clear visibility to make it available for eviction
-                    job.FailedAt = now;
+                    job.MarkAsFailed(now);
 
                     _logger.LogError(
                         "Job {JobId} exhausted retries and was marked as failed on '{Queue}'",

@@ -2,32 +2,36 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Atomizer.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
-    internal sealed class QueueCoordinator
+    internal sealed class AtomizerCoordinator
     {
         private readonly AtomizerOptions _options;
-        private readonly ILogger<QueueCoordinator> _logger;
+        private readonly ILogger<AtomizerCoordinator> _logger;
         private readonly IServiceProvider _serviceProvider;
 
+        private readonly Scheduler _scheduler;
         private readonly List<QueuePump> _queuePumps = new List<QueuePump>();
 
-        public QueueCoordinator(
+        public AtomizerCoordinator(
             AtomizerOptions options,
-            ILogger<QueueCoordinator> logger,
+            ILogger<AtomizerCoordinator> logger,
             IServiceProvider serviceProvider
         )
         {
             _options = options;
             _logger = logger;
             _serviceProvider = serviceProvider;
+
+            _scheduler = new Scheduler(_options.SchedulingOptions, _serviceProvider);
         }
 
         public Task StartAsync(CancellationToken ct)
         {
+            _scheduler.Start(ct);
+
             _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
             foreach (var queue in _options.Queues)
             {
@@ -41,8 +45,11 @@ namespace Atomizer.Processing
 
         public async Task StopAsync(TimeSpan gracePeriod, CancellationToken ct)
         {
-            await Task.WhenAll(_queuePumps.ConvertAll(p => p.StopAsync(gracePeriod, ct)));
-            _logger.LogInformation("All queue pumps stopped");
+            var stopTasks = new List<Task>();
+            stopTasks.AddRange(_queuePumps.ConvertAll(p => p.StopAsync(gracePeriod, ct)));
+            stopTasks.Add(_scheduler.StopAsync(gracePeriod, ct));
+            await Task.WhenAll(stopTasks);
+            _logger.LogInformation("Scheduler and all queue pumps stopped");
         }
     }
 }

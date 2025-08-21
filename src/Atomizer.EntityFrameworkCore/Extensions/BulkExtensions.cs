@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Query;
 
 namespace Atomizer.EntityFrameworkCore.Extensions;
 
-public static class BulkExtensions
+internal static class BulkExtensions
 {
     private enum Operation
     {

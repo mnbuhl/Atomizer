@@ -4,11 +4,13 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Atomizer.Configuration
+namespace Atomizer
 {
     public sealed class AtomizerOptions
     {
         public JobStorageOptions? JobStorageOptions { get; set; }
+
+        internal SchedulingOptions SchedulingOptions { get; set; } = new SchedulingOptions();
 
         internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
         internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
@@ -67,5 +69,27 @@ namespace Atomizer.Configuration
         }
 
         public AtomizerOptions AddHandlersFrom<TMarker>() => AddHandlersFrom(typeof(TMarker).Assembly);
+
+        public AtomizerOptions ConfigureScheduling(Action<SchedulingOptions> configure)
+        {
+            configure.Invoke(SchedulingOptions);
+
+            if (SchedulingOptions.ScheduleLeadTime != null && SchedulingOptions.ScheduleLeadTime <= TimeSpan.Zero)
+            {
+                throw new InvalidOperationException("Schedule lead time must be greater than zero.");
+            }
+
+            if (SchedulingOptions.StorageCheckInterval <= TimeSpan.Zero)
+            {
+                throw new InvalidOperationException("Storage check interval must be greater than zero.");
+            }
+
+            if (SchedulingOptions.VisibilityTimeout <= TimeSpan.Zero)
+            {
+                throw new InvalidOperationException("Visibility timeout must be greater than zero.");
+            }
+
+            return this;
+        }
     }
 }

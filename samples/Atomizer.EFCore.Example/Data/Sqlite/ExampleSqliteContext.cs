@@ -1,10 +1,10 @@
 ﻿using Atomizer.EFCore.Example.Entities;
-using Atomizer.EntityFrameworkCore.Extensions;
+using Atomizer.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace Atomizer.EFCore.Example.Data;
+namespace Atomizer.EFCore.Example.Data.Sqlite;
 
-public class ExampleDbContext(DbContextOptions<ExampleDbContext> options) : DbContext(options)
+public class ExampleSqliteContext(DbContextOptions<ExampleSqliteContext> options) : DbContext(options)
 {
     public DbSet<Product> Products => Set<Product>();
 

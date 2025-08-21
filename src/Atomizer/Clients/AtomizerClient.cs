@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Hosting;
-using Atomizer.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Clients
@@ -53,6 +52,34 @@ namespace Atomizer.Clients
             return EnqueueInternalAsync(payload, runAt, options, cancellation);
         }
 
+        public Task<Guid> ScheduleRecurringAsync<TPayload>(
+            TPayload payload,
+            JobKey name,
+            Schedule schedule,
+            Action<RecurringOptions>? configure = null,
+            CancellationToken cancellation = default
+        )
+        {
+            var options = new RecurringOptions();
+            configure?.Invoke(options);
+
+            var atomizerSchedule = AtomizerSchedule.Create(
+                name,
+                options.Queue,
+                typeof(TPayload),
+                _jobSerializer.Serialize(payload),
+                schedule,
+                options.TimeZone,
+                _clock.UtcNow,
+                options.MisfirePolicy,
+                options.MaxCatchUp,
+                options.Enabled,
+                options.MaxAttempts
+            );
+
+            return _storage.UpsertScheduleAsync(atomizerSchedule, cancellation);
+        }
+
         private async Task<Guid> EnqueueInternalAsync<TPayload>(
             TPayload payload,
             DateTimeOffset when,
@@ -61,18 +88,16 @@ namespace Atomizer.Clients
         )
         {
             var serializedPayload = _jobSerializer.Serialize(payload);
-            var job = new AtomizerJob
-            {
-                QueueKey = options.Queue,
-                PayloadType = options.TypeOverride ?? typeof(TPayload),
-                Payload = serializedPayload,
-                ScheduledAt = when,
-                VisibleAt = null,
-                Status = AtomizerJobStatus.Pending,
-                Attempts = 0,
-                CreatedAt = _clock.UtcNow,
-                MaxAttempts = options.MaxAttempts,
-            };
+
+            var job = AtomizerJob.Create(
+                options.Queue,
+                options.TypeOverride ?? typeof(TPayload),
+                serializedPayload,
+                _clock.UtcNow,
+                when,
+                options.MaxAttempts,
+                options.IdempotencyKey
+            );
 
             var jobId = await _storage.InsertAsync(job, ct);
 

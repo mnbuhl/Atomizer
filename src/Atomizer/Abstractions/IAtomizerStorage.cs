@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Atomizer.Models;
 
 namespace Atomizer.Abstractions
 {
@@ -22,5 +21,15 @@ namespace Atomizer.Abstractions
         );
 
         Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
+
+        Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
+
+        Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+            DateTimeOffset now,
+            TimeSpan visibilityTimeout,
+            LeaseToken leaseToken,
+            CancellationToken cancellationToken
+        );
+        Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
     }
 }

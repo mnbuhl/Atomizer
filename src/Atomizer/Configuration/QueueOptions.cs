@@ -1,7 +1,6 @@
 ﻿using System;
-using Atomizer.Models;
 
-namespace Atomizer.Configuration
+namespace Atomizer
 {
     public sealed class QueueOptions
     {

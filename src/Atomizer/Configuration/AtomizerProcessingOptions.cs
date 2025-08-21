@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Atomizer.Configuration
+namespace Atomizer
 {
     public class AtomizerProcessingOptions
     {

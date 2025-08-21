@@ -1,4 +1,4 @@
-﻿namespace Atomizer.EntityFrameworkCore.Storage
+﻿namespace Atomizer.EntityFrameworkCore
 {
     public class EntityFrameworkCoreJobStorageOptions
     {

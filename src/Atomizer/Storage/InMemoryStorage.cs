@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage
@@ -14,6 +13,8 @@ namespace Atomizer.Storage
     {
         // Global store of jobs
         private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new ConcurrentDictionary<Guid, AtomizerJob>();
+        private readonly ConcurrentDictionary<JobKey, AtomizerSchedule> _schedules =
+            new ConcurrentDictionary<JobKey, AtomizerSchedule>();
 
         // Single process-wide lock to ensure atomic leasing batches.
         private readonly object _leaseGate = new object();
@@ -139,6 +140,93 @@ namespace Atomizer.Storage
             }
 
             _logger.LogDebug("Released {Count} leased job(s) with token '{LeaseToken}'", releasedCount, leaseToken);
+            return Task.FromResult(releasedCount);
+        }
+
+        public Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var key = schedule.JobKey;
+
+            if (_schedules.TryGetValue(key, out var existingSchedule))
+            {
+                // Update existing schedule
+                existingSchedule.NextRunAt = schedule.NextRunAt;
+                existingSchedule.Schedule = schedule.Schedule;
+                existingSchedule.UpdatedAt = DateTimeOffset.UtcNow;
+                existingSchedule.MaxAttempts = schedule.MaxAttempts;
+                existingSchedule.Payload = schedule.Payload;
+                existingSchedule.PayloadType = schedule.PayloadType;
+                existingSchedule.QueueKey = schedule.QueueKey;
+                existingSchedule.MisfirePolicy = schedule.MisfirePolicy;
+                existingSchedule.Enabled = schedule.Enabled;
+                _logger.LogDebug("Updated existing schedule for {JobKey}", key);
+            }
+            else
+            {
+                // Insert new schedule
+                if (!_schedules.TryAdd(key, schedule))
+                {
+                    throw new InvalidOperationException($"Schedule for {key} already exists.");
+                }
+                _logger.LogDebug("Inserted new schedule for {JobKey}", key);
+            }
+
+            return Task.FromResult(schedule.Id);
+        }
+
+        public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+            DateTimeOffset now,
+            TimeSpan visibilityTimeout,
+            LeaseToken leaseToken,
+            CancellationToken cancellationToken
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Find all schedules that are due and not yet leased
+            var dueSchedules = _schedules
+                .Values.Where(s => s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now) && s.Enabled)
+                .OrderBy(s => s.NextRunAt)
+                .ToList();
+
+            if (dueSchedules.Count == 0)
+            {
+                _logger.LogDebug("No due schedules found at {Now}", now);
+                return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
+            }
+
+            // Lease the schedules by setting their visibility and lease token
+            foreach (var schedule in dueSchedules)
+            {
+                schedule.VisibleAt = now + visibilityTimeout;
+                schedule.LeaseToken = leaseToken;
+                _logger.LogDebug("Leased schedule for {JobKey} until {VisibleAt}", schedule.JobKey, schedule.VisibleAt);
+            }
+
+            return Task.FromResult((IReadOnlyList<AtomizerSchedule>)dueSchedules);
+        }
+
+        public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            int releasedCount = 0;
+
+            // Release schedules by clearing their lease token and visibility
+            foreach (var schedule in _schedules.Values.Where(s => s.LeaseToken?.Token == leaseToken.Token))
+            {
+                schedule.VisibleAt = null; // Clear visibility to make it available immediately
+                schedule.LeaseToken = null; // Clear lease token
+                releasedCount++;
+                _logger.LogDebug(
+                    "Released schedule for {JobKey} with token '{LeaseToken}'",
+                    schedule.JobKey,
+                    leaseToken
+                );
+            }
+
             return Task.FromResult(releasedCount);
         }
 

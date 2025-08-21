@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Atomizer.EFCore.Example.Data.PostgresMigrations
+namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -29,13 +29,44 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
                     Attempts = table.Column<int>(type: "integer", nullable: false),
                     MaxAttempts = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     FailedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    LeaseToken = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true)
+                    LeaseToken = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    ScheduleJobKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    IdempotencyKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerJobs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AtomizerSchedules",
+                schema: "Atomizer",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    JobKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    QueueKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    PayloadType = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    Payload = table.Column<string>(type: "text", nullable: false),
+                    Schedule = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    TimeZone = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    MisfirePolicy = table.Column<int>(type: "integer", nullable: false),
+                    MaxCatchUp = table.Column<int>(type: "integer", nullable: false),
+                    Enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    MaxAttempts = table.Column<int>(type: "integer", nullable: false),
+                    NextRunAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LastEnqueueAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LeaseToken = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    VisibleAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AtomizerSchedules", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -91,6 +122,10 @@ namespace Atomizer.EFCore.Example.Data.PostgresMigrations
         {
             migrationBuilder.DropTable(
                 name: "AtomizerJobErrors",
+                schema: "Atomizer");
+
+            migrationBuilder.DropTable(
+                name: "AtomizerSchedules",
                 schema: "Atomizer");
 
             migrationBuilder.DropTable(

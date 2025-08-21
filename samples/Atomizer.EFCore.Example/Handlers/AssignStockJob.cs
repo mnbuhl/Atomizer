@@ -1,4 +1,5 @@
 ﻿using Atomizer.EFCore.Example.Data;
+using Atomizer.EFCore.Example.Data.Postgres;
 
 namespace Atomizer.EFCore.Example.Handlers;
 
@@ -6,10 +7,10 @@ public record AssignStock(Guid ProductId, int Quantity);
 
 public class AssignStockJob : IAtomizerJob<AssignStock>
 {
-    private readonly ExampleDbContext _dbContext;
+    private readonly ExamplePostgresContext _dbContext;
     private readonly ILogger<AssignStockJob> _logger;
 
-    public AssignStockJob(ExampleDbContext dbContext, ILogger<AssignStockJob> logger)
+    public AssignStockJob(ExamplePostgresContext dbContext, ILogger<AssignStockJob> logger)
     {
         _dbContext = dbContext;
         _logger = logger;

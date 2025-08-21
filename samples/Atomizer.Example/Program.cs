@@ -1,7 +1,5 @@
 using Atomizer;
-using Atomizer.Configuration;
 using Atomizer.Example.Handlers;
-using Atomizer.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 
@@ -47,6 +45,22 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+using var scope = app.Services.CreateScope();
+var atomizer = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
+
+await atomizer.ScheduleRecurringAsync(
+    new LoggerJobPayload("Recurring job started", LogLevel.Information),
+    "LoggerJob",
+    Schedule.EveryMinute
+);
+
+await atomizer.ScheduleRecurringAsync(
+    new LoggerJobPayload("Recurring job started", LogLevel.Information),
+    "LoggerJobCatchUp",
+    Schedule.Cron("0/5 * * * * *"), // Every 5 seconds,
+    options => options.MisfirePolicy = MisfirePolicy.CatchUp
+);
 
 app.MapPost(
     "/log",

@@ -1,9 +1,11 @@
 using Atomizer;
-using Atomizer.Configuration;
-using Atomizer.EFCore.Example.Data;
+using Atomizer.EFCore.Example.Data.MySql;
+using Atomizer.EFCore.Example.Data.Postgres;
+using Atomizer.EFCore.Example.Data.Sqlite;
+using Atomizer.EFCore.Example.Data.SqlServer;
 using Atomizer.EFCore.Example.Entities;
 using Atomizer.EFCore.Example.Handlers;
-using Atomizer.EntityFrameworkCore.Extensions;
+using Atomizer.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,21 +18,40 @@ builder.Services.AddSwaggerGen(c =>
 );
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddDbContext<ExampleDbContext>(o =>
-    o.UseNpgsql(builder.Configuration.GetConnectionString("postgresql"))
-        .EnableDetailedErrors()
-        .EnableSensitiveDataLogging()
-);
-
 builder.Services.AddAtomizer(options =>
 {
     options.AddHandlersFrom<AssignStockJob>();
-    options.UseEntityFrameworkCoreStorage<ExampleDbContext>();
+    options.UseEntityFrameworkCoreStorage<ExamplePostgresContext>();
 });
 builder.Services.AddAtomizerProcessing(options =>
 {
     options.StartupDelay = TimeSpan.FromSeconds(5);
 });
+
+builder.Services.AddDbContext<ExamplePostgresContext>(o =>
+    o.UseNpgsql(builder.Configuration.GetConnectionString("postgresql"))
+        .EnableDetailedErrors()
+        .EnableSensitiveDataLogging()
+);
+
+builder.Services.AddDbContext<ExampleMySqlContext>(o =>
+    o.UseMySql(
+            builder.Configuration.GetConnectionString("mysql"),
+            ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("mysql"))
+        )
+        .EnableDetailedErrors()
+        .EnableSensitiveDataLogging()
+);
+
+builder.Services.AddDbContext<ExampleSqlServerContext>(o =>
+    o.UseSqlServer(builder.Configuration.GetConnectionString("mssql"))
+        .EnableDetailedErrors()
+        .EnableSensitiveDataLogging()
+);
+
+builder.Services.AddDbContext<ExampleSqliteContext>(o =>
+    o.UseSqlite("Data Source=example.db").EnableDetailedErrors().EnableSensitiveDataLogging()
+);
 
 var app = builder.Build();
 
@@ -42,12 +63,36 @@ if (app.Environment.IsDevelopment())
 }
 
 using var scope = app.Services.CreateScope();
-await using var db = scope.ServiceProvider.GetRequiredService<ExampleDbContext>();
-await db.Database.MigrateAsync();
+await using var postgres = scope.ServiceProvider.GetRequiredService<ExamplePostgresContext>();
+await using var mysql = scope.ServiceProvider.GetRequiredService<ExampleMySqlContext>();
+await using var sqlite = scope.ServiceProvider.GetRequiredService<ExampleSqliteContext>();
+await using var sqlServer = scope.ServiceProvider.GetRequiredService<ExampleSqlServerContext>();
+
+await Task.WhenAll(
+    postgres.Database.MigrateAsync(),
+    mysql.Database.MigrateAsync(),
+    sqlite.Database.MigrateAsync(),
+    sqlServer.Database.MigrateAsync()
+);
+
+var atomizer = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
+
+await atomizer.ScheduleRecurringAsync(
+    new LoggerJobPayload("Recurring job started", LogLevel.Information),
+    "LoggerJob",
+    Schedule.EveryMinute
+);
+
+await atomizer.ScheduleRecurringAsync(
+    new LoggerJobPayload("Recurring job started", LogLevel.Information),
+    "LoggerJobCatchUp",
+    Schedule.Cron("0/5 * * * * *"), // Every 5 seconds,
+    options => options.MisfirePolicy = MisfirePolicy.CatchUp
+);
 
 app.MapPost(
     "/products",
-    async ([FromServices] ExampleDbContext dbContext, [FromServices] IAtomizerClient atomizerClient) =>
+    async ([FromServices] ExamplePostgresContext dbContext, [FromServices] IAtomizerClient atomizerClient) =>
     {
         var product = new Product
         {

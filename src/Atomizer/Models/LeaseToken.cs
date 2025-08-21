@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Atomizer.Models
+namespace Atomizer
 {
     public sealed class LeaseToken : IEquatable<LeaseToken>
     {
@@ -35,15 +35,10 @@ namespace Atomizer.Models
             return Token.GetHashCode();
         }
 
-        public static bool operator ==(LeaseToken left, LeaseToken right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(LeaseToken? left, LeaseToken? right) =>
+            left is null && right is null || left?.Equals(right) == true;
 
-        public static bool operator !=(LeaseToken left, LeaseToken right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator !=(LeaseToken? left, LeaseToken? right) => !(left == right);
 
         public override string ToString()
         {
