@@ -43,6 +43,7 @@ namespace Atomizer
         {
             var atomizerSchedule = new AtomizerSchedule
             {
+                Id = Guid.NewGuid(),
                 JobKey = jobKey,
                 QueueKey = queueKey,
                 PayloadType = payloadType,
