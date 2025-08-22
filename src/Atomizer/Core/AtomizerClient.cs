@@ -8,19 +8,19 @@ namespace Atomizer.Core
 {
     public class AtomizerClient : IAtomizerClient
     {
-        private readonly IAtomizerStorage _storage;
+        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly IAtomizerJobSerializer _jobSerializer;
         private readonly IAtomizerClock _clock;
         private readonly ILogger<AtomizerClient> _logger;
 
         public AtomizerClient(
-            IAtomizerStorage storage,
+            IAtomizerStorageScopeFactory storageScopeFactory,
             IAtomizerJobSerializer jobSerializer,
             IAtomizerClock clock,
             ILogger<AtomizerClient> logger
         )
         {
-            _storage = storage;
+            _storageScopeFactory = storageScopeFactory;
             _jobSerializer = jobSerializer;
             _clock = clock;
             _logger = logger;
@@ -51,7 +51,7 @@ namespace Atomizer.Core
             return EnqueueInternalAsync(payload, runAt, options, cancellation);
         }
 
-        public Task<Guid> ScheduleRecurringAsync<TPayload>(
+        public async Task<Guid> ScheduleRecurringAsync<TPayload>(
             TPayload payload,
             JobKey name,
             Schedule schedule,
@@ -76,7 +76,8 @@ namespace Atomizer.Core
                 options.MaxAttempts
             );
 
-            return _storage.UpsertScheduleAsync(atomizerSchedule, cancellation);
+            using var scope = _storageScopeFactory.CreateScope();
+            return await scope.Storage.UpsertScheduleAsync(atomizerSchedule, cancellation);
         }
 
         private async Task<Guid> EnqueueInternalAsync<TPayload>(
@@ -98,7 +99,8 @@ namespace Atomizer.Core
                 options.IdempotencyKey
             );
 
-            var jobId = await _storage.InsertAsync(job, ct);
+            using var scope = _storageScopeFactory.CreateScope();
+            var jobId = await scope.Storage.InsertAsync(job, ct);
 
             _logger.LogDebug(
                 "Enqueuing job {JobId} with payload type {PayloadType} to queue {QueueKey} at {ScheduledAt}",
