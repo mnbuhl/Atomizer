@@ -2,10 +2,9 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Clients
+namespace Atomizer.Core
 {
     public class AtomizerClient : IAtomizerClient
     {
