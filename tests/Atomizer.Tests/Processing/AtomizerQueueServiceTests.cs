@@ -1,9 +1,11 @@
-﻿using Atomizer.Processing;
+﻿using System.Diagnostics;
+using Atomizer.Processing;
+using Atomizer.Tests.Utilities;
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
-namespace Atomizer.Tests
+namespace Atomizer.Tests.Processing
 {
     /// <summary>
     /// Unit tests for AtomizerQueueService.
@@ -11,7 +13,7 @@ namespace Atomizer.Tests
     public class AtomizerQueueServiceTests
     {
         [Fact]
-        public async Task StartAsync_WhenStartupDelayIsSet_ShouldDelayAndStartCoordinator()
+        public async Task ExecuteAsync_WhenStartupDelayIsSet_ShouldDelayAndStartCoordinator()
         {
             // Arrange
             var coordinator = Substitute.For<IQueueCoordinator>();
@@ -20,19 +22,21 @@ namespace Atomizer.Tests
             var service = new AtomizerQueueService(coordinator, options, logger);
             var token = CancellationToken.None;
 
+            var executeAsync = NonPublicSpy.CreateFunc<AtomizerQueueService, CancellationToken, Task>("ExecuteAsync");
+
             // Act
-            var start = DateTime.UtcNow;
-            await service.StartAsync(token);
-            var elapsed = DateTime.UtcNow - start;
+            var timestamp = Stopwatch.GetTimestamp();
+            await executeAsync(service, token);
+            var elapsed = Stopwatch.GetElapsedTime(timestamp);
 
             // Assert
             elapsed.Should().BeGreaterThanOrEqualTo(options.StartupDelay.Value);
             coordinator.Received(1).Start(token);
-            logger.Received().LogInformation(Arg.Is<string>(s => s.Contains("starting")));
+            logger.Received(1).LogInformation("Atomizer queue service starting");
         }
 
         [Fact]
-        public async Task StartAsync_WhenStartupDelayIsNull_ShouldStartCoordinatorWithoutDelay()
+        public async Task ExecuteAsync_WhenStartupDelayIsNull_ShouldStartCoordinatorWithoutDelay()
         {
             // Arrange
             var coordinator = Substitute.For<IQueueCoordinator>();
@@ -41,12 +45,14 @@ namespace Atomizer.Tests
             var service = new AtomizerQueueService(coordinator, options, logger);
             var token = CancellationToken.None;
 
+            var executeAsync = NonPublicSpy.CreateFunc<AtomizerQueueService, CancellationToken, Task>("ExecuteAsync");
+
             // Act
-            await service.StartAsync(token);
+            await executeAsync(service, token);
 
             // Assert
             coordinator.Received(1).Start(token);
-            logger.Received().LogInformation(Arg.Is<string>(s => s.Contains("starting")));
+            logger.Received(1).LogInformation("Atomizer queue service starting");
         }
 
         [Fact]
@@ -64,8 +70,8 @@ namespace Atomizer.Tests
 
             // Assert
             await coordinator.Received(1).StopAsync(options.GracefulShutdownTimeout, token);
-            logger.Received().LogInformation(Arg.Is<string>(s => s.Contains("stopping")));
-            logger.Received().LogInformation(Arg.Is<string>(s => s.Contains("stopped")));
+            logger.Received(1).LogInformation("Atomizer queue service stopping");
+            logger.Received(1).LogInformation("Atomizer queue service stopped");
         }
     }
 }
