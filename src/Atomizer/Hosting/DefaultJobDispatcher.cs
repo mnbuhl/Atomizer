@@ -36,8 +36,26 @@ namespace Atomizer.Hosting
 
         public async Task DispatchAsync(AtomizerJob job, CancellationToken cancellationToken)
         {
+            if (job.PayloadType is null)
+            {
+                _logger.LogError("Job {JobId} has no payload type specified. Cannot dispatch job", job.Id);
+                throw new InvalidOperationException($"Job {job.Id} has no payload type specified.");
+            }
+
             var handlerType = _typeResolver.Resolve(job.PayloadType);
-            var payload = _jobSerializer.Deserialize(job.Payload, job.PayloadType)!;
+            var payload = _jobSerializer.Deserialize(job.Payload, job.PayloadType);
+
+            if (payload is null)
+            {
+                _logger.LogError(
+                    "Job {JobId} payload deserialization failed for type {PayloadType}. Cannot dispatch job",
+                    job.Id,
+                    job.PayloadType.Name
+                );
+                throw new InvalidOperationException(
+                    $"Job {job.Id} payload deserialization failed for type {job.PayloadType.Name}."
+                );
+            }
 
             using var scope = _scopeFactory.CreateScope();
 

@@ -2,6 +2,7 @@
 using System.Linq;
 using Atomizer.Abstractions;
 using Atomizer.Clients;
+using Atomizer.Exceptions;
 using Atomizer.Hosting;
 using Atomizer.Processing;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +22,7 @@ namespace Atomizer
 
             if (options.JobStorageOptions is null)
             {
-                throw new InvalidOperationException(
+                throw new InvalidAtomizerConfigurationException(
                     "JobStorageFactory must be set. Use UseInMemoryStorage or another storage provider."
                 );
             }
@@ -38,6 +39,7 @@ namespace Atomizer
             services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
             services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
             services.AddSingleton<IAtomizerJobSerializer, DefaultJobSerializer>();
+            services.AddSingleton<IAtomizerStorageScopeFactory, ServiceProviderStorageScopeFactory>();
 
             switch (options.JobStorageOptions.JobStorageLifetime)
             {
@@ -72,10 +74,16 @@ namespace Atomizer
             }
 
             services.AddSingleton(options);
-            services.AddSingleton<AtomizerCoordinator>();
-            services.AddHostedService<AtomizerHostedService>();
+            services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
+            services.AddHostedService<AtomizerQueueService>();
+            services.AddSingleton<IScheduler, Scheduler>();
+            services.AddHostedService<AtomizerSchedulerService>();
             services.AddSingleton<AtomizerRuntimeIdentity>();
-            services.AddSingleton<IAtomizerStorageScopeFactory, ServiceProviderStorageScopeFactory>();
+
+            services.AddSingleton<IQueuePumpFactory, QueuePumpFactory>();
+            services.AddSingleton<IQueuePoller, QueuePoller>();
+            services.AddSingleton<IJobWorkerFactory, JobWorkerFactory>();
+            services.AddSingleton<IJobProcessorFactory, JobProcessorFactory>();
 
             return services;
         }

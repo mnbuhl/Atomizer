@@ -1,4 +1,5 @@
 ﻿using System;
+using Atomizer.Exceptions;
 
 namespace Atomizer
 {
@@ -11,12 +12,12 @@ namespace Atomizer
         {
             if (string.IsNullOrEmpty(key))
             {
-                throw new ArgumentException("Queue name cannot be null or empty.", nameof(key));
+                throw new InvalidQueueKeyException("Queue name cannot be null or empty.", nameof(key));
             }
 
             if (key.Length > 100)
             {
-                throw new ArgumentException("Queue name cannot exceed 100 characters.", nameof(key));
+                throw new InvalidQueueKeyException("Queue name cannot exceed 100 characters.", nameof(key));
             }
 
             Key = key;

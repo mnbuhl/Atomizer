@@ -10,7 +10,7 @@ namespace Atomizer
         public Guid Id { get; set; }
         public JobKey JobKey { get; set; } = new JobKey("default");
         public QueueKey QueueKey { get; set; } = QueueKey.Default;
-        public Type PayloadType { get; set; } = null!;
+        public Type? PayloadType { get; set; }
         public string Payload { get; set; } = string.Empty;
         public Schedule Schedule { get; set; } = Schedule.Default;
         public TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;

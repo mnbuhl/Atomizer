@@ -3,12 +3,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
-    internal sealed class Scheduler
+    internal interface IScheduler
+    {
+        void Start(CancellationToken cancellationToken);
+        Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken);
+    }
+
+    internal sealed class Scheduler : IScheduler
     {
         private readonly SchedulingOptions _options;
         private readonly IAtomizerClock _clock;
@@ -22,13 +27,18 @@ namespace Atomizer.Processing
         private CancellationTokenSource _ioCts = new CancellationTokenSource();
         private CancellationTokenSource _executionCts = new CancellationTokenSource();
 
-        public Scheduler(SchedulingOptions options, IServiceProvider provider)
+        public Scheduler(
+            AtomizerOptions options,
+            IAtomizerClock clock,
+            IAtomizerStorageScopeFactory storageScopeFactory,
+            ILogger<Scheduler> logger,
+            AtomizerRuntimeIdentity identity
+        )
         {
-            _options = options;
-            _clock = provider.GetRequiredService<IAtomizerClock>();
-            _storageScopeFactory = provider.GetRequiredService<IAtomizerStorageScopeFactory>();
-            _logger = provider.GetRequiredService<ILogger<Scheduler>>();
-            var identity = provider.GetRequiredService<AtomizerRuntimeIdentity>();
+            _clock = clock;
+            _storageScopeFactory = storageScopeFactory;
+            _logger = logger;
+            _options = options.SchedulingOptions;
             _leaseToken = new LeaseToken($"{identity.InstanceId}:*:{QueueKey.Scheduler}:*:{Guid.NewGuid():N}");
             _lastStorageCheck = _clock.MinValue;
         }
@@ -80,7 +90,11 @@ namespace Atomizer.Processing
             try
             {
                 using var scope = _storageScopeFactory.CreateScope();
-                var released = await scope.Storage.ReleaseLeasedSchedulesAsync(_leaseToken, cancellationToken);
+
+                var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
+                releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
+
+                var released = await scope.Storage.ReleaseLeasedSchedulesAsync(_leaseToken, releaseCts.Token);
                 _logger.LogDebug("Released {Count} schedules with lease token {LeaseToken}", released, _leaseToken);
             }
             catch (Exception ex)
@@ -145,10 +159,32 @@ namespace Atomizer.Processing
         )
         {
             var now = _clock.UtcNow;
-            var occurrences = schedule.GetOccurrences(horizon);
 
             using var scope = _storageScopeFactory.CreateScope();
             var storage = scope.Storage;
+
+            if (schedule.PayloadType is null)
+            {
+                _logger.LogWarning(
+                    "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
+                    schedule.JobKey
+                );
+                schedule.Enabled = false;
+                schedule.UpdatedAt = now;
+
+                try
+                {
+                    await storage.UpsertScheduleAsync(schedule, execToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to update schedule {ScheduleKey}", schedule.JobKey);
+                }
+
+                return;
+            }
+
+            var occurrences = schedule.GetOccurrences(horizon);
             foreach (var occurrence in occurrences)
             {
                 var idempotencyKey = $"{schedule.JobKey}:*:{occurrence:O}";

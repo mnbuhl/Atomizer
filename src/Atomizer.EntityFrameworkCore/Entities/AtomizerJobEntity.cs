@@ -41,7 +41,7 @@ public static class AtomizerJobEntityMapper
         {
             Id = job.Id,
             QueueKey = job.QueueKey.ToString(),
-            PayloadType = job.PayloadType.AssemblyQualifiedName ?? string.Empty,
+            PayloadType = job.PayloadType?.AssemblyQualifiedName ?? string.Empty,
             Payload = job.Payload,
             ScheduledAt = job.ScheduledAt,
             VisibleAt = job.VisibleAt,
@@ -65,8 +65,7 @@ public static class AtomizerJobEntityMapper
         {
             Id = entity.Id,
             QueueKey = new QueueKey(entity.QueueKey),
-            PayloadType =
-                Type.GetType(entity.PayloadType) ?? throw new InvalidOperationException("Invalid payload type"),
+            PayloadType = Type.GetType(entity.PayloadType),
             Payload = entity.Payload,
             ScheduledAt = entity.ScheduledAt,
             VisibleAt = entity.VisibleAt,

@@ -3,38 +3,33 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
-    internal sealed class JobWorker
+    internal interface IJobWorker
+    {
+        Task RunAsync(ChannelReader<AtomizerJob> reader, CancellationToken ioToken, CancellationToken executionToken);
+    }
+
+    internal sealed class JobWorker : IJobWorker
     {
         private readonly string _workerId;
-        private readonly QueueOptions _queue;
-        private readonly IAtomizerClock _clock;
-        private readonly IAtomizerJobDispatcher _dispatcher;
         private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+        private readonly IJobProcessorFactory _jobProcessorFactory;
         private readonly ILogger _logger;
-        private readonly ILoggerFactory _loggerFactory;
 
         public JobWorker(
             string workerId,
-            QueueOptions queue,
-            IAtomizerClock clock,
-            IAtomizerJobDispatcher dispatcher,
             IAtomizerStorageScopeFactory storageScopeFactory,
-            ILoggerFactory loggerFactory
+            IJobProcessorFactory jobProcessorFactory,
+            ILogger logger
         )
         {
             _workerId = workerId;
-            _queue = queue;
-            _clock = clock;
-            _dispatcher = dispatcher;
             _storageScopeFactory = storageScopeFactory;
-            _loggerFactory = loggerFactory;
-
-            _logger = loggerFactory.CreateLogger($"Worker.{workerId}");
+            _jobProcessorFactory = jobProcessorFactory;
+            _logger = logger;
         }
 
         public async Task RunAsync(
@@ -43,7 +38,7 @@ namespace Atomizer.Processing
             CancellationToken executionToken
         )
         {
-            _logger.LogDebug("Worker {Worker} for '{Queue}' started", _workerId, _queue.QueueKey);
+            _logger.LogDebug("Worker {Worker} started", _workerId);
 
             while (!ioToken.IsCancellationRequested)
             {
@@ -63,11 +58,8 @@ namespace Atomizer.Processing
                     break;
                 }
 
-                using var scope = _storageScopeFactory.CreateScope();
-                var storage = scope.Storage;
-
-                var jobLogger = _loggerFactory.CreateLogger($"Worker.{_workerId}-{job.Id}");
-                var processor = new JobProcessor(_queue, _clock, _dispatcher, storage, jobLogger);
+                var processorId = $"{_workerId}-{job.Id}";
+                var processor = _jobProcessorFactory.Create(processorId);
 
                 try
                 {
@@ -75,12 +67,22 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (executionToken.IsCancellationRequested)
                 {
-                    jobLogger.LogDebug("Worker {Worker} cancellation requested", _workerId);
+                    _logger.LogDebug("Worker {Worker} cancellation requested", _workerId);
                     break;
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.LogDebug("Worker {Worker} task was canceled", _workerId);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Worker {Worker} failed to process job {JobId}", _workerId, job.Id);
+                    // Optionally handle job failure, e.g., requeue or log
                 }
             }
 
-            _logger.LogDebug("Worker {Worker} for '{Queue}' stopped", _workerId, _queue.QueueKey);
+            _logger.LogDebug("Worker {Worker} stopped", _workerId);
         }
     }
 }

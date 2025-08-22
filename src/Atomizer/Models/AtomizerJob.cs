@@ -7,7 +7,7 @@ namespace Atomizer
     {
         public Guid Id { get; set; }
         public QueueKey QueueKey { get; set; } = QueueKey.Default;
-        public Type PayloadType { get; set; } = null!;
+        public Type? PayloadType { get; set; }
         public string Payload { get; set; } = string.Empty;
         public DateTimeOffset ScheduledAt { get; set; }
         public DateTimeOffset? VisibleAt { get; set; }
