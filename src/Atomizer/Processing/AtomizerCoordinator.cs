@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -10,10 +11,10 @@ namespace Atomizer.Processing
     {
         private readonly AtomizerOptions _options;
         private readonly ILogger<AtomizerCoordinator> _logger;
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IQueuePumpFactory _queuePumpFactory;
 
         private readonly Scheduler _scheduler;
-        private readonly List<QueuePump> _queuePumps = new List<QueuePump>();
+        private readonly List<IQueuePump> _queuePumps = new List<IQueuePump>();
 
         public AtomizerCoordinator(
             AtomizerOptions options,
@@ -23,9 +24,9 @@ namespace Atomizer.Processing
         {
             _options = options;
             _logger = logger;
-            _serviceProvider = serviceProvider;
+            _queuePumpFactory = serviceProvider.GetRequiredService<IQueuePumpFactory>();
 
-            _scheduler = new Scheduler(_options.SchedulingOptions, _serviceProvider);
+            _scheduler = new Scheduler(_options.SchedulingOptions, serviceProvider);
         }
 
         public Task StartAsync(CancellationToken ct)
@@ -35,7 +36,7 @@ namespace Atomizer.Processing
             _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
             foreach (var queue in _options.Queues)
             {
-                var pump = new QueuePump(queue, _serviceProvider);
+                var pump = _queuePumpFactory.Create(queue);
                 _queuePumps.Add(pump);
                 pump.Start(ct);
             }

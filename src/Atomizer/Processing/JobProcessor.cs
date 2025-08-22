@@ -7,26 +7,28 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
-    internal sealed class JobProcessor
+    internal interface IJobProcessor
     {
-        private readonly QueueOptions _queue;
+        Task ProcessAsync(AtomizerJob job, CancellationToken ct);
+    }
+
+    internal sealed class JobProcessor : IJobProcessor
+    {
         private readonly IAtomizerClock _clock;
         private readonly IAtomizerJobDispatcher _dispatcher;
-        private readonly IAtomizerStorage _storage;
+        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILogger _logger;
 
         public JobProcessor(
-            QueueOptions queue,
             IAtomizerClock clock,
             IAtomizerJobDispatcher dispatcher,
-            IAtomizerStorage storage,
+            IAtomizerStorageScopeFactory storageScopeFactory,
             ILogger logger
         )
         {
-            _queue = queue;
             _clock = clock;
             _dispatcher = dispatcher;
-            _storage = storage;
+            _storageScopeFactory = storageScopeFactory;
             _logger = logger;
         }
 
@@ -42,20 +44,23 @@ namespace Atomizer.Processing
                     "Executing job {JobId} (attempt {Attempt}) on '{Queue}'",
                     job.Id,
                     job.Attempts,
-                    _queue.QueueKey
+                    job.QueueKey
                 );
 
                 await _dispatcher.DispatchAsync(job, ct);
 
                 job.MarkAsCompleted(now);
 
-                await _storage.UpdateAsync(job, ct);
+                using var scope = _storageScopeFactory.CreateScope();
+                var storage = scope.Storage;
+
+                await storage.UpdateAsync(job, ct);
 
                 _logger.LogInformation(
                     "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
                     job.Id,
                     (int)(_clock.UtcNow - now).TotalMilliseconds,
-                    _queue.QueueKey
+                    job.QueueKey
                 );
             }
             catch (TaskCanceledException) when (ct.IsCancellationRequested)
@@ -63,7 +68,7 @@ namespace Atomizer.Processing
                 _logger.LogWarning(
                     "Cancellation requested while processing job {JobId} on '{Queue}'",
                     job.Id,
-                    _queue.QueueKey
+                    job.QueueKey
                 );
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -71,7 +76,7 @@ namespace Atomizer.Processing
                 _logger.LogWarning(
                     "Operation cancelled while processing job {JobId} on '{Queue}'",
                     job.Id,
-                    _queue.QueueKey
+                    job.QueueKey
                 );
             }
             catch (Exception ex)
@@ -102,7 +107,7 @@ namespace Atomizer.Processing
                         "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
                         job.Id,
                         job.Attempts,
-                        _queue.QueueKey,
+                        job.QueueKey,
                         delay.TotalMilliseconds
                     );
                 }
@@ -113,11 +118,14 @@ namespace Atomizer.Processing
                     _logger.LogError(
                         "Job {JobId} exhausted retries and was marked as failed on '{Queue}'",
                         job.Id,
-                        _queue.QueueKey
+                        job.QueueKey
                     );
                 }
 
-                await _storage.UpdateAsync(job, ct);
+                using var scope = _storageScopeFactory.CreateScope();
+                var storage = scope.Storage;
+
+                await storage.UpdateAsync(job, ct);
             }
             catch (Exception jobFailureEx)
             {
@@ -125,7 +133,7 @@ namespace Atomizer.Processing
                     jobFailureEx,
                     "Error while handling failure of job {JobId} on '{Queue}' on attempt {Attempt}",
                     job.Id,
-                    _queue.QueueKey,
+                    job.QueueKey,
                     job.Attempts
                 );
             }

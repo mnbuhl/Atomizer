@@ -39,6 +39,7 @@ namespace Atomizer
             services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
             services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
             services.AddSingleton<IAtomizerJobSerializer, DefaultJobSerializer>();
+            services.AddSingleton<IAtomizerStorageScopeFactory, ServiceProviderStorageScopeFactory>();
 
             switch (options.JobStorageOptions.JobStorageLifetime)
             {
@@ -76,7 +77,11 @@ namespace Atomizer
             services.AddSingleton<AtomizerCoordinator>();
             services.AddHostedService<AtomizerHostedService>();
             services.AddSingleton<AtomizerRuntimeIdentity>();
-            services.AddSingleton<IAtomizerStorageScopeFactory, ServiceProviderStorageScopeFactory>();
+
+            services.AddSingleton<IQueuePumpFactory, QueuePumpFactory>();
+            services.AddSingleton<IQueuePoller, QueuePoller>();
+            services.AddSingleton<IJobWorkerFactory, JobWorkerFactory>();
+            services.AddSingleton<IJobProcessorFactory, JobProcessorFactory>();
 
             return services;
         }
