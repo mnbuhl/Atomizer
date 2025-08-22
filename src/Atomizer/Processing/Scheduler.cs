@@ -82,15 +82,6 @@ namespace Atomizer.Processing
 
             try
             {
-                await _processingTask.ConfigureAwait(false);
-            }
-            catch
-            {
-                _logger.LogDebug("Scheduler processing task completed with errors");
-            }
-
-            try
-            {
                 using var scope = _storageScopeFactory.CreateScope();
 
                 var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);

@@ -33,9 +33,9 @@ namespace Atomizer
         /// </summary>
         public TimeSpan StorageCheckInterval { get; set; } = TimeSpan.FromSeconds(15);
 
-        public QueueOptions(string queueName)
+        public QueueOptions(QueueKey queueKey)
         {
-            QueueKey = new QueueKey(queueName);
+            QueueKey = queueKey;
         }
     }
 }

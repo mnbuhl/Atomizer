@@ -123,24 +123,6 @@ namespace Atomizer.Processing
                 {
                     _logger.LogDebug("Error cancelling execution for queue '{QueueKey}'", _queue.QueueKey);
                 }
-                try
-                {
-                    await allWorkers.ConfigureAwait(false);
-                }
-                catch
-                {
-                    _logger.LogDebug("Error waiting for workers to finish for queue '{QueueKey}'", _queue.QueueKey);
-                }
-            }
-
-            // Ensure poller finished
-            try
-            {
-                await _pollTask.ConfigureAwait(false);
-            }
-            catch
-            {
-                _logger.LogDebug("Error waiting for poller to finish for queue '{QueueKey}'", _queue.QueueKey);
             }
 
             // 4) Release any remaining leases for this pump
