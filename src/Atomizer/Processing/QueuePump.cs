@@ -147,7 +147,9 @@ namespace Atomizer.Processing
             try
             {
                 using var scope = _storageScopeFactory.CreateScope();
-                var released = await scope.Storage.ReleaseLeasedAsync(_leaseToken, cancellationToken);
+                var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
+                releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
+                var released = await scope.Storage.ReleaseLeasedAsync(_leaseToken, releaseCts.Token);
                 if (released > 0)
                     _logger.LogInformation(
                         "Released {Count} leased job(s) for queue '{QueueKey}'",

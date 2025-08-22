@@ -70,6 +70,16 @@ namespace Atomizer.Processing
                     _logger.LogDebug("Worker {Worker} cancellation requested", _workerId);
                     break;
                 }
+                catch (TaskCanceledException)
+                {
+                    _logger.LogDebug("Worker {Worker} task was canceled", _workerId);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Worker {Worker} failed to process job {JobId}", _workerId, job.Id);
+                    // Optionally handle job failure, e.g., requeue or log
+                }
             }
 
             _logger.LogDebug("Worker {Worker} stopped", _workerId);

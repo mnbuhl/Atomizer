@@ -90,7 +90,11 @@ namespace Atomizer.Processing
             try
             {
                 using var scope = _storageScopeFactory.CreateScope();
-                var released = await scope.Storage.ReleaseLeasedSchedulesAsync(_leaseToken, cancellationToken);
+
+                var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
+                releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
+
+                var released = await scope.Storage.ReleaseLeasedSchedulesAsync(_leaseToken, releaseCts.Token);
                 _logger.LogDebug("Released {Count} schedules with lease token {LeaseToken}", released, _leaseToken);
             }
             catch (Exception ex)
