@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Atomizer.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer
@@ -22,17 +23,17 @@ namespace Atomizer
 
             if (options.BatchSize <= 0)
             {
-                throw new InvalidOperationException("Batch size must be greater than zero.");
+                throw new InvalidAtomizerConfigurationException("Batch size must be greater than zero.");
             }
 
             if (options.DegreeOfParallelism <= 0)
             {
-                throw new InvalidOperationException("Degree of parallelism must be greater than zero.");
+                throw new InvalidAtomizerConfigurationException("Degree of parallelism must be greater than zero.");
             }
 
             if (options.VisibilityTimeout <= TimeSpan.Zero)
             {
-                throw new InvalidOperationException("Visibility timeout must be greater than zero.");
+                throw new InvalidAtomizerConfigurationException("Visibility timeout must be greater than zero.");
             }
 
             Queues.Add(options);
@@ -76,17 +77,17 @@ namespace Atomizer
 
             if (SchedulingOptions.ScheduleLeadTime != null && SchedulingOptions.ScheduleLeadTime <= TimeSpan.Zero)
             {
-                throw new InvalidOperationException("Schedule lead time must be greater than zero.");
+                throw new InvalidAtomizerConfigurationException("Schedule lead time must be greater than zero.");
             }
 
             if (SchedulingOptions.StorageCheckInterval <= TimeSpan.Zero)
             {
-                throw new InvalidOperationException("Storage check interval must be greater than zero.");
+                throw new InvalidAtomizerConfigurationException("Storage check interval must be greater than zero.");
             }
 
             if (SchedulingOptions.VisibilityTimeout <= TimeSpan.Zero)
             {
-                throw new InvalidOperationException("Visibility timeout must be greater than zero.");
+                throw new InvalidAtomizerConfigurationException("Visibility timeout must be greater than zero.");
             }
 
             return this;

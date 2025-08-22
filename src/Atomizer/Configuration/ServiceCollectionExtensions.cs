@@ -2,6 +2,7 @@
 using System.Linq;
 using Atomizer.Abstractions;
 using Atomizer.Clients;
+using Atomizer.Exceptions;
 using Atomizer.Hosting;
 using Atomizer.Processing;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +22,7 @@ namespace Atomizer
 
             if (options.JobStorageOptions is null)
             {
-                throw new InvalidOperationException(
+                throw new InvalidAtomizerConfigurationException(
                     "JobStorageFactory must be set. Use UseInMemoryStorage or another storage provider."
                 );
             }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using Atomizer.Exceptions;
 
 namespace Atomizer.Hosting
 {
@@ -14,8 +15,16 @@ namespace Atomizer.Hosting
 
         public Type Resolve(Type payloadType)
         {
+            if (payloadType.AssemblyQualifiedName is null)
+            {
+                throw new JobResolverException(
+                    $"Payload type '{payloadType.Name}' does not have an assembly qualified name.",
+                    payloadType
+                );
+            }
+
             return _cache.GetOrAdd(
-                payloadType.AssemblyQualifiedName!,
+                payloadType.AssemblyQualifiedName,
                 typeof(IAtomizerJob<>).MakeGenericType(payloadType)
             );
         }

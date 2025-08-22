@@ -66,6 +66,14 @@ namespace Atomizer.Processing
                     _queue.QueueKey
                 );
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    "Operation cancelled while processing job {JobId} on '{Queue}'",
+                    job.Id,
+                    _queue.QueueKey
+                );
+            }
             catch (Exception ex)
             {
                 await HandleFailureAsync(job, ex, ct);
@@ -81,18 +89,7 @@ namespace Atomizer.Processing
 
                 var now = _clock.UtcNow;
 
-                job.Errors.Add(
-                    new AtomizerJobError
-                    {
-                        Attempt = job.Attempts,
-                        CreatedAt = now,
-                        ErrorMessage = ex.Message,
-                        ExceptionType = ex.GetType().FullName,
-                        StackTrace = ex.StackTrace?.Length > 5120 ? ex.StackTrace[..5120] : ex.StackTrace,
-                        JobId = job.Id,
-                        RuntimeIdentity = job.LeaseToken?.InstanceId,
-                    }
-                );
+                job.Errors.Add(AtomizerJobError.Create(job.Id, now, job.Attempts, ex, job.LeaseToken?.InstanceId));
 
                 if (retryPolicy.ShouldRetry(job.Attempts))
                 {

@@ -1,4 +1,5 @@
 ﻿using System;
+using Atomizer.Exceptions;
 
 namespace Atomizer
 {
@@ -6,6 +7,16 @@ namespace Atomizer
     {
         public JobKey(string key)
         {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                throw new InvalidJobKeyException("Job key cannot be null or empty.", nameof(key));
+            }
+
+            if (key.Length > 255)
+            {
+                throw new InvalidJobKeyException("Job key cannot exceed 255 characters.", nameof(key));
+            }
+
             Key = key;
         }
 
