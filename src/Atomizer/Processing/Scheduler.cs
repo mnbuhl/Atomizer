@@ -3,12 +3,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
 using Atomizer.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
-    internal sealed class Scheduler
+    internal interface IScheduler
+    {
+        void Start(CancellationToken cancellationToken);
+        Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken);
+    }
+
+    internal sealed class Scheduler : IScheduler
     {
         private readonly SchedulingOptions _options;
         private readonly IAtomizerClock _clock;
@@ -22,13 +27,18 @@ namespace Atomizer.Processing
         private CancellationTokenSource _ioCts = new CancellationTokenSource();
         private CancellationTokenSource _executionCts = new CancellationTokenSource();
 
-        public Scheduler(SchedulingOptions options, IServiceProvider provider)
+        public Scheduler(
+            AtomizerOptions options,
+            IAtomizerClock clock,
+            IAtomizerStorageScopeFactory storageScopeFactory,
+            ILogger<Scheduler> logger,
+            AtomizerRuntimeIdentity identity
+        )
         {
-            _options = options;
-            _clock = provider.GetRequiredService<IAtomizerClock>();
-            _storageScopeFactory = provider.GetRequiredService<IAtomizerStorageScopeFactory>();
-            _logger = provider.GetRequiredService<ILogger<Scheduler>>();
-            var identity = provider.GetRequiredService<AtomizerRuntimeIdentity>();
+            _clock = clock;
+            _storageScopeFactory = storageScopeFactory;
+            _logger = logger;
+            _options = options.SchedulingOptions;
             _leaseToken = new LeaseToken($"{identity.InstanceId}:*:{QueueKey.Scheduler}:*:{Guid.NewGuid():N}");
             _lastStorageCheck = _clock.MinValue;
         }

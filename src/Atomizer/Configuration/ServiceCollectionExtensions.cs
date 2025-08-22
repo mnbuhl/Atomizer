@@ -74,8 +74,10 @@ namespace Atomizer
             }
 
             services.AddSingleton(options);
-            services.AddSingleton<AtomizerCoordinator>();
-            services.AddHostedService<AtomizerHostedService>();
+            services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
+            services.AddHostedService<AtomizerQueueService>();
+            services.AddSingleton<IScheduler, Scheduler>();
+            services.AddHostedService<AtomizerSchedulerService>();
             services.AddSingleton<AtomizerRuntimeIdentity>();
 
             services.AddSingleton<IQueuePumpFactory, QueuePumpFactory>();
