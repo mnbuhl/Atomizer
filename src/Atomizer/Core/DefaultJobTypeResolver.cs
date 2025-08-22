@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using Atomizer.Exceptions;
 
-namespace Atomizer.Hosting
+namespace Atomizer.Core
 {
     public interface IAtomizerJobTypeResolver
     {

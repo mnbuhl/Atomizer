@@ -2,7 +2,7 @@
 using Atomizer.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Atomizer.Hosting
+namespace Atomizer.Core
 {
     internal sealed class ServiceProviderStorageScopeFactory : IAtomizerStorageScopeFactory
     {

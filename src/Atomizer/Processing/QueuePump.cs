@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Hosting;
+using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing

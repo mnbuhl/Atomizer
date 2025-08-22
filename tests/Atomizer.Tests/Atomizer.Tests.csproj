@@ -33,6 +33,10 @@
         <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2" />
     </ItemGroup>
     <ItemGroup>
+        <Folder Include="Hosting\" />
         <Folder Include="Processing\" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Atomizer\Atomizer.csproj" />
     </ItemGroup>
 </Project>

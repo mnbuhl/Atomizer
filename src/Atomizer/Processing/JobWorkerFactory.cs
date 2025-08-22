@@ -1,5 +1,4 @@
 ﻿using Atomizer.Abstractions;
-using Atomizer.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
