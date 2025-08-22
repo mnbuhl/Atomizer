@@ -145,10 +145,32 @@ namespace Atomizer.Processing
         )
         {
             var now = _clock.UtcNow;
-            var occurrences = schedule.GetOccurrences(horizon);
 
             using var scope = _storageScopeFactory.CreateScope();
             var storage = scope.Storage;
+
+            if (schedule.PayloadType is null)
+            {
+                _logger.LogWarning(
+                    "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
+                    schedule.JobKey
+                );
+                schedule.Enabled = false;
+                schedule.UpdatedAt = now;
+
+                try
+                {
+                    await storage.UpsertScheduleAsync(schedule, execToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to update schedule {ScheduleKey}", schedule.JobKey);
+                }
+
+                return;
+            }
+
+            var occurrences = schedule.GetOccurrences(horizon);
             foreach (var occurrence in occurrences)
             {
                 var idempotencyKey = $"{schedule.JobKey}:*:{occurrence:O}";

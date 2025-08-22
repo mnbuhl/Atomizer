@@ -104,7 +104,7 @@ namespace Atomizer.Clients
             _logger.LogDebug(
                 "Enqueuing job {JobId} with payload type {PayloadType} to queue {QueueKey} at {ScheduledAt}",
                 jobId,
-                job.PayloadType.FullName,
+                job.PayloadType!.FullName,
                 job.QueueKey,
                 job.ScheduledAt
             );

@@ -124,7 +124,7 @@ public static class AtomizerScheduleEntityMapper
             Id = schedule.Id,
             JobKey = schedule.JobKey.ToString(),
             QueueKey = schedule.QueueKey.ToString(),
-            PayloadType = schedule.PayloadType.AssemblyQualifiedName ?? string.Empty,
+            PayloadType = schedule.PayloadType?.AssemblyQualifiedName ?? string.Empty,
             Payload = schedule.Payload,
             Schedule = schedule.Schedule.ToString(),
             TimeZone = schedule.TimeZone.Id,
@@ -148,8 +148,7 @@ public static class AtomizerScheduleEntityMapper
             Id = entity.Id,
             JobKey = new JobKey(entity.JobKey),
             QueueKey = new QueueKey(entity.QueueKey),
-            PayloadType =
-                Type.GetType(entity.PayloadType) ?? throw new InvalidOperationException("Invalid payload type"),
+            PayloadType = Type.GetType(entity.PayloadType),
             Payload = entity.Payload,
             Schedule = Schedule.Cron(entity.Schedule),
             TimeZone = TimeZoneInfo.FindSystemTimeZoneById(entity.TimeZone),
