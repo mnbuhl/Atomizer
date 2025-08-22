@@ -27,6 +27,8 @@ namespace Atomizer.Processing
         private CancellationTokenSource _ioCts = new CancellationTokenSource();
         private CancellationTokenSource _executionCts = new CancellationTokenSource();
 
+        private static readonly TimeSpan DefaultTickInterval = TimeSpan.FromSeconds(1);
+
         public Scheduler(
             AtomizerOptions options,
             IAtomizerClock clock,
@@ -148,7 +150,7 @@ namespace Atomizer.Processing
                     _logger.LogError(ex, "An error occurred while processing the schedule");
                 }
 
-                await Task.Delay(_options.TickInterval, ioToken);
+                await Task.Delay(DefaultTickInterval, ioToken);
             }
         }
 
@@ -169,8 +171,7 @@ namespace Atomizer.Processing
                     "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
                     schedule.JobKey
                 );
-                schedule.Enabled = false;
-                schedule.UpdatedAt = now;
+                schedule.Disable(now);
 
                 try
                 {
@@ -222,7 +223,9 @@ namespace Atomizer.Processing
                 }
             }
 
-            schedule.Update(horizon, now);
+            schedule.UpdateNextOccurence(horizon);
+            schedule.Release(now);
+
             try
             {
                 await storage.UpsertScheduleAsync(schedule, execToken);

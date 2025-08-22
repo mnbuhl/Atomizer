@@ -5,12 +5,6 @@ namespace Atomizer
     public class SchedulingOptions
     {
         /// <summary>
-        /// Gets or sets the tick interval for the scheduler.
-        /// <remarks>Default is 1 second, meaning that the scheduler will check "StorageCheckInterval" every second.</remarks>
-        /// </summary>
-        public TimeSpan TickInterval { get; set; } = TimeSpan.FromSeconds(1);
-
-        /// <summary>
         /// Gets or sets the visibility timeout for jobs in the queue.
         /// <remarks>Default is 10 minutes, meaning that once a job is picked up for processing, it will not be visible to other workers for 10 minutes.</remarks>
         /// </summary>

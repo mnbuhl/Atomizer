@@ -99,15 +99,25 @@ namespace Atomizer
             return occurrences;
         }
 
-        public void Update(DateTimeOffset horizon, DateTimeOffset now)
+        public void UpdateNextOccurence(DateTimeOffset horizon)
         {
             var nextOccurrence = CronExpression.GetNextOccurrence(horizon, TimeZone);
             NextRunAt = nextOccurrence ?? DateTimeOffset.MaxValue; // No further occurrences
 
             LastEnqueueAt = horizon;
-            UpdatedAt = now;
-            VisibleAt = null;
+        }
+
+        public void Release(DateTimeOffset now)
+        {
             LeaseToken = null;
+            VisibleAt = null;
+            UpdatedAt = now;
+        }
+
+        public void Disable(DateTimeOffset now)
+        {
+            Enabled = false;
+            UpdatedAt = now;
         }
     }
 
