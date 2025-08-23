@@ -1,6 +1,4 @@
 ﻿using Atomizer.Processing;
-using Atomizer.Tests.Utilities;
-using NSubstitute;
 
 namespace Atomizer.Tests.Processing
 {

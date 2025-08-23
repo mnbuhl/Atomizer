@@ -21,8 +21,6 @@ namespace Atomizer.Processing
 
         private DateTimeOffset _lastStorageCheck;
 
-        private static readonly TimeSpan DefaultTickInterval = TimeSpan.FromSeconds(1);
-
         public QueuePoller(
             IAtomizerClock clock,
             IAtomizerStorageScopeFactory storageScopeFactory,
@@ -94,7 +92,7 @@ namespace Atomizer.Processing
 
                 try
                 {
-                    await Task.Delay(DefaultTickInterval, ct);
+                    await Task.Delay(queue.TickInterval, ct);
                 }
                 catch (TaskCanceledException)
                 {

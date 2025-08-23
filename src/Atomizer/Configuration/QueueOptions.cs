@@ -33,6 +33,11 @@ namespace Atomizer
         /// </summary>
         public TimeSpan StorageCheckInterval { get; set; } = TimeSpan.FromSeconds(15);
 
+        /// <summary>
+        /// The interval at which the long running loops tick.
+        /// </summary>
+        public TimeSpan TickInterval { get; private set; } = TimeSpan.FromSeconds(1);
+
         public QueueOptions(QueueKey queueKey)
         {
             QueueKey = queueKey;

@@ -2,7 +2,6 @@
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Atomizer.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -15,19 +14,12 @@ namespace Atomizer.Processing
     internal sealed class JobWorker : IJobWorker
     {
         private readonly string _workerId;
-        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly IJobProcessorFactory _jobProcessorFactory;
         private readonly ILogger _logger;
 
-        public JobWorker(
-            string workerId,
-            IAtomizerStorageScopeFactory storageScopeFactory,
-            IJobProcessorFactory jobProcessorFactory,
-            ILogger logger
-        )
+        public JobWorker(string workerId, IJobProcessorFactory jobProcessorFactory, ILogger logger)
         {
             _workerId = workerId;
-            _storageScopeFactory = storageScopeFactory;
             _jobProcessorFactory = jobProcessorFactory;
             _logger = logger;
         }
@@ -54,8 +46,8 @@ namespace Atomizer.Processing
                 }
                 catch
                 {
-                    _logger.LogWarning("Worker {Worker} read operation failed, stopping worker", _workerId);
-                    break;
+                    _logger.LogWarning("Worker {Worker} read operation failed", _workerId);
+                    continue;
                 }
 
                 var processorId = $"{_workerId}-{job.Id}";

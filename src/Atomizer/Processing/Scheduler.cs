@@ -27,8 +27,6 @@ namespace Atomizer.Processing
         private CancellationTokenSource _ioCts = new CancellationTokenSource();
         private CancellationTokenSource _executionCts = new CancellationTokenSource();
 
-        private static readonly TimeSpan DefaultTickInterval = TimeSpan.FromSeconds(1);
-
         public Scheduler(
             AtomizerOptions options,
             IAtomizerClock clock,
@@ -141,7 +139,7 @@ namespace Atomizer.Processing
                     _logger.LogError(ex, "An error occurred while processing the schedule");
                 }
 
-                await Task.Delay(DefaultTickInterval, ioToken);
+                await Task.Delay(_options.TickInterval, ioToken);
             }
         }
 

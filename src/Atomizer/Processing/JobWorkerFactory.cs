@@ -1,5 +1,4 @@
-﻿using Atomizer.Abstractions;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
@@ -11,28 +10,17 @@ namespace Atomizer.Processing
     internal sealed class JobWorkerFactory : IJobWorkerFactory
     {
         private readonly IJobProcessorFactory _jobProcessorFactory;
-        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILoggerFactory _loggerFactory;
 
-        public JobWorkerFactory(
-            IAtomizerStorageScopeFactory storageScopeFactory,
-            ILoggerFactory loggerFactory,
-            IJobProcessorFactory jobProcessorFactory
-        )
+        public JobWorkerFactory(ILoggerFactory loggerFactory, IJobProcessorFactory jobProcessorFactory)
         {
-            _storageScopeFactory = storageScopeFactory;
             _loggerFactory = loggerFactory;
             _jobProcessorFactory = jobProcessorFactory;
         }
 
         public IJobWorker Create(string workerId)
         {
-            return new JobWorker(
-                workerId,
-                _storageScopeFactory,
-                _jobProcessorFactory,
-                _loggerFactory.CreateLogger("Worker." + workerId)
-            );
+            return new JobWorker(workerId, _jobProcessorFactory, _loggerFactory.CreateLogger("Worker." + workerId));
         }
     }
 }

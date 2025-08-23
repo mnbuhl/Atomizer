@@ -1,9 +1,6 @@
 ﻿using System.Diagnostics;
 using Atomizer.Processing;
-using Atomizer.Tests.Utilities;
-using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
-using NSubstitute;
 
 namespace Atomizer.Tests.Processing
 {
