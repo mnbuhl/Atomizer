@@ -8,18 +8,19 @@ namespace Atomizer.Processing
 {
     internal interface IJobWorker
     {
+        string WorkerId { get; }
         Task RunAsync(ChannelReader<AtomizerJob> reader, CancellationToken ioToken, CancellationToken executionToken);
     }
 
     internal sealed class JobWorker : IJobWorker
     {
-        private readonly string _workerId;
+        public string WorkerId { get; }
         private readonly IJobProcessorFactory _jobProcessorFactory;
         private readonly ILogger _logger;
 
         public JobWorker(string workerId, IJobProcessorFactory jobProcessorFactory, ILogger logger)
         {
-            _workerId = workerId;
+            WorkerId = workerId;
             _jobProcessorFactory = jobProcessorFactory;
             _logger = logger;
         }
@@ -30,7 +31,7 @@ namespace Atomizer.Processing
             CancellationToken executionToken
         )
         {
-            _logger.LogDebug("Worker {Worker} started", _workerId);
+            _logger.LogDebug("Worker {Worker} started", WorkerId);
 
             while (!ioToken.IsCancellationRequested)
             {
@@ -41,16 +42,16 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (ioToken.IsCancellationRequested)
                 {
-                    _logger.LogWarning("Worker {Worker} cancellation requested", _workerId);
+                    _logger.LogWarning("Worker {Worker} cancellation requested", WorkerId);
                     break;
                 }
                 catch
                 {
-                    _logger.LogWarning("Worker {Worker} read operation failed", _workerId);
+                    _logger.LogWarning("Worker {Worker} read operation failed", WorkerId);
                     continue;
                 }
 
-                var processorId = $"{_workerId}-{job.Id}";
+                var processorId = $"{WorkerId}-{job.Id}";
                 var processor = _jobProcessorFactory.Create(processorId);
 
                 try
@@ -59,22 +60,22 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (executionToken.IsCancellationRequested)
                 {
-                    _logger.LogDebug("Worker {Worker} cancellation requested", _workerId);
+                    _logger.LogDebug("Worker {Worker} cancellation requested", WorkerId);
                     break;
                 }
                 catch (TaskCanceledException)
                 {
-                    _logger.LogDebug("Worker {Worker} task was canceled", _workerId);
+                    _logger.LogDebug("Worker {Worker} task was canceled", WorkerId);
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Worker {Worker} failed to process job {JobId}", _workerId, job.Id);
+                    _logger.LogError(ex, "Worker {Worker} failed to process job {JobId}", WorkerId, job.Id);
                     // Optionally handle job failure, e.g., requeue or log
                 }
             }
 
-            _logger.LogDebug("Worker {Worker} stopped", _workerId);
+            _logger.LogDebug("Worker {Worker} stopped", WorkerId);
         }
     }
 }

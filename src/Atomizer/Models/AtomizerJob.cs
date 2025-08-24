@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using Atomizer.Models.Base;
 
 namespace Atomizer
 {
-    public class AtomizerJob
+    public class AtomizerJob : Model
     {
-        public Guid Id { get; set; }
         public QueueKey QueueKey { get; set; } = QueueKey.Default;
         public Type? PayloadType { get; set; }
         public string Payload { get; set; } = string.Empty;

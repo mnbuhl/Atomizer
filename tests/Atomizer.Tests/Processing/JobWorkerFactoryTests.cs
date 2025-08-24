@@ -1,4 +1,5 @@
-﻿using Atomizer.Processing;
+﻿using Atomizer.Core;
+using Atomizer.Processing;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Tests.Processing
@@ -13,14 +14,13 @@ namespace Atomizer.Tests.Processing
         {
             // Arrange
             var loggerFactory = Substitute.For<ILoggerFactory>();
-            var logger = Substitute.For<ILogger>();
             var jobProcessorFactory = Substitute.For<IJobProcessorFactory>();
-            var workerId = "worker-123";
-            loggerFactory.CreateLogger($"Worker.{workerId}").Returns(logger);
-            var factory = new JobWorkerFactory(loggerFactory, jobProcessorFactory);
+            var workerIndex = 0;
+            var queueKey = QueueKey.Default;
+            var factory = new JobWorkerFactory(loggerFactory, jobProcessorFactory, new AtomizerRuntimeIdentity());
 
             // Act
-            var worker = factory.Create(workerId);
+            var worker = factory.Create(queueKey, workerIndex);
 
             // Assert
             worker.Should().NotBeNull();

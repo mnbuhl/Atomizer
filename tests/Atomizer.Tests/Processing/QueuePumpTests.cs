@@ -22,7 +22,7 @@ public class QueuePumpTests
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
         var worker = Substitute.For<IJobWorker>();
-        workerFactory.Create(Arg.Any<string>()).Returns(worker);
+        workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         worker
             .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
@@ -46,7 +46,7 @@ public class QueuePumpTests
             .LogInformation(
                 $"Starting queue '{queueOptions.QueueKey}' with {queueOptions.DegreeOfParallelism} workers"
             );
-        workerFactory.Received(2).Create(Arg.Any<string>());
+        workerFactory.Received(2).Create(Arg.Any<QueueKey>(), Arg.Any<int>());
         poller
             .Received()
             .RunAsync(
@@ -68,7 +68,7 @@ public class QueuePumpTests
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
         var worker = Substitute.For<IJobWorker>();
-        workerFactory.Create(Arg.Any<string>()).Returns(worker);
+        workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         worker
             .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
@@ -107,7 +107,7 @@ public class QueuePumpTests
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
         var worker = Substitute.For<IJobWorker>();
-        workerFactory.Create(Arg.Any<string>()).Returns(worker);
+        workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         // Simulate a worker that takes 3 seconds to complete
         worker
             .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())

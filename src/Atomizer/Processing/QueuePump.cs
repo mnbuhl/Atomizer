@@ -80,8 +80,7 @@ namespace Atomizer.Processing
             var workers = Math.Max(1, _queue.DegreeOfParallelism);
             for (int i = 0; i < workers; i++)
             {
-                var workerId = $"{_queue.QueueKey}-{i}";
-                var worker = _workerFactory.Create(workerId);
+                var worker = _workerFactory.Create(_queue.QueueKey, i);
 
                 var task = Task.Run(
                     async () => await worker.RunAsync(_channel.Reader, _ioCts.Token, _executionCts.Token),

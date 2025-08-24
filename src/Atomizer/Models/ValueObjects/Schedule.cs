@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
+using Atomizer.Models.Base;
 
 namespace Atomizer
 {
-    public sealed class Schedule
+    public sealed class Schedule : ValueObject
     {
         public string Seconds { get; private set; } = "*";
         public string Minutes { get; private set; } = "*";
@@ -49,5 +51,15 @@ namespace Atomizer
         }
 
         public override string ToString() => string.Join(" ", Seconds, Minutes, Hours, DayOfMonth, Month, DayOfWeek);
+
+        protected override IEnumerable<object> GetEqualityValues()
+        {
+            yield return Seconds;
+            yield return Minutes;
+            yield return Hours;
+            yield return DayOfMonth;
+            yield return Month;
+            yield return DayOfWeek;
+        }
     }
 }

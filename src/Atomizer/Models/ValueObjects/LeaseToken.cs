@@ -1,9 +1,10 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using Atomizer.Exceptions;
+using Atomizer.Models.Base;
 
 namespace Atomizer
 {
-    public sealed class LeaseToken : IEquatable<LeaseToken>
+    public sealed class LeaseToken : ValueObject
     {
         public string Token { get; }
 
@@ -35,25 +36,10 @@ namespace Atomizer
             Token = token;
         }
 
-        public bool Equals(LeaseToken? other)
+        protected override IEnumerable<object> GetEqualityValues()
         {
-            return Token == other?.Token;
+            yield return Token;
         }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is LeaseToken other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return Token.GetHashCode();
-        }
-
-        public static bool operator ==(LeaseToken? left, LeaseToken? right) =>
-            left is null && right is null || left?.Equals(right) == true;
-
-        public static bool operator !=(LeaseToken? left, LeaseToken? right) => !(left == right);
 
         public override string ToString()
         {
