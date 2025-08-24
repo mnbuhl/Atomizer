@@ -32,7 +32,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release --verbosity minimal
 
       - name: Test
-        run: dotnet test --no-build --verbosity normal --configuration Release --collect:"XPlat Code Coverage" --logger "trx;LogFileName=TestResults.trx" --results-directory ./TestResults
+        run: dotnet test --no-build --verbosity normal --configuration Release --collect:"XPlat Code Coverage" --logger "trx" --results-directory ./TestResults
         
       - name: Test results report
         uses: dorny/test-reporter@v2
