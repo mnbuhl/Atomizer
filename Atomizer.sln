@@ -12,7 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "items", "items", "{3F9C53FE
 		.csharpierrc = .csharpierrc
 		README.md = README.md
 		compose.yml = compose.yml
-		Directory.Build.props = Directory.Build.props
+		src\Directory.Build.props = src\Directory.Build.props
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer", "src\Atomizer\Atomizer.csproj", "{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615}"
@@ -26,6 +26,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Tests", "tests\Atomizer.Tests\Atomizer.Tests.csproj", "{5FF09171-46CB-4619-BCB9-48C596BB1BEC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.EntityFrameworkCore.Tests", "tests\Atomizer.EntityFrameworkCore.Tests\Atomizer.EntityFrameworkCore.Tests.csproj", "{7654F745-0CFE-4802-9BE6-5AB4065FBA1F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Tests.Utilities", "tests\Atomizer.Tests.Utilities\Atomizer.Tests.Utilities.csproj", "{57C7E426-4BD3-4984-9C8F-65F2F6E35852}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +57,10 @@ Global
 		{7654F745-0CFE-4802-9BE6-5AB4065FBA1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7654F745-0CFE-4802-9BE6-5AB4065FBA1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7654F745-0CFE-4802-9BE6-5AB4065FBA1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57C7E426-4BD3-4984-9C8F-65F2F6E35852}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57C7E426-4BD3-4984-9C8F-65F2F6E35852}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57C7E426-4BD3-4984-9C8F-65F2F6E35852}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57C7E426-4BD3-4984-9C8F-65F2F6E35852}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{3FA58AFF-FFAB-4F99-BCFA-FDF7333C2615} = {57DC23B8-FC3C-41A3-AEB0-21C016F935F6}
@@ -63,5 +69,6 @@ Global
 		{D0D16DE2-740B-4214-A1F7-AD96C21A4878} = {5D128655-88B1-4CA4-B12B-9E6C067D6DA3}
 		{5FF09171-46CB-4619-BCB9-48C596BB1BEC} = {7233FD90-018C-47BF-9001-EB1681DFE75B}
 		{7654F745-0CFE-4802-9BE6-5AB4065FBA1F} = {7233FD90-018C-47BF-9001-EB1681DFE75B}
+		{57C7E426-4BD3-4984-9C8F-65F2F6E35852} = {7233FD90-018C-47BF-9001-EB1681DFE75B}
 	EndGlobalSection
 EndGlobal

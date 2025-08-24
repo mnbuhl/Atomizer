@@ -164,7 +164,7 @@ public class JobWorkerTests
         (await WaitOrTimeout(run, Timeout)).Should().BeTrue();
 
         // Assert
-        var maxReadAttempts = NonPublicSpy<JobWorker>.GetConstant<int>("MaxReadAttempts");
+        var maxReadAttempts = NonPublicSpy.GetConstant<JobWorker, int>("MaxReadAttempts");
         _logger
             .Received(maxReadAttempts)
             .LogWarning(Arg.Any<Exception>(), $"Worker {_workerId} channel read operation failed");

@@ -34,7 +34,7 @@ namespace Atomizer.Tests.Processing
             worker.Should().NotBeNull();
             worker.Should().BeOfType<JobWorker>();
 
-            var workerId = NonPublicSpy<JobWorker>.GetFieldValue<WorkerId>("_workerId", worker as JobWorker);
+            var workerId = NonPublicSpy.GetFieldValue<JobWorker, WorkerId>("_workerId", worker as JobWorker);
             workerId.ToString().Should().Be($"{_identity.InstanceId}:*:{queueKey}:*:worker-{workerIndex}");
         }
     }

@@ -38,5 +38,6 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\..\src\Atomizer\Atomizer.csproj" />
+        <ProjectReference Include="..\Atomizer.Tests.Utilities\Atomizer.Tests.Utilities.csproj" />
     </ItemGroup>
 </Project>

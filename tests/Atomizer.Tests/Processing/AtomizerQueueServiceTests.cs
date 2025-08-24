@@ -19,7 +19,7 @@ namespace Atomizer.Tests.Processing
             var service = new AtomizerQueueService(coordinator, options, logger);
             var token = CancellationToken.None;
 
-            var executeAsync = NonPublicSpy<AtomizerQueueService>.CreateFunc<CancellationToken, Task>("ExecuteAsync");
+            var executeAsync = NonPublicSpy.CreateFunc<AtomizerQueueService, CancellationToken, Task>("ExecuteAsync");
 
             // Act
             var timestamp = Stopwatch.GetTimestamp();
@@ -42,7 +42,7 @@ namespace Atomizer.Tests.Processing
             var service = new AtomizerQueueService(coordinator, options, logger);
             var token = CancellationToken.None;
 
-            var executeAsync = NonPublicSpy<AtomizerQueueService>.CreateFunc<CancellationToken, Task>("ExecuteAsync");
+            var executeAsync = NonPublicSpy.CreateFunc<AtomizerQueueService, CancellationToken, Task>("ExecuteAsync");
 
             // Act
             await executeAsync(service, token);

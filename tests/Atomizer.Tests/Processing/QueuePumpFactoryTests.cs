@@ -37,7 +37,7 @@ namespace Atomizer.Tests.Processing
             pump.Should().NotBeNull();
             pump.Should().BeOfType<QueuePump>();
 
-            var leaseToken = NonPublicSpy<QueuePump>.GetFieldValue<LeaseToken>("_leaseToken", pump as QueuePump);
+            var leaseToken = NonPublicSpy.GetFieldValue<QueuePump, LeaseToken>("_leaseToken", pump as QueuePump);
             leaseToken.ToString().Should().StartWith($"{_identity.InstanceId}:*:{queueOptions.QueueKey}:*:");
         }
     }
