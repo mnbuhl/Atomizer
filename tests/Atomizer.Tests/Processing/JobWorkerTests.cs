@@ -17,7 +17,7 @@ public class JobWorkerTests
 
     public JobWorkerTests()
     {
-        _sut = new JobWorker("worker-1", _jobProcessorFactory, _logger);
+        _sut = new JobWorker(new WorkerId("instance", QueueKey.Default, 0), _jobProcessorFactory, _logger);
     }
 
     [Fact]

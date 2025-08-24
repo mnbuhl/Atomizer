@@ -8,17 +8,17 @@ namespace Atomizer.Processing
 {
     internal interface IJobWorker
     {
-        string WorkerId { get; }
+        WorkerId WorkerId { get; }
         Task RunAsync(ChannelReader<AtomizerJob> reader, CancellationToken ioToken, CancellationToken executionToken);
     }
 
     internal sealed class JobWorker : IJobWorker
     {
-        public string WorkerId { get; }
+        public WorkerId WorkerId { get; }
         private readonly IJobProcessorFactory _jobProcessorFactory;
         private readonly ILogger _logger;
 
-        public JobWorker(string workerId, IJobProcessorFactory jobProcessorFactory, ILogger logger)
+        public JobWorker(WorkerId workerId, IJobProcessorFactory jobProcessorFactory, ILogger logger)
         {
             WorkerId = workerId;
             _jobProcessorFactory = jobProcessorFactory;

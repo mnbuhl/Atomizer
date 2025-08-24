@@ -27,8 +27,8 @@ namespace Atomizer.Processing
 
         public IJobWorker Create(QueueKey queueKey, int workerIndex)
         {
-            var workerId = $"{_identity.InstanceId}:*:{queueKey}:*:worker-{workerIndex}";
-            return new JobWorker(workerId, _jobProcessorFactory, _loggerFactory.CreateLogger(workerId));
+            var workerId = new WorkerId(_identity.InstanceId, queueKey, workerIndex);
+            return new JobWorker(workerId, _jobProcessorFactory, _loggerFactory.CreateLogger(workerId.ToString()));
         }
     }
 }

@@ -17,7 +17,8 @@ namespace Atomizer.Tests.Processing
             var jobProcessorFactory = Substitute.For<IJobProcessorFactory>();
             var workerIndex = 0;
             var queueKey = QueueKey.Default;
-            var factory = new JobWorkerFactory(loggerFactory, jobProcessorFactory, new AtomizerRuntimeIdentity());
+            var identity = new AtomizerRuntimeIdentity();
+            var factory = new JobWorkerFactory(loggerFactory, jobProcessorFactory, identity);
 
             // Act
             var worker = factory.Create(queueKey, workerIndex);
@@ -25,6 +26,8 @@ namespace Atomizer.Tests.Processing
             // Assert
             worker.Should().NotBeNull();
             worker.Should().BeOfType<JobWorker>();
+
+            worker.WorkerId.ToString().Should().Be($"{identity.InstanceId}:*:{queueKey}:*:worker-{workerIndex}");
         }
     }
 }
