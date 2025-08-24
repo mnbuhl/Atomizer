@@ -12,7 +12,7 @@ namespace Atomizer.Tests.Processing;
 public class QueuePumpTests
 {
     [Fact]
-    public void Start_WhenCalled_ShouldLogAndStartWorkersAndPoller()
+    public async Task Start_WhenCalled_ShouldLogAndStartWorkersAndPoller()
     {
         // Arrange
         var queueOptions = new QueueOptions(QueueKey.Default) { DegreeOfParallelism = 2, BatchSize = 1 };
@@ -40,6 +40,8 @@ public class QueuePumpTests
         // Act
         pump.Start(CancellationToken.None);
 
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Give some time for async operations to start
+
         // Assert
         logger
             .Received()
@@ -47,7 +49,7 @@ public class QueuePumpTests
                 $"Starting queue '{queueOptions.QueueKey}' with {queueOptions.DegreeOfParallelism} workers"
             );
         workerFactory.Received(2).Create(Arg.Any<QueueKey>(), Arg.Any<int>());
-        poller
+        await poller
             .Received()
             .RunAsync(
                 Arg.Any<QueueOptions>(),

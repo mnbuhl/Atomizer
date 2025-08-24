@@ -32,3 +32,11 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build --verbosity normal --configuration Release --collect:"XPlat Code Coverage" --results-directory ./TestResults
+        
+      - name: Report test results
+        uses: dorny/test-reporter@v2
+        if: ${{ !cancelled() }}
+        with:
+          name: Test Results
+          path: ./TestResults/**/*.trx
+          reporter: dotnet-trx
