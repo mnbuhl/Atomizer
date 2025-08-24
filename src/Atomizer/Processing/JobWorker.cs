@@ -8,13 +8,12 @@ namespace Atomizer.Processing
 {
     internal interface IJobWorker
     {
-        WorkerId WorkerId { get; }
         Task RunAsync(ChannelReader<AtomizerJob> reader, CancellationToken ioToken, CancellationToken executionToken);
     }
 
     internal sealed class JobWorker : IJobWorker
     {
-        public WorkerId WorkerId { get; }
+        private readonly WorkerId _workerId;
         private readonly IJobProcessorFactory _jobProcessorFactory;
         private readonly ILogger _logger;
 
@@ -23,7 +22,7 @@ namespace Atomizer.Processing
 
         public JobWorker(WorkerId workerId, IJobProcessorFactory jobProcessorFactory, ILogger logger)
         {
-            WorkerId = workerId;
+            _workerId = workerId;
             _jobProcessorFactory = jobProcessorFactory;
             _logger = logger;
         }
@@ -34,7 +33,7 @@ namespace Atomizer.Processing
             CancellationToken executionToken
         )
         {
-            _logger.LogDebug("Worker {Worker} started", WorkerId);
+            _logger.LogDebug("Worker {Worker} started", _workerId);
 
             while (!ioToken.IsCancellationRequested)
             {
@@ -45,18 +44,18 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (ioToken.IsCancellationRequested)
                 {
-                    _logger.LogDebug("Worker {Worker} cancellation requested", WorkerId);
+                    _logger.LogDebug("Worker {Worker} cancellation requested", _workerId);
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Worker {Worker} channel read operation failed", WorkerId);
+                    _logger.LogWarning(ex, "Worker {Worker} channel read operation failed", _workerId);
                     _readRetries++;
                     if (_readRetries >= MaxReadAttempts)
                     {
                         _logger.LogError(
                             "Worker {Worker} exceeded maximum channel read retries, skipping faulty read",
-                            WorkerId
+                            _workerId
                         );
 
                         reader.TryRead(out _); // clear the faulted read
@@ -66,7 +65,7 @@ namespace Atomizer.Processing
                 }
                 _readRetries = 0; // reset retries on successful read
 
-                var processorId = $"{WorkerId}-{job.Id}";
+                var processorId = $"{_workerId}-{job.Id}";
                 var processor = _jobProcessorFactory.Create(processorId);
 
                 try
@@ -75,17 +74,17 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (executionToken.IsCancellationRequested)
                 {
-                    _logger.LogDebug("Worker {Worker} cancellation requested", WorkerId);
+                    _logger.LogDebug("Worker {Worker} cancellation requested", _workerId);
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Worker {Worker} failed to process job {JobId}", WorkerId, job.Id);
+                    _logger.LogError(ex, "Worker {Worker} failed to process job {JobId}", _workerId, job.Id);
                     // Optionally handle job failure, e.g., requeue or log
                 }
             }
 
-            _logger.LogDebug("Worker {Worker} stopped", WorkerId);
+            _logger.LogDebug("Worker {Worker} stopped", _workerId);
         }
     }
 }
