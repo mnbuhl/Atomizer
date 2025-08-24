@@ -63,14 +63,6 @@ namespace Atomizer.Processing
                     job.QueueKey
                 );
             }
-            catch (TaskCanceledException) when (ct.IsCancellationRequested)
-            {
-                _logger.LogWarning(
-                    "Cancellation requested while processing job {JobId} on '{Queue}'",
-                    job.Id,
-                    job.QueueKey
-                );
-            }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 _logger.LogWarning(

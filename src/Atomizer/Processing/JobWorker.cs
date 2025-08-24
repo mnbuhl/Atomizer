@@ -18,6 +18,9 @@ namespace Atomizer.Processing
         private readonly IJobProcessorFactory _jobProcessorFactory;
         private readonly ILogger _logger;
 
+        private int _readRetries = 0;
+        private const int MaxReadAttempts = 5;
+
         public JobWorker(WorkerId workerId, IJobProcessorFactory jobProcessorFactory, ILogger logger)
         {
             WorkerId = workerId;
@@ -42,14 +45,26 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (ioToken.IsCancellationRequested)
                 {
-                    _logger.LogWarning("Worker {Worker} cancellation requested", WorkerId);
+                    _logger.LogDebug("Worker {Worker} cancellation requested", WorkerId);
                     break;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    _logger.LogWarning("Worker {Worker} read operation failed", WorkerId);
+                    _logger.LogWarning(ex, "Worker {Worker} channel read operation failed", WorkerId);
+                    _readRetries++;
+                    if (_readRetries >= MaxReadAttempts)
+                    {
+                        _logger.LogError(
+                            "Worker {Worker} exceeded maximum channel read retries, skipping faulty read",
+                            WorkerId
+                        );
+
+                        reader.TryRead(out _); // clear the faulted read
+                        _readRetries = 0;
+                    }
                     continue;
                 }
+                _readRetries = 0; // reset retries on successful read
 
                 var processorId = $"{WorkerId}-{job.Id}";
                 var processor = _jobProcessorFactory.Create(processorId);
@@ -61,11 +76,6 @@ namespace Atomizer.Processing
                 catch (OperationCanceledException) when (executionToken.IsCancellationRequested)
                 {
                     _logger.LogDebug("Worker {Worker} cancellation requested", WorkerId);
-                    break;
-                }
-                catch (TaskCanceledException)
-                {
-                    _logger.LogDebug("Worker {Worker} task was canceled", WorkerId);
                     break;
                 }
                 catch (Exception ex)

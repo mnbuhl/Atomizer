@@ -82,7 +82,7 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    // Cancellation requested, exit the loop
+                    _logger.LogDebug("Poller for queue '{QueueKey}' cancellation requested", queue.QueueKey);
                     break;
                 }
                 catch (Exception ex)
@@ -94,7 +94,7 @@ namespace Atomizer.Processing
                 {
                     await Task.Delay(queue.TickInterval, ct);
                 }
-                catch (TaskCanceledException)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     // Cancellation requested, exit the loop
                     break;
