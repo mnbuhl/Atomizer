@@ -50,6 +50,8 @@ jobs:
           format: 'markdown'
           output: 'both'
           badge: true
+          hide_branch_rate: true
+          hide_complexity: true
           
       - name: Add Coverage PR Comment
         uses: marocchino/sticky-pull-request-comment@v2
