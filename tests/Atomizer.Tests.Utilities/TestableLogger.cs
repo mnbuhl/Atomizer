@@ -59,7 +59,8 @@ public abstract class TestableLogger : ILogger
 
     public abstract bool IsEnabled(LogLevel logLevel);
 
-    public abstract IDisposable BeginScope<TState>(TState state);
+    public abstract IDisposable BeginScope<TState>(TState state)
+        where TState : notnull;
 }
 
 public abstract class TestableLogger<T> : TestableLogger, ILogger<T>;
