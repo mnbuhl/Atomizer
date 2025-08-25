@@ -65,8 +65,7 @@ namespace Atomizer.Processing
                 }
                 _readRetries = 0; // reset retries on successful read
 
-                var processorId = $"{_workerId}-{job.Id}";
-                var processor = _jobProcessorFactory.Create(processorId);
+                var processor = _jobProcessorFactory.Create(_workerId, job.Id);
 
                 try
                 {

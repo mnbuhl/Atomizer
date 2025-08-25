@@ -57,7 +57,7 @@ public class JobWorkerTests
                 return Task.CompletedTask;
             });
 
-        _jobProcessorFactory.Create(Arg.Any<string>()).Returns(processor);
+        _jobProcessorFactory.Create(Arg.Any<WorkerId>(), Arg.Any<Guid>()).Returns(processor);
 
         // Act
         var runTask = _sut.RunAsync(channel.Reader, ioCts.Token, executionCts.Token);
@@ -70,7 +70,7 @@ public class JobWorkerTests
         (await WaitOrTimeout(runTask, Timeout)).Should().BeTrue("worker should exit after IO cancellation");
 
         await processor.Received(1).ProcessAsync(job, executionCts.Token);
-        _jobProcessorFactory.Received(1).Create(Arg.Is<string>(s => s.StartsWith(_workerId.ToString())));
+        _jobProcessorFactory.Received(1).Create(_workerId, job.Id);
 
         _logger.Received(1).LogDebug($"Worker {_workerId} started");
         _logger.Received(1).LogDebug($"Worker {_workerId} cancellation requested");
@@ -98,7 +98,7 @@ public class JobWorkerTests
             .BeTrue("worker should stop immediately when IO token is already canceled");
 
         // Assert
-        _jobProcessorFactory.DidNotReceiveWithAnyArgs().Create(null!);
+        _jobProcessorFactory.DidNotReceiveWithAnyArgs().Create(null!, Guid.Empty);
         _logger.Received(1).LogDebug($"Worker {_workerId} started");
         _logger.DidNotReceive().LogWarning($"Worker {_workerId} cancellation requested");
         _logger.Received(1).LogDebug($"Worker {_workerId} stopped");
@@ -148,7 +148,7 @@ public class JobWorkerTests
                 return Task.CompletedTask;
             });
 
-        _jobProcessorFactory.Create(Arg.Any<string>()).Returns(processor);
+        _jobProcessorFactory.Create(Arg.Any<WorkerId>(), Arg.Any<Guid>()).Returns(processor);
 
         // Act
         var run = Task.Run(
@@ -193,7 +193,7 @@ public class JobWorkerTests
                 throw new OperationCanceledException();
             });
 
-        _jobProcessorFactory.Create(Arg.Any<string>()).Returns(processor);
+        _jobProcessorFactory.Create(Arg.Any<WorkerId>(), Arg.Any<Guid>()).Returns(processor);
 
         // Act
         var run = _sut.RunAsync(channel.Reader, ioCts.Token, executionCts.Token);
@@ -253,7 +253,7 @@ public class JobWorkerTests
                 return Task.CompletedTask;
             });
 
-        _jobProcessorFactory.Create(Arg.Any<string>()).Returns(processor);
+        _jobProcessorFactory.Create(Arg.Any<WorkerId>(), Arg.Any<Guid>()).Returns(processor);
 
         // Act
         var run = _sut.RunAsync(channel.Reader, ioCts.Token, executionCts.Token);

@@ -1,4 +1,5 @@
-﻿using Atomizer.Abstractions;
+﻿using System;
+using Atomizer.Abstractions;
 using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
@@ -6,7 +7,7 @@ namespace Atomizer.Processing
 {
     internal interface IJobProcessorFactory
     {
-        IJobProcessor Create(string processorId);
+        IJobProcessor Create(WorkerId workerId, Guid jobId);
     }
 
     internal sealed class JobProcessorFactory : IJobProcessorFactory
@@ -29,8 +30,10 @@ namespace Atomizer.Processing
             _loggerFactory = loggerFactory;
         }
 
-        public IJobProcessor Create(string processorId)
+        public IJobProcessor Create(WorkerId workerId, Guid jobId)
         {
+            var processorId = $"{workerId}:*:{jobId}";
+
             return new JobProcessor(
                 _clock,
                 _dispatcher,
