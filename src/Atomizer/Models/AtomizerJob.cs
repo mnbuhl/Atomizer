@@ -12,6 +12,7 @@ public class AtomizerJob : Model
     public AtomizerJobStatus Status { get; set; }
     public int Attempts { get; set; }
     public int MaxAttempts { get; set; }
+    public IReadOnlyList<TimeSpan> RetryIntervals { get; set; } = [];
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
