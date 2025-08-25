@@ -1,10 +1,7 @@
-﻿using System;
+﻿namespace Atomizer;
 
-namespace Atomizer
+public class AtomizerProcessingOptions
 {
-    public class AtomizerProcessingOptions
-    {
-        public TimeSpan? StartupDelay { get; set; }
-        public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    }
+    public TimeSpan? StartupDelay { get; set; }
+    public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }

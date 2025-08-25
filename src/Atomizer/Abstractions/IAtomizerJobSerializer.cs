@@ -1,10 +1,7 @@
-﻿using System;
+﻿namespace Atomizer.Abstractions;
 
-namespace Atomizer.Abstractions
+public interface IAtomizerJobSerializer
 {
-    public interface IAtomizerJobSerializer
-    {
-        public string Serialize<TPayload>(TPayload payload);
-        public object? Deserialize(string payload, Type payloadType);
-    }
+    public string Serialize<TPayload>(TPayload payload);
+    public object? Deserialize(string payload, Type payloadType);
 }

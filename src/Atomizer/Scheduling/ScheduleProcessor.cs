@@ -1,107 +1,103 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Atomizer.Abstractions;
+﻿using Atomizer.Abstractions;
 using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Scheduling
+namespace Atomizer.Scheduling;
+
+public interface IScheduleProcessor
 {
-    public interface IScheduleProcessor
+    Task ProcessAsync(AtomizerSchedule schedule, DateTimeOffset horizon, CancellationToken execToken);
+}
+
+public class ScheduleProcessor : IScheduleProcessor
+{
+    private readonly IAtomizerClock _clock;
+    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly ILogger<ScheduleProcessor> _logger;
+
+    public ScheduleProcessor(
+        IAtomizerClock clock,
+        IAtomizerStorageScopeFactory storageScopeFactory,
+        ILogger<ScheduleProcessor> logger
+    )
     {
-        Task ProcessAsync(AtomizerSchedule schedule, DateTimeOffset horizon, CancellationToken execToken);
+        _clock = clock;
+        _storageScopeFactory = storageScopeFactory;
+        _logger = logger;
     }
 
-    public class ScheduleProcessor : IScheduleProcessor
+    public async Task ProcessAsync(AtomizerSchedule schedule, DateTimeOffset horizon, CancellationToken execToken)
     {
-        private readonly IAtomizerClock _clock;
-        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
-        private readonly ILogger<ScheduleProcessor> _logger;
+        var now = _clock.UtcNow;
 
-        public ScheduleProcessor(
-            IAtomizerClock clock,
-            IAtomizerStorageScopeFactory storageScopeFactory,
-            ILogger<ScheduleProcessor> logger
-        )
+        if (schedule.PayloadType is null)
         {
-            _clock = clock;
-            _storageScopeFactory = storageScopeFactory;
-            _logger = logger;
-        }
-
-        public async Task ProcessAsync(AtomizerSchedule schedule, DateTimeOffset horizon, CancellationToken execToken)
-        {
-            var now = _clock.UtcNow;
-
-            if (schedule.PayloadType is null)
-            {
-                _logger.LogWarning(
-                    "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
-                    schedule.JobKey
-                );
-                schedule.Disable(now);
-
-                await TryUpsertScheduleAsync(schedule, execToken);
-
-                return;
-            }
-
-            var occurrences = schedule.GetOccurrences(horizon);
-            foreach (var occurrence in occurrences)
-            {
-                var idempotencyKey = $"{schedule.JobKey}:*:{occurrence:O}";
-
-                var job = AtomizerJob.Create(
-                    schedule.QueueKey,
-                    schedule.PayloadType,
-                    schedule.Payload,
-                    now,
-                    occurrence,
-                    schedule.MaxAttempts,
-                    idempotencyKey,
-                    schedule.JobKey
-                );
-
-                await TryInsertJobAsync(job, execToken);
-            }
-
-            schedule.UpdateNextOccurenceAndRelease(horizon, now);
+            _logger.LogWarning(
+                "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
+                schedule.JobKey
+            );
+            schedule.Disable(now);
 
             await TryUpsertScheduleAsync(schedule, execToken);
+
+            return;
         }
 
-        private async Task TryInsertJobAsync(AtomizerJob job, CancellationToken execToken)
+        var occurrences = schedule.GetOccurrences(horizon);
+        foreach (var occurrence in occurrences)
         {
-            try
-            {
-                using var scope = _storageScopeFactory.CreateScope();
-                var storage = scope.Storage;
-                await storage.InsertAsync(job, execToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Failed to insert scheduled job {JobKey}-{JobId} for queue '{Queue}'",
-                    job.ScheduleJobKey,
-                    job.Id,
-                    job.QueueKey
-                );
-            }
+            var idempotencyKey = $"{schedule.JobKey}:*:{occurrence:O}";
+
+            var job = AtomizerJob.Create(
+                schedule.QueueKey,
+                schedule.PayloadType,
+                schedule.Payload,
+                now,
+                occurrence,
+                schedule.MaxAttempts,
+                idempotencyKey,
+                schedule.JobKey
+            );
+
+            await TryInsertJobAsync(job, execToken);
         }
 
-        private async Task TryUpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken execToken)
+        schedule.UpdateNextOccurenceAndRelease(horizon, now);
+
+        await TryUpsertScheduleAsync(schedule, execToken);
+    }
+
+    private async Task TryInsertJobAsync(AtomizerJob job, CancellationToken execToken)
+    {
+        try
         {
-            try
-            {
-                using var scope = _storageScopeFactory.CreateScope();
-                var storage = scope.Storage;
-                await storage.UpsertScheduleAsync(schedule, execToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to upsert schedule {ScheduleKey}", schedule.JobKey);
-            }
+            using var scope = _storageScopeFactory.CreateScope();
+            var storage = scope.Storage;
+            await storage.InsertAsync(job, execToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to insert scheduled job {JobKey}-{JobId} for queue '{Queue}'",
+                job.ScheduleJobKey,
+                job.Id,
+                job.QueueKey
+            );
+        }
+    }
+
+    private async Task TryUpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken execToken)
+    {
+        try
+        {
+            using var scope = _storageScopeFactory.CreateScope();
+            var storage = scope.Storage;
+            await storage.UpsertScheduleAsync(schedule, execToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to upsert schedule {ScheduleKey}", schedule.JobKey);
         }
     }
 }

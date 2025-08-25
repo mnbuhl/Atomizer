@@ -1,7 +1,6 @@
-﻿namespace Atomizer.EntityFrameworkCore
+﻿namespace Atomizer.EntityFrameworkCore;
+
+public class EntityFrameworkCoreJobStorageOptions
 {
-    public class EntityFrameworkCoreJobStorageOptions
-    {
-        public string Schema { get; set; } = "Atomizer";
-    }
+    public string Schema { get; set; } = "Atomizer";
 }
