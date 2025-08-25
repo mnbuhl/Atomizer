@@ -38,7 +38,7 @@ namespace Atomizer.Processing
 
             try
             {
-                job.Attempts++;
+                job.Attempt();
 
                 _logger.LogDebug(
                     "Executing job {JobId} (attempt {Attempt}) on '{Queue}'",

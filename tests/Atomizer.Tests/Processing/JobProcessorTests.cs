@@ -26,6 +26,7 @@ public class JobProcessorTests
         _storageScopeFactory.CreateScope().Returns(_storageScope);
         _sut = new JobProcessor(_clock, _dispatcher, _storageScopeFactory, _logger);
         _job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
+        _job.Status = AtomizerJobStatus.Processing;
     }
 
     [Fact]

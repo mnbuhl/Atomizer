@@ -81,7 +81,15 @@ namespace Atomizer.Scheduling
                     _logger.LogError(ex, "An error occurred while polling the schedule");
                 }
 
-                await Task.Delay(_options.TickInterval, ioToken);
+                try
+                {
+                    await Task.Delay(_options.TickInterval, ioToken);
+                }
+                catch (OperationCanceledException) when (ioToken.IsCancellationRequested)
+                {
+                    // Ignore cancellation during delay
+                    return;
+                }
             }
         }
 
@@ -91,7 +99,7 @@ namespace Atomizer.Scheduling
             {
                 using var scope = _storageScopeFactory.CreateScope();
                 var released = await scope.Storage.ReleaseLeasedSchedulesAsync(_leaseToken, cancellationToken);
-                _logger.LogDebug("Released {Count} schedules with lease token {LeaseToken}", released, _leaseToken);
+                _logger.LogDebug("Released {Count} schedule(s) with lease token {LeaseToken}", released, _leaseToken);
             }
             catch (Exception ex)
             {
