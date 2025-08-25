@@ -2,6 +2,6 @@
 {
     public class InMemoryJobStorageOptions
     {
-        public int MaximumJobsInMemory { get; set; } = 1000;
+        public int AmountOfJobsToRetainInMemory { get; set; } = 1000;
     }
 }

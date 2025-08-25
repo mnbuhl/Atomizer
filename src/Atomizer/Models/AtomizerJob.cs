@@ -51,6 +51,32 @@ namespace Atomizer
             };
         }
 
+        public void Lease(LeaseToken leaseToken, DateTimeOffset now, TimeSpan visibilityTimeout)
+        {
+            if (Status != AtomizerJobStatus.Pending)
+            {
+                throw new InvalidOperationException("Job must be in Pending status to lease.");
+            }
+
+            LeaseToken = leaseToken;
+            VisibleAt = now.Add(visibilityTimeout);
+            Status = AtomizerJobStatus.Processing;
+            UpdatedAt = now;
+        }
+
+        public void Release(DateTimeOffset now)
+        {
+            if (Status != AtomizerJobStatus.Processing)
+            {
+                throw new InvalidOperationException("Job must be in Processing status to release.");
+            }
+
+            LeaseToken = null;
+            VisibleAt = null;
+            Status = AtomizerJobStatus.Pending;
+            UpdatedAt = now;
+        }
+
         public void Attempt()
         {
             if (Status != AtomizerJobStatus.Processing)

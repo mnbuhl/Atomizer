@@ -1,4 +1,5 @@
 ﻿using System;
+using Atomizer.Core;
 using Atomizer.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ namespace Atomizer
             configure?.Invoke(inMemoryOptions);
             options.JobStorageOptions = new JobStorageOptions(sp => new InMemoryStorage(
                 inMemoryOptions,
+                sp.GetRequiredService<IAtomizerClock>(),
                 sp.GetRequiredService<ILogger<InMemoryStorage>>()
             ));
             return options;

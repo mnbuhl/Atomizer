@@ -38,7 +38,7 @@ namespace Atomizer.Processing
                 _clock,
                 _dispatcher,
                 _storageScopeFactory,
-                _loggerFactory.CreateLogger(processorId)
+                _loggerFactory.CreateLogger($"Atomizer.Processing.JobProcessor;{processorId}")
             );
         }
     }
