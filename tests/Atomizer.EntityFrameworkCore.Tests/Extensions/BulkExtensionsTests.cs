@@ -10,19 +10,6 @@ namespace Atomizer.EntityFrameworkCore.Tests.Extensions;
 /// </summary>
 public class BulkExtensionsTests
 {
-#if NET8_0
-    [Fact]
-    public void BulkExtensions_CanReflect_BulkMethodsNamespace()
-    {
-        // Arrange & Act
-        var type = NonPublicSpy.GetFieldValue<Type>(typeof(BulkExtensions), "ExtType");
-
-        // Assert
-        type.FullName.Should().Be("Microsoft.EntityFrameworkCore.RelationalQueryableExtensions");
-        type.Assembly.GetName().Name.Should().Be("Microsoft.EntityFrameworkCore.Relational");
-        type.Assembly.GetName().Version!.Major.Should().BeGreaterThanOrEqualTo(8);
-    }
-#endif
 #if NET9_0_OR_GREATER
     [Fact]
     public void BulkExtensions_CanReflect_BulkMethodsNamespace()
@@ -34,6 +21,18 @@ public class BulkExtensionsTests
         type.FullName.Should().Be("Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions");
         type.Assembly.GetName().Name.Should().Be("Microsoft.EntityFrameworkCore");
         type.Assembly.GetName().Version!.Major.Should().BeGreaterThanOrEqualTo(9);
+    }
+#else
+    [Fact]
+    public void BulkExtensions_CanReflect_BulkMethodsNamespace()
+    {
+        // Arrange & Act
+        var type = NonPublicSpy.GetFieldValue<Type>(typeof(BulkExtensions), "ExtType");
+
+        // Assert
+        type.FullName.Should().Be("Microsoft.EntityFrameworkCore.RelationalQueryableExtensions");
+        type.Assembly.GetName().Name.Should().Be("Microsoft.EntityFrameworkCore.Relational");
+        type.Assembly.GetName().Version!.Major.Should().BeGreaterThanOrEqualTo(7);
     }
 #endif
 }

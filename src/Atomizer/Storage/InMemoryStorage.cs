@@ -39,7 +39,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         var qlock = GetQueueLock(job.QueueKey);
         lock (qlock)
         {
-            IndexIntoQueue_NoLock(job);
+            IndexIntoQueueWithoutLock(job);
         }
 
         _logger.LogDebug(
@@ -68,14 +68,14 @@ public sealed class InMemoryStorage : IAtomizerStorage
             var oldLock = GetQueueLock(existing.QueueKey);
             lock (oldLock)
             {
-                UnindexFromQueue_NoLock(existing);
+                UnindexFromQueueWithoutLock(existing);
             }
 
             // Add to new queue
             var newLock = GetQueueLock(job.QueueKey);
             lock (newLock)
             {
-                IndexIntoQueue_NoLock(job);
+                IndexIntoQueueWithoutLock(job);
             }
 
             _logger.LogDebug(
@@ -288,7 +288,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
     private object GetQueueLock(QueueKey key) => _queueLocks.GetOrAdd(key, _ => new object());
 
-    private void IndexIntoQueue_NoLock(AtomizerJob job)
+    private void IndexIntoQueueWithoutLock(AtomizerJob job)
     {
         if (!_queues.TryGetValue(job.QueueKey, out var ids))
         {
@@ -298,7 +298,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         ids.Add(job.Id);
     }
 
-    private void UnindexFromQueue_NoLock(AtomizerJob job)
+    private void UnindexFromQueueWithoutLock(AtomizerJob job)
     {
         if (_queues.TryGetValue(job.QueueKey, out var ids))
         {
@@ -332,7 +332,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
             var qlock = GetQueueLock(job.QueueKey);
             lock (qlock)
             {
-                UnindexFromQueue_NoLock(job);
+                UnindexFromQueueWithoutLock(job);
             }
 
             // Remove from leases set (if any)
