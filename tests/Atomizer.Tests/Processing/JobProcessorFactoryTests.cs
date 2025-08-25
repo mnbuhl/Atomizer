@@ -51,6 +51,6 @@ public class JobProcessorFactoryTests
 
         // Assert
         processor.Should().NotBeNull();
-        _loggerFactory.Received(1).CreateLogger(processorId);
+        _loggerFactory.Received(1).CreateLogger(typeof(JobProcessor).FullName + ";" + processorId);
     }
 }

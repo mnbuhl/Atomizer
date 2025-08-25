@@ -1,50 +1,53 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Atomizer.Abstractions;
+using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage;
 
-internal sealed class InMemoryStorage : IAtomizerStorage
+public sealed class InMemoryStorage : IAtomizerStorage
 {
-    // Global store of jobs
-    private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new ConcurrentDictionary<Guid, AtomizerJob>();
-    private readonly ConcurrentDictionary<JobKey, AtomizerSchedule> _schedules =
-        new ConcurrentDictionary<JobKey, AtomizerSchedule>();
+    private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new();
+    private readonly Dictionary<QueueKey, HashSet<Guid>> _queues = new(); // guarded per-queue
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>> _leasesByToken = new();
 
-    // Single process-wide lock to ensure atomic leasing batches.
-    private readonly object _leaseGate = new object();
+    // Locks
+    private readonly ConcurrentDictionary<QueueKey, object> _queueLocks = new();
+    private readonly object _schedulesSync = new();
 
-    // Gate for insert+evict to keep the index and maps consistent
-    private readonly object _insertEvictGate = new object();
+    // Schedules (single lock)
+    private readonly Dictionary<JobKey, AtomizerSchedule> _schedules = new();
 
-    // Tracks insertion order for eviction; guarded by _insertEvictGate.
-    private readonly Queue<Guid> _insertionOrder = new Queue<Guid>();
-
-    // Options for configuring the in-memory job storage
     private readonly InMemoryJobStorageOptions _options;
+    private readonly IAtomizerClock _clock;
     private readonly ILogger<InMemoryStorage> _logger;
 
-    public InMemoryStorage(InMemoryJobStorageOptions options, ILogger<InMemoryStorage> logger)
+    public InMemoryStorage(InMemoryJobStorageOptions options, IAtomizerClock clock, ILogger<InMemoryStorage> logger)
     {
         _options = options;
+        _clock = clock;
         _logger = logger;
     }
 
     public Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
-        lock (_insertEvictGate)
+        cancellationToken.ThrowIfCancellationRequested();
+        Evict(); // opportunistic global pass; uses per-queue locks internally
+
+        _jobs[job.Id] = job;
+
+        var qlock = GetQueueLock(job.QueueKey);
+        lock (qlock)
         {
-            if (!_jobs.TryAdd(job.Id, job))
-            {
-                throw new InvalidOperationException($"Job with Id {job.Id} already exists.");
-            }
-
-            _insertionOrder.Enqueue(job.Id);
-
-            _logger.LogDebug("Inserted job {JobId} into '{Queue}' (count={Count})", job.Id, job.QueueKey, _jobs.Count);
-
-            EvictWhileOverCapacity(_options.MaximumJobsInMemory);
+            IndexIntoQueueWithoutLock(job);
         }
+
+        _logger.LogDebug(
+            "Inserted job {JobId} into queue {QueueKey} with ScheduledAt={ScheduledAt:o}",
+            job.Id,
+            job.QueueKey,
+            job.ScheduledAt
+        );
 
         return Task.FromResult(job.Id);
     }
@@ -53,9 +56,16 @@ internal sealed class InMemoryStorage : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        _jobs[job.Id] = job; // Update the job in the dictionary
+        if (!_jobs.TryGetValue(job.Id, out _))
+        {
+            _logger.LogDebug("Update requested for missing job {JobId}", job.Id);
+            throw new KeyNotFoundException($"Job {job.Id} not found");
+        }
 
-        _logger.LogDebug("Updated job {JobId} in '{Queue}'", job.Id, job.QueueKey);
+        _jobs[job.Id] = job;
+
+        _logger.LogDebug("Updated job {JobId} status={Status} attempts={Attempts}", job.Id, job.Status, job.Attempts);
+
         return Task.CompletedTask;
     }
 
@@ -70,100 +80,116 @@ internal sealed class InMemoryStorage : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        List<AtomizerJob> leased;
-        lock (_leaseGate)
+        _logger.LogDebug(
+            "LeaseBatch requested queue={QueueKey} batchSize={BatchSize} now={Now:o} leaseToken={LeaseToken}",
+            queueKey,
+            batchSize,
+            now,
+            leaseToken.Token
+        );
+
+        var qlock = GetQueueLock(queueKey);
+        List<AtomizerJob> candidates;
+
+        lock (qlock)
         {
-            // Select eligible jobs atomically under the gate
-            leased = _jobs
-                .Values.Where(j =>
-                    j.QueueKey == queueKey
-                    && j.Status == AtomizerJobStatus.Pending
-                    && (j.VisibleAt == null || j.VisibleAt <= now)
-                    && j.ScheduledAt <= now
+            if (!_queues.TryGetValue(queueKey, out var ids) || ids.Count == 0)
+            {
+                _logger.LogDebug("LeaseBatch: queue {QueueKey} is empty", queueKey);
+                return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
+            }
+
+            candidates = ids.Select(id => _jobs[id]) // safe: ids derived under the same lock
+                .Where(j =>
+                    (
+                        j.Status == AtomizerJobStatus.Pending
+                        && (j.VisibleAt == null || j.VisibleAt <= now)
+                        && j.ScheduledAt <= now
+                    ) || (j.Status == AtomizerJobStatus.Processing && j.VisibleAt <= now) // expired lease
                 )
                 .OrderBy(j => j.ScheduledAt)
+                .ThenBy(j => j.CreatedAt)
                 .Take(Math.Max(0, batchSize))
                 .ToList();
 
-            if (leased.Count == 0)
-                return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
-
-            // Flip to Processing, set visibility, increment attempt — all under the same lock
-            foreach (var job in leased)
+            if (candidates.Count == 0)
             {
-                if (_jobs.TryGetValue(job.Id, out var stored))
-                {
-                    stored.Status = AtomizerJobStatus.Processing;
-                    stored.VisibleAt = now + visibilityTimeout;
-                    stored.LeaseToken = leaseToken;
-                    // reflect mutations in the dictionary (stored is a reference type)
-                    _jobs[job.Id] = stored;
-                }
+                _logger.LogDebug("LeaseBatch: no eligible candidates for queue {QueueKey}", queueKey);
+                return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
+            }
+
+            // Transition under queue lock to keep queue state consistent
+            foreach (var job in candidates)
+            {
+                job.Lease(leaseToken, now, visibilityTimeout);
+
+                var set = _leasesByToken.GetOrAdd(leaseToken.Token, _ => new ConcurrentDictionary<Guid, byte>());
+                set[job.Id] = 0;
             }
         }
 
-        _logger.LogDebug("Leased {Count} job(s) from '{Queue}'", leased.Count, queueKey);
-        // Return the leased snapshots
-        return Task.FromResult((IReadOnlyList<AtomizerJob>)leased);
+        _logger.LogDebug(
+            "LeaseBatch: leased {Count} jobs from queue {QueueKey}: [{Ids}]",
+            candidates.Count,
+            queueKey,
+            string.Join(",", candidates.Select(c => c.Id))
+        );
+
+        return Task.FromResult((IReadOnlyList<AtomizerJob>)candidates);
     }
 
     public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var now = _clock.UtcNow;
 
-        int releasedCount = 0;
-
-        lock (_leaseGate)
+        if (!_leasesByToken.TryRemove(leaseToken.Token, out var leasedIds) || leasedIds.Count == 0)
         {
-            foreach (
-                var job in _jobs.Values.Where(j =>
-                    j.LeaseToken?.Token == leaseToken.Token && j.Status == AtomizerJobStatus.Processing
-                )
-            )
+            _logger.LogDebug("ReleaseLeased: no jobs found for leaseToken={LeaseToken}", leaseToken.Token);
+            return Task.FromResult(0);
+        }
+
+        var released = 0;
+
+        foreach (var jobId in leasedIds.Keys.ToList())
+        {
+            if (!_jobs.TryGetValue(jobId, out var job))
+                continue;
+
+            var qlock = GetQueueLock(job.QueueKey);
+            lock (qlock)
             {
-                job.Status = AtomizerJobStatus.Pending;
-                job.VisibleAt = null; // Clear visibility to make it available immediately
-                job.LeaseToken = null; // Clear lease token
-                _jobs[job.Id] = job; // Update the job in the dictionary
-                releasedCount++;
+                // Double-check token under lock in case it changed
+                if (job.LeaseToken?.Token != leaseToken.Token)
+                    continue;
+
+                job.Release(now);
+                released++;
             }
         }
 
-        _logger.LogDebug("Released {Count} leased job(s) with token '{LeaseToken}'", releasedCount, leaseToken);
-        return Task.FromResult(releasedCount);
+        _logger.LogDebug(
+            "ReleaseLeased: released {Count} jobs for leaseToken={LeaseToken}",
+            released,
+            leaseToken.Token
+        );
+        return Task.FromResult(released);
     }
 
     public Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var now = _clock.UtcNow;
 
-        var key = schedule.JobKey;
-
-        if (_schedules.TryGetValue(key, out var existingSchedule))
+        lock (_schedulesSync)
         {
-            // Update existing schedule
-            existingSchedule.NextRunAt = schedule.NextRunAt;
-            existingSchedule.Schedule = schedule.Schedule;
-            existingSchedule.UpdatedAt = DateTimeOffset.UtcNow;
-            existingSchedule.MaxAttempts = schedule.MaxAttempts;
-            existingSchedule.Payload = schedule.Payload;
-            existingSchedule.PayloadType = schedule.PayloadType;
-            existingSchedule.QueueKey = schedule.QueueKey;
-            existingSchedule.MisfirePolicy = schedule.MisfirePolicy;
-            existingSchedule.Enabled = schedule.Enabled;
-            _logger.LogDebug("Updated existing schedule for {JobKey}", key);
-        }
-        else
-        {
-            // Insert new schedule
-            if (!_schedules.TryAdd(key, schedule))
-            {
-                throw new InvalidOperationException($"Schedule for {key} already exists.");
-            }
-            _logger.LogDebug("Inserted new schedule for {JobKey}", key);
-        }
+            schedule.CreatedAt = schedule.CreatedAt == default ? now : schedule.CreatedAt;
+            schedule.UpdatedAt = now;
+            _schedules[schedule.JobKey] = schedule;
 
-        return Task.FromResult(schedule.Id);
+            _logger.LogDebug("UpsertSchedule: upserted schedule for jobKey={JobKey}", schedule.JobKey);
+            return Task.FromResult(schedule.Id);
+        }
     }
 
     public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
@@ -175,63 +201,139 @@ internal sealed class InMemoryStorage : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Find all schedules that are due and not yet leased
-        var dueSchedules = _schedules
-            .Values.Where(s => s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now) && s.Enabled)
-            .OrderBy(s => s.NextRunAt)
-            .ToList();
+        _logger.LogDebug("LeaseDueSchedules requested now={Now:o} leaseToken={LeaseToken}", now, leaseToken.Token);
 
-        if (dueSchedules.Count == 0)
+        List<AtomizerSchedule> due;
+        lock (_schedulesSync)
         {
-            _logger.LogDebug("No due schedules found at {Now}", now);
-            return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
+            due = _schedules
+                .Values.Where(s => s.Enabled && s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now))
+                .OrderBy(s => s.NextRunAt)
+                .ThenBy(s => s.CreatedAt)
+                .ToList();
+
+            if (due.Count == 0)
+            {
+                _logger.LogDebug("LeaseDueSchedules: no due schedules");
+                return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
+            }
+
+            foreach (var s in due)
+            {
+                s.Lease(now, visibilityTimeout, leaseToken);
+            }
         }
 
-        // Lease the schedules by setting their visibility and lease token
-        foreach (var schedule in dueSchedules)
-        {
-            schedule.VisibleAt = now + visibilityTimeout;
-            schedule.LeaseToken = leaseToken;
-            _logger.LogDebug("Leased schedule for {JobKey} until {VisibleAt}", schedule.JobKey, schedule.VisibleAt);
-        }
+        _logger.LogDebug(
+            "LeaseDueSchedules: leased {Count} schedules: [{Keys}]",
+            due.Count,
+            string.Join(",", due.Select(x => x.JobKey))
+        );
 
-        return Task.FromResult((IReadOnlyList<AtomizerSchedule>)dueSchedules);
+        return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
     public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var now = _clock.UtcNow;
 
-        int releasedCount = 0;
-
-        // Release schedules by clearing their lease token and visibility
-        foreach (var schedule in _schedules.Values.Where(s => s.LeaseToken?.Token == leaseToken.Token))
+        int affected = 0;
+        lock (_schedulesSync)
         {
-            schedule.VisibleAt = null; // Clear visibility to make it available immediately
-            schedule.LeaseToken = null; // Clear lease token
-            releasedCount++;
-            _logger.LogDebug("Released schedule for {JobKey} with token '{LeaseToken}'", schedule.JobKey, leaseToken);
+            foreach (var s in _schedules.Values)
+            {
+                if (s.LeaseToken?.Token == leaseToken.Token)
+                {
+                    s.Release(now);
+                    affected++;
+                }
+            }
         }
 
-        return Task.FromResult(releasedCount);
+        _logger.LogDebug(
+            "ReleaseLeasedSchedules: released {Count} schedule(s) for leaseToken={LeaseToken}",
+            affected,
+            leaseToken.Token
+        );
+
+        return Task.FromResult(affected);
     }
 
-    private void EvictWhileOverCapacity(int max)
-    {
-        while (_jobs.Count > max && _insertionOrder.Count > 0)
-        {
-            var id = _insertionOrder.Dequeue();
+    // ---- helpers ----
 
-            // if already removed (e.g., completed & later evicted), continue
-            if (_jobs.TryRemove(id, out _))
+    private object GetQueueLock(QueueKey key) => _queueLocks.GetOrAdd(key, _ => new object());
+
+    private void IndexIntoQueueWithoutLock(AtomizerJob job)
+    {
+        if (!_queues.TryGetValue(job.QueueKey, out var ids))
+        {
+            ids = new HashSet<Guid>();
+            _queues[job.QueueKey] = ids;
+        }
+        ids.Add(job.Id);
+    }
+
+    private void UnindexFromQueueWithoutLock(AtomizerJob job)
+    {
+        if (_queues.TryGetValue(job.QueueKey, out var ids))
+        {
+            ids.Remove(job.Id);
+            if (ids.Count == 0)
             {
-                _logger.LogInformation(
-                    "Evicted job {JobId} due to capacity limit ({Current}/{Max})",
-                    id,
-                    _jobs.Count,
-                    max
-                );
+                _queues.Remove(job.QueueKey);
             }
+        }
+    }
+
+    private void Evict()
+    {
+        var retain = Math.Max(0, _options.AmountOfJobsToRetainInMemory);
+
+        // Snapshot enumeration is safe on ConcurrentDictionary
+        var terminal = _jobs
+            .Values.Where(j => j.Status == AtomizerJobStatus.Completed || j.Status == AtomizerJobStatus.Failed)
+            .OrderByDescending(j => j.UpdatedAt)
+            .ToList();
+
+        var toRemove = terminal.Skip(retain).ToList();
+        if (toRemove.Count == 0)
+            return;
+
+        var removed = 0;
+
+        foreach (var job in toRemove)
+        {
+            // Remove from queue index under that queue's lock
+            var qlock = GetQueueLock(job.QueueKey);
+            lock (qlock)
+            {
+                UnindexFromQueueWithoutLock(job);
+            }
+
+            // Remove from leases set (if any)
+            var leaseToken = job.LeaseToken?.Token;
+            if (!string.IsNullOrEmpty(leaseToken) && _leasesByToken.TryGetValue(leaseToken!, out var set))
+            {
+                set.TryRemove(job.Id, out _);
+                if (set.IsEmpty)
+                {
+                    _leasesByToken.TryRemove(leaseToken!, out _);
+                }
+            }
+
+            // Finally remove from jobs
+            _jobs.TryRemove(job.Id, out _);
+            removed++;
+        }
+
+        if (removed > 0)
+        {
+            _logger.LogDebug(
+                "Evicted {Count} completed/failed jobs; retaining {Retain} most-recent terminal jobs",
+                removed,
+                retain
+            );
         }
     }
 }

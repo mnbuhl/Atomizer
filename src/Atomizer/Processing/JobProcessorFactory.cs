@@ -33,6 +33,11 @@ internal sealed class JobProcessorFactory : IJobProcessorFactory
     {
         var processorId = $"{workerId}:*:{jobId}";
 
-        return new JobProcessor(_clock, _dispatcher, _storageScopeFactory, _loggerFactory.CreateLogger(processorId));
+        return new JobProcessor(
+            _clock,
+            _dispatcher,
+            _storageScopeFactory,
+            _loggerFactory.CreateLogger($"{typeof(JobProcessor).FullName};{processorId}")
+        );
     }
 }

@@ -61,6 +61,20 @@ public class AtomizerSchedule : Model
         return atomizerSchedule;
     }
 
+    public void Lease(DateTimeOffset now, TimeSpan visibilityTimeout, LeaseToken leaseToken)
+    {
+        LeaseToken = leaseToken;
+        VisibleAt = now.Add(visibilityTimeout);
+        UpdatedAt = now;
+    }
+
+    public void Release(DateTimeOffset now)
+    {
+        LeaseToken = null;
+        VisibleAt = null;
+        UpdatedAt = now;
+    }
+
     public List<DateTimeOffset> GetOccurrences(DateTimeOffset now)
     {
         var occurrences = new List<DateTimeOffset>();

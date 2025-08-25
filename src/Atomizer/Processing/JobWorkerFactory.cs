@@ -28,6 +28,10 @@ internal sealed class JobWorkerFactory : IJobWorkerFactory
     public IJobWorker Create(QueueKey queueKey, int workerIndex)
     {
         var workerId = new WorkerId(_identity.InstanceId, queueKey, workerIndex);
-        return new JobWorker(workerId, _jobProcessorFactory, _loggerFactory.CreateLogger(workerId.ToString()));
+        return new JobWorker(
+            workerId,
+            _jobProcessorFactory,
+            _loggerFactory.CreateLogger($"{typeof(JobWorker).FullName};{workerId}")
+        );
     }
 }

@@ -15,7 +15,13 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddAtomizer(options =>
 {
-    options.AddQueue(QueueKey.Default);
+    options.AddQueue(
+        QueueKey.Default,
+        queue =>
+        {
+            queue.StorageCheckInterval = TimeSpan.FromSeconds(5);
+        }
+    );
     options.AddQueue(
         "single-worker-queue",
         queue =>
