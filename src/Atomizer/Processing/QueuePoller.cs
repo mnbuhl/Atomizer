@@ -100,6 +100,8 @@ namespace Atomizer.Processing
                     break;
                 }
             }
+
+            _logger.LogDebug("Poller for queue '{QueueKey}' stopped", queue.QueueKey);
         }
     }
 }
