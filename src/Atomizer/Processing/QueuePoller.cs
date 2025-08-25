@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Hosting;
+using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -20,8 +20,6 @@ namespace Atomizer.Processing
         private readonly ILogger<QueuePoller> _logger;
 
         private DateTimeOffset _lastStorageCheck;
-
-        private static readonly TimeSpan DefaultTickInterval = TimeSpan.FromSeconds(1);
 
         public QueuePoller(
             IAtomizerClock clock,
@@ -84,7 +82,7 @@ namespace Atomizer.Processing
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    // Cancellation requested, exit the loop
+                    _logger.LogDebug("Poller for queue '{QueueKey}' cancellation requested", queue.QueueKey);
                     break;
                 }
                 catch (Exception ex)
@@ -94,9 +92,9 @@ namespace Atomizer.Processing
 
                 try
                 {
-                    await Task.Delay(DefaultTickInterval, ct);
+                    await Task.Delay(queue.TickInterval, ct);
                 }
-                catch (TaskCanceledException)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     // Cancellation requested, exit the loop
                     break;

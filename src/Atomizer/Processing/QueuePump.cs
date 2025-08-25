@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Hosting;
+using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -80,8 +80,7 @@ namespace Atomizer.Processing
             var workers = Math.Max(1, _queue.DegreeOfParallelism);
             for (int i = 0; i < workers; i++)
             {
-                var workerId = $"{_queue.QueueKey}-{i}";
-                var worker = _workerFactory.Create(workerId);
+                var worker = _workerFactory.Create(_queue.QueueKey, i);
 
                 var task = Task.Run(
                     async () => await worker.RunAsync(_channel.Reader, _ioCts.Token, _executionCts.Token),
@@ -123,24 +122,6 @@ namespace Atomizer.Processing
                 {
                     _logger.LogDebug("Error cancelling execution for queue '{QueueKey}'", _queue.QueueKey);
                 }
-                try
-                {
-                    await allWorkers.ConfigureAwait(false);
-                }
-                catch
-                {
-                    _logger.LogDebug("Error waiting for workers to finish for queue '{QueueKey}'", _queue.QueueKey);
-                }
-            }
-
-            // Ensure poller finished
-            try
-            {
-                await _pollTask.ConfigureAwait(false);
-            }
-            catch
-            {
-                _logger.LogDebug("Error waiting for poller to finish for queue '{QueueKey}'", _queue.QueueKey);
             }
 
             // 4) Release any remaining leases for this pump

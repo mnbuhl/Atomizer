@@ -1,4 +1,4 @@
 ﻿using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Atomizer.Tests")]
+[assembly: InternalsVisibleTo("Atomizer.EntityFrameworkCore.Tests")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

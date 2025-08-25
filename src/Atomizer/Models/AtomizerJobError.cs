@@ -1,10 +1,10 @@
 ﻿using System;
+using Atomizer.Models.Base;
 
 namespace Atomizer
 {
-    public class AtomizerJobError
+    public class AtomizerJobError : Model
     {
-        public Guid Id { get; set; }
         public Guid JobId { get; set; }
         public string? ErrorMessage { get; set; }
         public string? StackTrace { get; set; }

@@ -1,39 +1,34 @@
-﻿using Atomizer.Abstractions;
-using Atomizer.Hosting;
+﻿using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
 {
     internal interface IJobWorkerFactory
     {
-        IJobWorker Create(string workerId);
+        IJobWorker Create(QueueKey queueKey, int workerIndex);
     }
 
     internal sealed class JobWorkerFactory : IJobWorkerFactory
     {
         private readonly IJobProcessorFactory _jobProcessorFactory;
-        private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly AtomizerRuntimeIdentity _identity;
 
         public JobWorkerFactory(
-            IAtomizerStorageScopeFactory storageScopeFactory,
             ILoggerFactory loggerFactory,
-            IJobProcessorFactory jobProcessorFactory
+            IJobProcessorFactory jobProcessorFactory,
+            AtomizerRuntimeIdentity identity
         )
         {
-            _storageScopeFactory = storageScopeFactory;
             _loggerFactory = loggerFactory;
             _jobProcessorFactory = jobProcessorFactory;
+            _identity = identity;
         }
 
-        public IJobWorker Create(string workerId)
+        public IJobWorker Create(QueueKey queueKey, int workerIndex)
         {
-            return new JobWorker(
-                workerId,
-                _storageScopeFactory,
-                _jobProcessorFactory,
-                _loggerFactory.CreateLogger("Worker." + workerId)
-            );
+            var workerId = new WorkerId(_identity.InstanceId, queueKey, workerIndex);
+            return new JobWorker(workerId, _jobProcessorFactory, _loggerFactory.CreateLogger(workerId.ToString()));
         }
     }
 }

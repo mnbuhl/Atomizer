@@ -46,8 +46,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-using var scope = app.Services.CreateScope();
-var atomizer = scope.ServiceProvider.GetRequiredService<IAtomizerClient>();
+var atomizer = app.Services.GetRequiredService<IAtomizerClient>();
 
 await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),

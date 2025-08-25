@@ -23,6 +23,11 @@ namespace Atomizer
         /// </summary>
         public TimeSpan? ScheduleLeadTime { get; set; }
 
+        /// <summary>
+        /// The interval at which the long running loops tick.
+        /// </summary>
+        public TimeSpan TickInterval { get; private set; } = TimeSpan.FromSeconds(1);
+
         public SchedulingOptions()
         {
             ScheduleLeadTime ??=

@@ -4,7 +4,7 @@ using Atomizer.Abstractions;
 using Atomizer.Exceptions;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Hosting
+namespace Atomizer.Core
 {
     internal sealed class DefaultJobSerializer : IAtomizerJobSerializer
     {

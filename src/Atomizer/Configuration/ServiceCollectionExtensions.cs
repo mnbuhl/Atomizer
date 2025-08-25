@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Linq;
 using Atomizer.Abstractions;
-using Atomizer.Clients;
+using Atomizer.Core;
 using Atomizer.Exceptions;
-using Atomizer.Hosting;
 using Atomizer.Processing;
+using Atomizer.Scheduling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -34,7 +34,7 @@ namespace Atomizer
 
             services.AddSingleton(options);
             services.Add(options.Handlers);
-            services.AddScoped<IAtomizerClient, AtomizerClient>();
+            services.AddSingleton<IAtomizerClient, AtomizerClient>();
             services.AddSingleton<IAtomizerClock, AtomizerClock>();
             services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
             services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
@@ -74,16 +74,18 @@ namespace Atomizer
             }
 
             services.AddSingleton(options);
-            services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
-            services.AddHostedService<AtomizerQueueService>();
-            services.AddSingleton<IScheduler, Scheduler>();
-            services.AddHostedService<AtomizerSchedulerService>();
             services.AddSingleton<AtomizerRuntimeIdentity>();
-
+            services.AddHostedService<AtomizerQueueService>();
+            services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
             services.AddSingleton<IQueuePumpFactory, QueuePumpFactory>();
             services.AddSingleton<IQueuePoller, QueuePoller>();
             services.AddSingleton<IJobWorkerFactory, JobWorkerFactory>();
             services.AddSingleton<IJobProcessorFactory, JobProcessorFactory>();
+
+            services.AddSingleton<IScheduler, Scheduler>();
+            services.AddHostedService<AtomizerSchedulerService>();
+            services.AddSingleton<ISchedulePoller, SchedulePoller>();
+            services.AddSingleton<IScheduleProcessor, ScheduleProcessor>();
 
             return services;
         }

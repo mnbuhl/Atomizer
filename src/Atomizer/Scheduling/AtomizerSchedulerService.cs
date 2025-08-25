@@ -4,21 +4,21 @@ using Atomizer.Processing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Hosting
+namespace Atomizer.Scheduling
 {
-    internal sealed class AtomizerQueueService : BackgroundService
+    internal sealed class AtomizerSchedulerService : BackgroundService
     {
-        private readonly IQueueCoordinator _queueCoordinator;
+        private readonly IScheduler _scheduler;
         private readonly AtomizerProcessingOptions _options;
-        private readonly ILogger<AtomizerQueueService> _logger;
+        private readonly ILogger<AtomizerSchedulerService> _logger;
 
-        public AtomizerQueueService(
-            IQueueCoordinator queueCoordinator,
+        public AtomizerSchedulerService(
+            IScheduler scheduler,
             AtomizerProcessingOptions options,
-            ILogger<AtomizerQueueService> logger
+            ILogger<AtomizerSchedulerService> logger
         )
         {
-            _queueCoordinator = queueCoordinator;
+            _scheduler = scheduler;
             _options = options;
             _logger = logger;
         }
@@ -30,16 +30,16 @@ namespace Atomizer.Hosting
                 await Task.Delay(_options.StartupDelay.Value, stoppingToken);
             }
 
-            _logger.LogInformation("Atomizer queue service starting");
-            _queueCoordinator.Start(stoppingToken);
+            _logger.LogInformation("Atomizer scheduler service starting");
+            _scheduler.Start(stoppingToken);
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Atomizer queue service stopping");
-            await _queueCoordinator.StopAsync(_options.GracefulShutdownTimeout, cancellationToken);
+            _logger.LogInformation("Atomizer scheduler service stopping");
+            await _scheduler.StopAsync(_options.GracefulShutdownTimeout, cancellationToken);
             await base.StopAsync(cancellationToken);
-            _logger.LogInformation("Atomizer queue service stopped");
+            _logger.LogInformation("Atomizer scheduler service stopped");
         }
     }
 }

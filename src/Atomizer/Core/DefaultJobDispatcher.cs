@@ -7,7 +7,7 @@ using Atomizer.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Hosting
+namespace Atomizer.Core
 {
     public interface IAtomizerJobDispatcher
     {

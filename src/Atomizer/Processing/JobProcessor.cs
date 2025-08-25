@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Atomizer.Abstractions;
-using Atomizer.Hosting;
+using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing
@@ -60,14 +60,6 @@ namespace Atomizer.Processing
                     "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
                     job.Id,
                     (int)(_clock.UtcNow - now).TotalMilliseconds,
-                    job.QueueKey
-                );
-            }
-            catch (TaskCanceledException) when (ct.IsCancellationRequested)
-            {
-                _logger.LogWarning(
-                    "Cancellation requested while processing job {JobId} on '{Queue}'",
-                    job.Id,
                     job.QueueKey
                 );
             }

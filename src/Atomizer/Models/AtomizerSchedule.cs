@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Atomizer.Models.Base;
 using Cronos;
 
 namespace Atomizer
 {
-    public class AtomizerSchedule
+    public class AtomizerSchedule : Model
     {
-        public Guid Id { get; set; }
         public JobKey JobKey { get; set; } = new JobKey("default");
         public QueueKey QueueKey { get; set; } = QueueKey.Default;
         public Type? PayloadType { get; set; }

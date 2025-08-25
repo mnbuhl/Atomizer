@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Atomizer.Hosting
+namespace Atomizer.Core
 {
     public sealed class DefaultRetryPolicy
     {
