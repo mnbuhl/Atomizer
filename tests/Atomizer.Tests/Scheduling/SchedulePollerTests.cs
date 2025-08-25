@@ -77,7 +77,7 @@ namespace Atomizer.Tests.Scheduling
                     Arg.Any<LeaseToken>(),
                     Arg.Any<CancellationToken>()
                 )
-                .Returns([schedule1, schedule2]);
+                .Returns(new[] { schedule1, schedule2 });
             _scheduleProcessor
                 .ProcessAsync(Arg.Any<AtomizerSchedule>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
@@ -85,7 +85,7 @@ namespace Atomizer.Tests.Scheduling
             // Act
             var runTask = _sut.RunAsync(ioCts.Token, execCts.Token);
             await Task.Delay(50, TestContext.Current.CancellationToken); // allow poller to run
-            await ioCts.CancelAsync();
+            ioCts.Cancel();
             await runTask;
 
             // Assert
@@ -99,7 +99,7 @@ namespace Atomizer.Tests.Scheduling
             // Arrange
             var ioCts = new CancellationTokenSource();
             var execCts = new CancellationTokenSource();
-            await ioCts.CancelAsync();
+            ioCts.Cancel();
 
             // Act
             var act = async () => await _sut.RunAsync(ioCts.Token, execCts.Token);
@@ -121,7 +121,7 @@ namespace Atomizer.Tests.Scheduling
             // Act
             var runTask = _sut.RunAsync(ioCts.Token, execCts.Token);
             await Task.Delay(20, TestContext.Current.CancellationToken);
-            await ioCts.CancelAsync();
+            ioCts.Cancel();
             await runTask;
 
             // Assert

@@ -63,4 +63,4 @@ public abstract class TestableLogger : ILogger
         where TState : notnull;
 }
 
-public abstract class TestableLogger<T> : TestableLogger, ILogger<T>;
+public abstract class TestableLogger<T> : TestableLogger, ILogger<T> { }

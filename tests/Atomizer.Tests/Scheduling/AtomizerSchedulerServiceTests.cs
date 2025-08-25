@@ -33,9 +33,9 @@ namespace Atomizer.Tests.Scheduling
             );
 
             // Act
-            var timestamp = Stopwatch.GetTimestamp();
+            var timestamp = DateTimeOffset.UtcNow;
             await executeAsync(_sut, token);
-            var elapsed = Stopwatch.GetElapsedTime(timestamp);
+            var elapsed = DateTimeOffset.UtcNow - timestamp;
 
             // Assert
             elapsed.Should().BeGreaterThanOrEqualTo(_options.StartupDelay.Value);
