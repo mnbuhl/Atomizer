@@ -22,7 +22,8 @@ public class BulkExtensionsTests
         type.Assembly.GetName().Name.Should().Be("Microsoft.EntityFrameworkCore");
         type.Assembly.GetName().Version!.Major.Should().BeGreaterThanOrEqualTo(9);
     }
-#else
+#endif
+#if NET8_0
     [Fact]
     public void BulkExtensions_CanReflect_BulkMethodsNamespace()
     {

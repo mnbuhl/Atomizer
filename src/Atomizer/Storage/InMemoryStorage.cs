@@ -56,34 +56,10 @@ public sealed class InMemoryStorage : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_jobs.TryGetValue(job.Id, out var existing))
+        if (!_jobs.TryGetValue(job.Id, out _))
         {
             _logger.LogDebug("Update requested for missing job {JobId}", job.Id);
             throw new KeyNotFoundException($"Job {job.Id} not found");
-        }
-
-        if (existing.QueueKey != job.QueueKey)
-        {
-            // Remove from old queue
-            var oldLock = GetQueueLock(existing.QueueKey);
-            lock (oldLock)
-            {
-                UnindexFromQueueWithoutLock(existing);
-            }
-
-            // Add to new queue
-            var newLock = GetQueueLock(job.QueueKey);
-            lock (newLock)
-            {
-                IndexIntoQueueWithoutLock(job);
-            }
-
-            _logger.LogDebug(
-                "Job {JobId} re-indexed from queue {OldQueueKey} to {NewQueueKey}",
-                job.Id,
-                existing.QueueKey,
-                job.QueueKey
-            );
         }
 
         _jobs[job.Id] = job;
