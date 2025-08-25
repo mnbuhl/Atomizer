@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Atomizer.Models.Base;
 
 namespace Atomizer
@@ -27,7 +28,7 @@ namespace Atomizer
                 Id = Guid.NewGuid(),
                 JobId = jobId,
                 ErrorMessage = exception?.Message,
-                StackTrace = stackTrace?.Length > 5120 ? stackTrace[..5120] : stackTrace,
+                StackTrace = stackTrace?.Length > 5120 ? stackTrace.Substring(0, 5120) : stackTrace,
                 ExceptionType = exception?.GetType().FullName,
                 CreatedAt = createdAt,
                 Attempt = attempt,

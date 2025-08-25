@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace Atomizer.Core
 {
@@ -6,6 +7,6 @@ namespace Atomizer.Core
     {
         public string InstanceId { get; } =
             Environment.GetEnvironmentVariable("ATOMIZER_INSTANCE_ID")
-            ?? Environment.MachineName + "+" + Guid.NewGuid().ToString("N")[..8];
+            ?? Environment.MachineName + "+" + Guid.NewGuid().ToString("N").Take(8);
     }
 }

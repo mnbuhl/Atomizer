@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Atomizer.Exceptions;
 using Atomizer.Models.Base;
 
@@ -19,7 +20,7 @@ namespace Atomizer
                 throw new InvalidLeaseTokenException("Lease token cannot be null or empty.", nameof(token));
             }
 
-            var parts = token.Split(":*:");
+            var parts = token.Split(new[] { ":*:" }, StringSplitOptions.None);
 
             if (parts.Length != 3)
             {
