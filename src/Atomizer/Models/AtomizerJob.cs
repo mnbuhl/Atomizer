@@ -51,6 +51,16 @@ namespace Atomizer
             };
         }
 
+        public void Attempt()
+        {
+            if (Status != AtomizerJobStatus.Processing)
+            {
+                throw new InvalidOperationException("Job must be in Processing status to attempt.");
+            }
+
+            Attempts += 1;
+        }
+
         public void MarkAsCompleted(DateTimeOffset completedAt)
         {
             CompletedAt = completedAt;

@@ -26,7 +26,7 @@ namespace Atomizer
         /// <summary>
         /// The interval at which the long running loops tick.
         /// </summary>
-        public TimeSpan TickInterval { get; private set; } = TimeSpan.FromSeconds(1);
+        public TimeSpan TickInterval { get; internal set; } = TimeSpan.FromSeconds(1);
 
         public SchedulingOptions()
         {

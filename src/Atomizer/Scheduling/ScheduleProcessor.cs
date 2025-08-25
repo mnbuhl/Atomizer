@@ -65,8 +65,7 @@ namespace Atomizer.Scheduling
                 await TryInsertJobAsync(job, execToken);
             }
 
-            schedule.UpdateNextOccurence(horizon);
-            schedule.Release(now);
+            schedule.UpdateNextOccurenceAndRelease(horizon, now);
 
             await TryUpsertScheduleAsync(schedule, execToken);
         }
