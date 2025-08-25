@@ -44,14 +44,7 @@ namespace Atomizer.Scheduling
 
             _ioCts.Cancel();
 
-            try
-            {
-                await Task.WhenAny(_processingTask, Task.Delay(gracePeriod, cancellationToken));
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogDebug("Scheduler stop was cancelled");
-            }
+            await Task.WhenAny(_processingTask, Task.Delay(gracePeriod, cancellationToken));
 
             try
             {
@@ -68,6 +61,10 @@ namespace Atomizer.Scheduling
                 releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
 
                 await _schedulePoller.ReleaseLeasedSchedulesAsync(releaseCts.Token);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Release leased schedules operation failed");
             }
             finally
             {
