@@ -31,7 +31,7 @@ internal sealed class JobWorkerFactory : IJobWorkerFactory
         return new JobWorker(
             workerId,
             _jobProcessorFactory,
-            _loggerFactory.CreateLogger($"Atomizer.Processing.JobWorker;{workerId}")
+            _loggerFactory.CreateLogger($"{typeof(JobWorker).FullName};{workerId}")
         );
     }
 }

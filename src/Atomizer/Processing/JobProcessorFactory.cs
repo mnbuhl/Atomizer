@@ -37,7 +37,7 @@ internal sealed class JobProcessorFactory : IJobProcessorFactory
             _clock,
             _dispatcher,
             _storageScopeFactory,
-            _loggerFactory.CreateLogger($"Atomizer.Processing.JobProcessor;{processorId}")
+            _loggerFactory.CreateLogger($"{typeof(JobProcessor).FullName};{processorId}")
         );
     }
 }
