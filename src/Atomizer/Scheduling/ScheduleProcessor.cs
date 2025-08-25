@@ -4,12 +4,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Scheduling;
 
-public interface IScheduleProcessor
+internal interface IScheduleProcessor
 {
     Task ProcessAsync(AtomizerSchedule schedule, DateTimeOffset horizon, CancellationToken execToken);
 }
 
-public class ScheduleProcessor : IScheduleProcessor
+internal sealed class ScheduleProcessor : IScheduleProcessor
 {
     private readonly IAtomizerClock _clock;
     private readonly IAtomizerStorageScopeFactory _storageScopeFactory;

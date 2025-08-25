@@ -10,7 +10,7 @@ internal interface ISchedulePoller
     Task ReleaseLeasedSchedulesAsync(CancellationToken cancellationToken);
 }
 
-public class SchedulePoller : ISchedulePoller
+internal sealed class SchedulePoller : ISchedulePoller
 {
     private readonly SchedulingOptions _options;
     private readonly IAtomizerClock _clock;
