@@ -1,9 +1,10 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using Atomizer.Processing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Processing
+namespace Atomizer.Scheduling
 {
     internal sealed class AtomizerSchedulerService : BackgroundService
     {
