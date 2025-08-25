@@ -1,29 +1,27 @@
-﻿using System;
-using Atomizer.Abstractions;
+﻿using Atomizer.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Atomizer.Core
+namespace Atomizer.Core;
+
+internal sealed class ServiceProviderStorageScopeFactory : IAtomizerStorageScopeFactory
 {
-    internal sealed class ServiceProviderStorageScopeFactory : IAtomizerStorageScopeFactory
+    private readonly IServiceProvider _root;
+
+    public ServiceProviderStorageScopeFactory(IServiceProvider root) => _root = root;
+
+    public IAtomizerStorageScope CreateScope() => new ServiceProviderStorageScope(_root.CreateScope());
+}
+
+internal sealed class ServiceProviderStorageScope : IAtomizerStorageScope
+{
+    private readonly IServiceScope _scope;
+    public IAtomizerStorage Storage { get; }
+
+    public ServiceProviderStorageScope(IServiceScope scope)
     {
-        private readonly IServiceProvider _root;
-
-        public ServiceProviderStorageScopeFactory(IServiceProvider root) => _root = root;
-
-        public IAtomizerStorageScope CreateScope() => new ServiceProviderStorageScope(_root.CreateScope());
+        _scope = scope;
+        Storage = scope.ServiceProvider.GetRequiredService<IAtomizerStorage>();
     }
 
-    internal sealed class ServiceProviderStorageScope : IAtomizerStorageScope
-    {
-        private readonly IServiceScope _scope;
-        public IAtomizerStorage Storage { get; }
-
-        public ServiceProviderStorageScope(IServiceScope scope)
-        {
-            _scope = scope;
-            Storage = scope.ServiceProvider.GetRequiredService<IAtomizerStorage>();
-        }
-
-        public void Dispose() => _scope.Dispose();
-    }
+    public void Dispose() => _scope.Dispose();
 }

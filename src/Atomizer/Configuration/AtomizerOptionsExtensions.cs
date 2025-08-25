@@ -1,26 +1,24 @@
-﻿using System;
 using Atomizer.Core;
 using Atomizer.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer
+namespace Atomizer;
+
+public static class AtomizerOptionsExtensions
 {
-    public static class AtomizerOptionsExtensions
+    public static AtomizerOptions UseInMemoryStorage(
+        this AtomizerOptions options,
+        Action<InMemoryJobStorageOptions>? configure = null
+    )
     {
-        public static AtomizerOptions UseInMemoryStorage(
-            this AtomizerOptions options,
-            Action<InMemoryJobStorageOptions>? configure = null
-        )
-        {
-            var inMemoryOptions = new InMemoryJobStorageOptions();
-            configure?.Invoke(inMemoryOptions);
-            options.JobStorageOptions = new JobStorageOptions(sp => new InMemoryStorage(
-                inMemoryOptions,
-                sp.GetRequiredService<IAtomizerClock>(),
-                sp.GetRequiredService<ILogger<InMemoryStorage>>()
-            ));
-            return options;
-        }
+        var inMemoryOptions = new InMemoryJobStorageOptions();
+        configure?.Invoke(inMemoryOptions);
+        options.JobStorageOptions = new JobStorageOptions(sp => new InMemoryStorage(
+            inMemoryOptions,
+            sp.GetRequiredService<IAtomizerClock>(),
+            sp.GetRequiredService<ILogger<InMemoryStorage>>()
+        ));
+        return options;
     }
 }

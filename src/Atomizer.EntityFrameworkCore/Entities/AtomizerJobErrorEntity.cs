@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Atomizer.EntityFrameworkCore.Entities;
+﻿namespace Atomizer.EntityFrameworkCore.Entities;
 
 public class AtomizerJobErrorEntity
 {
