@@ -1,7 +1,6 @@
-﻿namespace Atomizer.Storage
+﻿namespace Atomizer.Storage;
+
+public class InMemoryJobStorageOptions
 {
-    public class InMemoryJobStorageOptions
-    {
-        public int MaximumJobsInMemory { get; set; } = 1000;
-    }
+    public int MaximumJobsInMemory { get; set; } = 1000;
 }

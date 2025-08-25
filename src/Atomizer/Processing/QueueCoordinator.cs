@@ -1,51 +1,46 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Processing
+namespace Atomizer.Processing;
+
+internal interface IQueueCoordinator
 {
-    internal interface IQueueCoordinator
+    void Start(CancellationToken cancellationToken);
+    Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken);
+}
+
+internal sealed class QueueCoordinator : IQueueCoordinator
+{
+    private readonly AtomizerOptions _options;
+    private readonly ILogger<QueueCoordinator> _logger;
+    private readonly IQueuePumpFactory _queuePumpFactory;
+
+    private readonly List<IQueuePump> _queuePumps = new List<IQueuePump>();
+
+    public QueueCoordinator(
+        AtomizerOptions options,
+        ILogger<QueueCoordinator> logger,
+        IQueuePumpFactory queuePumpFactory
+    )
     {
-        void Start(CancellationToken cancellationToken);
-        Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken);
+        _options = options;
+        _logger = logger;
+        _queuePumpFactory = queuePumpFactory;
     }
 
-    internal sealed class QueueCoordinator : IQueueCoordinator
+    public void Start(CancellationToken ct)
     {
-        private readonly AtomizerOptions _options;
-        private readonly ILogger<QueueCoordinator> _logger;
-        private readonly IQueuePumpFactory _queuePumpFactory;
-
-        private readonly List<IQueuePump> _queuePumps = new List<IQueuePump>();
-
-        public QueueCoordinator(
-            AtomizerOptions options,
-            ILogger<QueueCoordinator> logger,
-            IQueuePumpFactory queuePumpFactory
-        )
+        _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
+        foreach (var queue in _options.Queues)
         {
-            _options = options;
-            _logger = logger;
-            _queuePumpFactory = queuePumpFactory;
+            var pump = _queuePumpFactory.Create(queue);
+            _queuePumps.Add(pump);
+            pump.Start(ct);
         }
+    }
 
-        public void Start(CancellationToken ct)
-        {
-            _logger.LogInformation("Starting {Count} queue pump(s)...", _options.Queues.Count);
-            foreach (var queue in _options.Queues)
-            {
-                var pump = _queuePumpFactory.Create(queue);
-                _queuePumps.Add(pump);
-                pump.Start(ct);
-            }
-        }
-
-        public async Task StopAsync(TimeSpan gracePeriod, CancellationToken ct)
-        {
-            await Task.WhenAll(_queuePumps.ConvertAll(p => p.StopAsync(gracePeriod, ct)));
-            _logger.LogInformation("All queue pumps stopped");
-        }
+    public async Task StopAsync(TimeSpan gracePeriod, CancellationToken ct)
+    {
+        await Task.WhenAll(_queuePumps.ConvertAll(p => p.StopAsync(gracePeriod, ct)));
+        _logger.LogInformation("All queue pumps stopped");
     }
 }

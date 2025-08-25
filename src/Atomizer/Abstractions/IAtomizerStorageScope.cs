@@ -1,14 +1,11 @@
-﻿using System;
+﻿namespace Atomizer.Abstractions;
 
-namespace Atomizer.Abstractions
+public interface IAtomizerStorageScopeFactory
 {
-    public interface IAtomizerStorageScopeFactory
-    {
-        IAtomizerStorageScope CreateScope();
-    }
+    IAtomizerStorageScope CreateScope();
+}
 
-    public interface IAtomizerStorageScope : IDisposable
-    {
-        IAtomizerStorage Storage { get; }
-    }
+public interface IAtomizerStorageScope : IDisposable
+{
+    IAtomizerStorage Storage { get; }
 }

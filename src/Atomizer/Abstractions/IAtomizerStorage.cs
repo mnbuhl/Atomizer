@@ -1,35 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+﻿namespace Atomizer.Abstractions;
 
-namespace Atomizer.Abstractions
+public interface IAtomizerStorage
 {
-    public interface IAtomizerStorage
-    {
-        Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken);
+    Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken);
 
-        Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken);
+    Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken);
 
-        Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
-            QueueKey queueKey,
-            int batchSize,
-            DateTimeOffset now,
-            TimeSpan visibilityTimeout,
-            LeaseToken leaseToken,
-            CancellationToken cancellationToken
-        );
+    Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
+        QueueKey queueKey,
+        int batchSize,
+        DateTimeOffset now,
+        TimeSpan visibilityTimeout,
+        LeaseToken leaseToken,
+        CancellationToken cancellationToken
+    );
 
-        Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
+    Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
 
-        Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
+    Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
 
-        Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
-            DateTimeOffset now,
-            TimeSpan visibilityTimeout,
-            LeaseToken leaseToken,
-            CancellationToken cancellationToken
-        );
-        Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
-    }
+    Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+        DateTimeOffset now,
+        TimeSpan visibilityTimeout,
+        LeaseToken leaseToken,
+        CancellationToken cancellationToken
+    );
+    Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
 }

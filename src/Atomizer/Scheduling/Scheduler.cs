@@ -1,77 +1,73 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Scheduling
+namespace Atomizer.Scheduling;
+
+internal interface IScheduler
 {
-    internal interface IScheduler
+    void Start(CancellationToken cancellationToken);
+    Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken);
+}
+
+internal sealed class Scheduler : IScheduler
+{
+    private readonly ILogger<Scheduler> _logger;
+    private readonly ISchedulePoller _schedulePoller;
+
+    private Task _processingTask = Task.CompletedTask;
+
+    private CancellationTokenSource _ioCts = new CancellationTokenSource();
+    private CancellationTokenSource _executionCts = new CancellationTokenSource();
+
+    public Scheduler(ILogger<Scheduler> logger, ISchedulePoller schedulePoller)
     {
-        void Start(CancellationToken cancellationToken);
-        Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken);
+        _logger = logger;
+        _schedulePoller = schedulePoller;
     }
 
-    internal sealed class Scheduler : IScheduler
+    public void Start(CancellationToken cancellationToken)
     {
-        private readonly ILogger<Scheduler> _logger;
-        private readonly ISchedulePoller _schedulePoller;
+        _logger.LogInformation("Starting Atomizer Scheduler");
+        _ioCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _executionCts = new CancellationTokenSource();
+        _processingTask = Task.Run(
+            async () => await _schedulePoller.RunAsync(_ioCts.Token, _executionCts.Token),
+            cancellationToken
+        );
+    }
 
-        private Task _processingTask = Task.CompletedTask;
+    public async Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Stopping Atomizer Scheduler");
 
-        private CancellationTokenSource _ioCts = new CancellationTokenSource();
-        private CancellationTokenSource _executionCts = new CancellationTokenSource();
+        _ioCts.Cancel();
 
-        public Scheduler(ILogger<Scheduler> logger, ISchedulePoller schedulePoller)
+        await Task.WhenAny(_processingTask, Task.Delay(gracePeriod, cancellationToken));
+
+        try
         {
-            _logger = logger;
-            _schedulePoller = schedulePoller;
+            _executionCts.Cancel();
+        }
+        catch
+        {
+            _logger.LogDebug("Error cancelling execution token for scheduler");
         }
 
-        public void Start(CancellationToken cancellationToken)
+        try
         {
-            _logger.LogInformation("Starting Atomizer Scheduler");
-            _ioCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _executionCts = new CancellationTokenSource();
-            _processingTask = Task.Run(
-                async () => await _schedulePoller.RunAsync(_ioCts.Token, _executionCts.Token),
-                cancellationToken
-            );
+            var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
+            releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
+
+            await _schedulePoller.ReleaseLeasedSchedulesAsync(releaseCts.Token);
         }
-
-        public async Task StopAsync(TimeSpan gracePeriod, CancellationToken cancellationToken)
+        catch (Exception ex)
         {
-            _logger.LogInformation("Stopping Atomizer Scheduler");
-
-            _ioCts.Cancel();
-
-            await Task.WhenAny(_processingTask, Task.Delay(gracePeriod, cancellationToken));
-
-            try
-            {
-                _executionCts.Cancel();
-            }
-            catch
-            {
-                _logger.LogDebug("Error cancelling execution token for scheduler");
-            }
-
-            try
-            {
-                var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
-                releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
-
-                await _schedulePoller.ReleaseLeasedSchedulesAsync(releaseCts.Token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Release leased schedules operation failed");
-            }
-            finally
-            {
-                _ioCts.Dispose();
-                _executionCts.Dispose();
-                _logger.LogInformation("Atomizer Scheduler stopped");
-            }
+            _logger.LogError(ex, "Release leased schedules operation failed");
+        }
+        finally
+        {
+            _ioCts.Dispose();
+            _executionCts.Dispose();
+            _logger.LogInformation("Atomizer Scheduler stopped");
         }
     }
 }

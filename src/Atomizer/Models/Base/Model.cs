@@ -1,9 +1,6 @@
-﻿using System;
+﻿namespace Atomizer.Models.Base;
 
-namespace Atomizer.Models.Base
+public abstract class Model
 {
-    public abstract class Model
-    {
-        public Guid Id { get; set; }
-    }
+    public Guid Id { get; set; }
 }

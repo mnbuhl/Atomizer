@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Atomizer.EntityFrameworkCore.Entities;
+﻿namespace Atomizer.EntityFrameworkCore.Entities;
 
 /// <summary>
 /// Entity representing a scheduled job in Atomizer.
