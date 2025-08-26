@@ -103,14 +103,14 @@ public class JobProcessorTests
         // Arrange
         var ex = new Exception("fail");
         _dispatcher.DispatchAsync(Arg.Any<AtomizerJob>(), Arg.Any<CancellationToken>()).Returns(_ => throw ex);
-        _job.Attempts = _job.MaxAttempts - 1;
+        _job.Attempts = _job.RetryStrategy.MaxAttempts - 1;
 
         // Act
         await _sut.ProcessAsync(_job, CancellationToken.None);
 
         // Assert
         _job.Status.Should().Be(AtomizerJobStatus.Failed);
-        _job.Attempts.Should().Be(_job.MaxAttempts);
+        _job.Attempts.Should().Be(_job.RetryStrategy.MaxAttempts);
         _job.FailedAt.Should().Be(_now);
         _job.UpdatedAt.Should().Be(_now);
         _job.LeaseToken.Should().BeNull();

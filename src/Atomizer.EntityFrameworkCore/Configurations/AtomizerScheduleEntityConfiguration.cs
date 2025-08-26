@@ -1,5 +1,6 @@
 ﻿using Atomizer.EntityFrameworkCore.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Atomizer.EntityFrameworkCore.Configurations;
@@ -30,12 +31,27 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
         builder.Property(e => e.MisfirePolicy).IsRequired();
         builder.Property(e => e.MaxCatchUp).IsRequired();
         builder.Property(e => e.Enabled).IsRequired();
-        builder.Property(e => e.MaxAttempts).IsRequired();
         builder.Property(e => e.NextRunAt).IsRequired();
         builder.Property(e => e.LastEnqueueAt);
         builder.Property(e => e.CreatedAt).IsRequired();
         builder.Property(e => e.UpdatedAt).IsRequired();
         builder.Property(e => e.LeaseToken).HasMaxLength(512);
         builder.Property(e => e.VisibleAt);
+        builder
+            .Property(job => job.RetryIntervals)
+            .IsRequired()
+            .HasMaxLength(4096)
+            .HasConversion(
+                v => string.Join(';', v.Select(ts => (long)ts.TotalMilliseconds)),
+                v =>
+                    v.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => TimeSpan.FromMilliseconds(long.Parse(s)))
+                        .ToArray(),
+                new ValueComparer<TimeSpan[]>(
+                    (c1, c2) => c1!.SequenceEqual(c2!),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToArray()
+                )
+            );
     }
 }

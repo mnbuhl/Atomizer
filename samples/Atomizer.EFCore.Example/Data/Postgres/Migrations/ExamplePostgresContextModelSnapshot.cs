@@ -72,9 +72,6 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
-                    b.Property<int>("MaxAttempts")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("text");
@@ -88,6 +85,11 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
+
+                    b.Property<string>("RetryIntervals")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
 
                     b.Property<string>("ScheduleJobKey")
                         .HasMaxLength(512)
@@ -172,9 +174,6 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
-                    b.Property<int>("MaxAttempts")
-                        .HasColumnType("integer");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("integer");
 
@@ -197,6 +196,11 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
+
+                    b.Property<string>("RetryIntervals")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
 
                     b.Property<string>("Schedule")
                         .IsRequired()

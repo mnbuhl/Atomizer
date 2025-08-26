@@ -54,7 +54,7 @@ internal sealed class ScheduleProcessor : IScheduleProcessor
                 schedule.Payload,
                 now,
                 occurrence,
-                schedule.MaxAttempts,
+                schedule.RetryStrategy,
                 idempotencyKey,
                 schedule.JobKey
             );

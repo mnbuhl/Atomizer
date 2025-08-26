@@ -72,9 +72,6 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)");
 
-                    b.Property<int>("MaxAttempts")
-                        .HasColumnType("int");
-
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -88,6 +85,11 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)");
+
+                    b.Property<string>("RetryIntervals")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("varchar(4096)");
 
                     b.Property<string>("ScheduleJobKey")
                         .HasMaxLength(512)
@@ -172,9 +174,6 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)");
 
-                    b.Property<int>("MaxAttempts")
-                        .HasColumnType("int");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("int");
 
@@ -197,6 +196,11 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)");
+
+                    b.Property<string>("RetryIntervals")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("varchar(4096)");
 
                     b.Property<string>("Schedule")
                         .IsRequired()

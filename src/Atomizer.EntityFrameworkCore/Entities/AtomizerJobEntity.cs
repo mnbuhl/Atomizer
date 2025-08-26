@@ -10,7 +10,7 @@ public class AtomizerJobEntity
     public DateTimeOffset? VisibleAt { get; set; }
     public AtomizerEntityJobStatus Status { get; set; } = AtomizerEntityJobStatus.Pending;
     public int Attempts { get; set; }
-    public int MaxAttempts { get; set; }
+    public TimeSpan[] RetryIntervals { get; set; } = [];
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
@@ -48,7 +48,7 @@ public static class AtomizerJobEntityMapper
             CompletedAt = job.CompletedAt,
             FailedAt = job.FailedAt,
             LeaseToken = job.LeaseToken?.Token,
-            MaxAttempts = job.MaxAttempts,
+            RetryIntervals = job.RetryStrategy.RetryIntervals,
             ScheduleJobKey = job.ScheduleJobKey?.ToString(),
             IdempotencyKey = job.IdempotencyKey,
             Errors = job.Errors.Select(err => err.ToEntity()).ToList(),
@@ -72,7 +72,8 @@ public static class AtomizerJobEntityMapper
             CompletedAt = entity.CompletedAt,
             FailedAt = entity.FailedAt,
             LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
-            MaxAttempts = entity.MaxAttempts,
+            RetryStrategy =
+                entity.RetryIntervals.Length == 0 ? RetryStrategy.None : RetryStrategy.Intervals(entity.RetryIntervals),
             ScheduleJobKey = entity.ScheduleJobKey != null ? new JobKey(entity.ScheduleJobKey) : null,
             IdempotencyKey = entity.IdempotencyKey,
             Errors = entity.Errors.Select(err => err.ToAtomizerJobError()).ToList(),

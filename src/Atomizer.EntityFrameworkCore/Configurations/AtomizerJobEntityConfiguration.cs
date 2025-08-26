@@ -1,5 +1,6 @@
 ﻿using Atomizer.EntityFrameworkCore.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Atomizer.EntityFrameworkCore.Configurations;
@@ -25,7 +26,6 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
         builder.Property(job => job.VisibleAt).IsRequired(false);
         builder.Property(job => job.Status).IsRequired();
         builder.Property(job => job.Attempts).IsRequired();
-        builder.Property(job => job.MaxAttempts).IsRequired();
         builder.Property(job => job.CreatedAt).IsRequired();
         builder.Property(job => job.CompletedAt).IsRequired(false);
         builder.Property(job => job.FailedAt).IsRequired(false);
@@ -33,5 +33,21 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
         builder.Property(job => job.ScheduleJobKey).HasMaxLength(512);
         builder.Property(job => job.IdempotencyKey).HasMaxLength(512);
         builder.Property(job => job.UpdatedAt).IsRequired();
+        builder
+            .Property(job => job.RetryIntervals)
+            .IsRequired()
+            .HasMaxLength(4096)
+            .HasConversion(
+                v => string.Join(';', v.Select(ts => (long)ts.TotalMilliseconds)),
+                v =>
+                    v.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => TimeSpan.FromMilliseconds(long.Parse(s)))
+                        .ToArray(),
+                new ValueComparer<TimeSpan[]>(
+                    (c1, c2) => c1!.SequenceEqual(c2!),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToArray()
+                )
+            );
     }
 }

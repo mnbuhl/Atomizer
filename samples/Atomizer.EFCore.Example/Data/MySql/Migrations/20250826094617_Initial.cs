@@ -29,7 +29,8 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                     VisibleAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),
                     Attempts = table.Column<int>(type: "int", nullable: false),
-                    MaxAttempts = table.Column<int>(type: "int", nullable: false),
+                    RetryIntervals = table.Column<string>(type: "varchar(4096)", maxLength: 4096, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
                     CompletedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: true),
@@ -67,7 +68,8 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                     MisfirePolicy = table.Column<int>(type: "int", nullable: false),
                     MaxCatchUp = table.Column<int>(type: "int", nullable: false),
                     Enabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    MaxAttempts = table.Column<int>(type: "int", nullable: false),
+                    RetryIntervals = table.Column<string>(type: "varchar(4096)", maxLength: 4096, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     NextRunAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),

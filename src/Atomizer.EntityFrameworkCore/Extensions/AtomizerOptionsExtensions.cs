@@ -1,4 +1,5 @@
-﻿using Atomizer.EntityFrameworkCore.Storage;
+﻿using Atomizer.Core;
+using Atomizer.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,7 @@ public static class AtomizerOptionsExtensions
             sp => new EntityFrameworkCoreStorage<TDbContext>(
                 sp.GetRequiredService<TDbContext>(),
                 efOptions,
+                sp.GetRequiredService<IAtomizerClock>(),
                 sp.GetRequiredService<ILogger<EntityFrameworkCoreStorage<TDbContext>>>()
             ),
             ServiceLifetime.Scoped

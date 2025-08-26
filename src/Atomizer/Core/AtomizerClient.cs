@@ -70,7 +70,7 @@ public class AtomizerClient : IAtomizerClient
             options.MisfirePolicy,
             options.MaxCatchUp,
             options.Enabled,
-            options.MaxAttempts
+            options.RetryStrategy
         );
 
         using var scope = _storageScopeFactory.CreateScope();
@@ -88,11 +88,11 @@ public class AtomizerClient : IAtomizerClient
 
         var job = AtomizerJob.Create(
             options.Queue,
-            options.TypeOverride ?? typeof(TPayload),
+            typeof(TPayload),
             serializedPayload,
             _clock.UtcNow,
             when,
-            options.MaxAttempts,
+            options.RetryStrategy,
             options.IdempotencyKey
         );
 
