@@ -101,14 +101,7 @@ namespace Atomizer.Tests.Storage
             var leaseToken = new LeaseToken("instance:*:default:*:lease1");
 
             // Act
-            var leased = await _sut.LeaseBatchAsync(
-                QueueKey.Default,
-                1,
-                _now,
-                TimeSpan.FromMinutes(1),
-                leaseToken,
-                CancellationToken.None
-            );
+            var leased = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
 
             // Assert
             leased.Should().ContainSingle();
@@ -129,17 +122,9 @@ namespace Atomizer.Tests.Storage
         public async Task LeaseBatchAsync_WhenQueueEmpty_ShouldReturnEmpty()
         {
             // Arrange
-            var leaseToken = new LeaseToken("instance:*:default:*:lease1");
 
             // Act
-            var leased = await _sut.LeaseBatchAsync(
-                QueueKey.Default,
-                1,
-                _now,
-                TimeSpan.FromMinutes(1),
-                leaseToken,
-                CancellationToken.None
-            );
+            var leased = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
 
             // Assert
             leased.Should().BeEmpty();
@@ -155,14 +140,7 @@ namespace Atomizer.Tests.Storage
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
             await _sut.InsertAsync(job, CancellationToken.None);
             var leaseToken = new LeaseToken("instance:*:default:*:lease1");
-            await _sut.LeaseBatchAsync(
-                QueueKey.Default,
-                1,
-                _now,
-                TimeSpan.FromMinutes(1),
-                leaseToken,
-                CancellationToken.None
-            );
+            await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
 
             // Act
             var released = await _sut.ReleaseLeasedAsync(leaseToken, CancellationToken.None);
