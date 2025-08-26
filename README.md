@@ -17,7 +17,7 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - 🗄️ **Multiple Storage Backends** — Use Entity Framework Core for durable, database-backed queues; in-memory for fast local development & testing; Redis support coming soon.
 - 🔀 **Multiple Queues** — Configure independent queues with custom processing options for each workload.
 - 🧩 **Extensible Drivers & Handlers** — Easily add new storage drivers or job handlers; auto-register handlers from assemblies.
-- ♻️ **Retry Policies** — Automatic, configurable retries to keep your jobs running smoothly—even when things go wrong.
+- ♻️ **Advanced Retry Policies** — Automatic, configurable retries to keep your jobs running smoothly—even when things go wrong.
 - 🛑 **Graceful Shutdown** — Ensure in-flight jobs finish and pending batched jobs are safely released for re-processing during shutdowns.
 - 📦 **Batch Processing** — Tune throughput with batch size and parallelism settings per queue.
 - ⏳ **Visibility Timeout** — Prevent job duplication by locking jobs during processing.
@@ -28,7 +28,6 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - 📈 **Dashboard** — Live monitoring, retry/dead-letter management, and operational insights.
 - 🕒 **FIFO Processing** — Guarantee jobs are processed in strict order, without overlap.
 - ⚡ **Redis Driver** — Lightning-fast, distributed, in-memory queues for massive scale.
-- 🛡️ **Advanced Retry Policies** — Backoff strategies, fixed intervals, and more.
 
 ## Quick Start
 Get up and running in minutes:
