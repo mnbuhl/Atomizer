@@ -63,26 +63,11 @@ public class PostgreSqlProvider : IDatabaseProviderSql
                 SELECT t.*
                 FROM {_schedules.Table} AS t
                 WHERE {_schedules.Col[nameof(AtomizerScheduleEntity.Enabled)]} = TRUE
-                  AND ( {_schedules.Col[nameof(AtomizerScheduleEntity.VisibleAt)]} IS NULL 
-                        OR {_schedules.Col[nameof(AtomizerScheduleEntity.VisibleAt)]} <= '{pgNow}' ) 
                   AND {_schedules.Col[nameof(AtomizerScheduleEntity.NextRunAt)]} <= '{pgNow}'
                 ORDER BY {_schedules.Col[nameof(AtomizerScheduleEntity.NextRunAt)]}, {_schedules.Col[
                 nameof(AtomizerScheduleEntity.Id)
             ]}
                 FOR NO KEY UPDATE SKIP LOCKED;
-            """
-        );
-    }
-
-    public FormattableString ReleaseLeasedSchedulesAsync(LeaseToken leaseToken)
-    {
-        return FormattableStringFactory.Create(
-            $"""
-                UPDATE {_schedules.Table}
-                SET {_schedules.Col[nameof(AtomizerScheduleEntity.LeaseToken)]} = NULL,
-                    {_schedules.Col[nameof(AtomizerScheduleEntity.VisibleAt)]} = NULL,
-                    {_schedules.Col[nameof(AtomizerScheduleEntity.UpdatedAt)]} = NOW() AT TIME ZONE 'UTC'
-                WHERE {_schedules.Col[nameof(AtomizerScheduleEntity.LeaseToken)]} = '{leaseToken.Token}';
             """
         );
     }

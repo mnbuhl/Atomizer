@@ -63,7 +63,7 @@ namespace Atomizer.Tests.Storage
             job.Status = AtomizerJobStatus.Processing;
 
             // Act
-            await _sut.UpdateAsync(job, CancellationToken.None);
+            await _sut.UpdateJobAsync(job, CancellationToken.None);
 
             // Assert
             var jobs = NonPublicSpy.GetFieldValue<InMemoryStorage, ConcurrentDictionary<Guid, AtomizerJob>>(
@@ -83,7 +83,7 @@ namespace Atomizer.Tests.Storage
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
 
             // Act
-            Func<Task> act = async () => await _sut.UpdateAsync(job, CancellationToken.None);
+            Func<Task> act = async () => await _sut.UpdateJobAsync(job, CancellationToken.None);
 
             // Assert
             await act.Should().ThrowAsync<KeyNotFoundException>();

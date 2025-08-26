@@ -6,7 +6,8 @@ namespace Atomizer.EntityFrameworkCore.Providers;
 
 internal sealed class RelationalProviderCache
 {
-    public bool IsSupportedProvider => _databaseProvider != DatabaseProvider.Unknown;
+    public bool IsSupportedProvider =>
+        _databaseProvider != DatabaseProvider.Unknown && _databaseProvider != DatabaseProvider.Sqlite;
     public IDatabaseProviderSql? RawSqlProvider { get; }
 
     private readonly DatabaseProvider _databaseProvider;
@@ -81,6 +82,7 @@ internal sealed class RelationalProviderCache
             "Npgsql.EntityFrameworkCore.PostgreSQL" => DatabaseProvider.PostgreSql,
             "Pomelo.EntityFrameworkCore.MySql" or "MySql.EntityFrameworkCore" => DatabaseProvider.MySql,
             "Oracle.EntityFrameworkCore" => DatabaseProvider.Oracle,
+            "Microsoft.EntityFrameworkCore.Sqlite" => DatabaseProvider.Sqlite,
             _ => DatabaseProvider.Unknown,
         };
 

@@ -7,7 +7,6 @@ namespace Atomizer.Scheduling;
 internal interface ISchedulePoller
 {
     Task RunAsync(CancellationToken ioToken, CancellationToken execToken);
-    Task ReleaseLeasedSchedulesAsync(CancellationToken cancellationToken);
 }
 
 internal sealed class SchedulePoller : ISchedulePoller
@@ -17,7 +16,6 @@ internal sealed class SchedulePoller : ISchedulePoller
     private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
     private readonly ILogger<SchedulePoller> _logger;
     private readonly IScheduleProcessor _scheduleProcessor;
-    private readonly LeaseToken _leaseToken;
 
     private DateTimeOffset _lastStorageCheck;
 
@@ -26,7 +24,6 @@ internal sealed class SchedulePoller : ISchedulePoller
         IAtomizerClock clock,
         IAtomizerStorageScopeFactory storageScopeFactory,
         ILogger<SchedulePoller> logger,
-        AtomizerRuntimeIdentity identity,
         IScheduleProcessor scheduleProcessor
     )
     {
@@ -35,7 +32,6 @@ internal sealed class SchedulePoller : ISchedulePoller
         _logger = logger;
         _scheduleProcessor = scheduleProcessor;
         _options = options.SchedulingOptions;
-        _leaseToken = new LeaseToken($"{identity.InstanceId}:*:{QueueKey.Scheduler}:*:{Guid.NewGuid():N}");
         _lastStorageCheck = _clock.MinValue;
     }
 
@@ -55,17 +51,39 @@ internal sealed class SchedulePoller : ISchedulePoller
                     using var scope = _storageScopeFactory.CreateScope();
                     var storage = scope.Storage;
 
-                    var dueSchedules = await storage.LeaseDueSchedulesAsync(
-                        horizon,
-                        _options.VisibilityTimeout,
-                        _leaseToken,
-                        ioToken
+#if NETCOREAPP3_0_OR_GREATER
+                    await using var storageLock = await storage.AcquireLockAsync(
+                        QueueKey.Scheduler,
+                        TimeSpan.FromMinutes(1),
+                        execToken
                     );
+#else
+                    using var storageLock = await storage.AcquireLockAsync(
+                        QueueKey.Scheduler,
+                        TimeSpan.FromMinutes(1),
+                        execToken
+                    );
+#endif
+
+                    var dueSchedules = await storage.GetDueSchedulesAsync(horizon, ioToken);
 
                     foreach (var schedule in dueSchedules)
                     {
+                        if (schedule.PayloadType is null)
+                        {
+                            _logger.LogWarning(
+                                "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
+                                schedule.JobKey
+                            );
+                            schedule.Disable(now);
+                            continue;
+                        }
+
                         await _scheduleProcessor.ProcessAsync(schedule, horizon, execToken);
+                        schedule.UpdateNextOccurence(horizon, now);
                     }
+
+                    await storage.UpdateSchedulesAsync(dueSchedules, execToken);
                 }
             }
             catch (OperationCanceledException) when (ioToken.IsCancellationRequested)
@@ -87,20 +105,6 @@ internal sealed class SchedulePoller : ISchedulePoller
                 // Ignore cancellation during delay
                 return;
             }
-        }
-    }
-
-    public async Task ReleaseLeasedSchedulesAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var scope = _storageScopeFactory.CreateScope();
-            var released = await scope.Storage.ReleaseLeasedSchedulesAsync(_leaseToken, cancellationToken);
-            _logger.LogDebug("Released {Count} schedule(s) with lease token {LeaseToken}", released, _leaseToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to release schedules with lease token {LeaseToken}", _leaseToken);
         }
     }
 }

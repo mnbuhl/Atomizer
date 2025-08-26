@@ -25,9 +25,4 @@ public class MySqlProvider : IDatabaseProviderSql
     {
         throw new NotImplementedException();
     }
-
-    public FormattableString ReleaseLeasedSchedulesAsync(LeaseToken leaseToken)
-    {
-        throw new NotImplementedException();
-    }
 }

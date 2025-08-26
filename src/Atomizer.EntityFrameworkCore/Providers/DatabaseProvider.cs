@@ -6,5 +6,6 @@ public enum DatabaseProvider
     MySql,
     SqlServer,
     Oracle,
+    Sqlite,
     Unknown,
 }

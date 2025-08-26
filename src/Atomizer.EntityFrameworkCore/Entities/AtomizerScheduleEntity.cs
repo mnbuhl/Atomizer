@@ -79,16 +79,6 @@ public class AtomizerScheduleEntity
     /// The time the schedule was last updated.
     /// </summary>
     public DateTimeOffset UpdatedAt { get; set; }
-
-    /// <summary>
-    /// Lease token for distributed locking (serialized).
-    /// </summary>
-    public string? LeaseToken { get; set; }
-
-    /// <summary>
-    /// When the schedule becomes visible.
-    /// </summary>
-    public DateTimeOffset? VisibleAt { get; set; }
 }
 
 public enum MisfirePolicyEntity
@@ -119,8 +109,6 @@ public static class AtomizerScheduleEntityMapper
             LastEnqueueAt = schedule.LastEnqueueAt,
             CreatedAt = schedule.CreatedAt,
             UpdatedAt = schedule.UpdatedAt,
-            LeaseToken = schedule.LeaseToken?.Token,
-            VisibleAt = schedule.VisibleAt,
         };
     }
 
@@ -144,8 +132,6 @@ public static class AtomizerScheduleEntityMapper
             LastEnqueueAt = entity.LastEnqueueAt,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
-            LeaseToken = string.IsNullOrEmpty(entity.LeaseToken) ? null : new LeaseToken(entity.LeaseToken!),
-            VisibleAt = entity.VisibleAt,
         };
     }
 }

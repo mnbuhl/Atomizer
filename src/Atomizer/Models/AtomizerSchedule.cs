@@ -19,8 +19,6 @@ public class AtomizerSchedule : Model
     public DateTimeOffset? LastEnqueueAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
-    public LeaseToken? LeaseToken { get; set; }
-    public DateTimeOffset? VisibleAt { get; set; }
 
     private CronExpression CronExpression => CronExpression.Parse(Schedule.ToString(), CronFormat.IncludeSeconds);
 
@@ -61,20 +59,6 @@ public class AtomizerSchedule : Model
         return atomizerSchedule;
     }
 
-    public void Lease(DateTimeOffset now, TimeSpan visibilityTimeout, LeaseToken leaseToken)
-    {
-        LeaseToken = leaseToken;
-        VisibleAt = now.Add(visibilityTimeout);
-        UpdatedAt = now;
-    }
-
-    public void Release(DateTimeOffset now)
-    {
-        LeaseToken = null;
-        VisibleAt = null;
-        UpdatedAt = now;
-    }
-
     public List<DateTimeOffset> GetOccurrences(DateTimeOffset now)
     {
         var occurrences = new List<DateTimeOffset>();
@@ -106,13 +90,11 @@ public class AtomizerSchedule : Model
         return occurrences;
     }
 
-    public void UpdateNextOccurenceAndRelease(DateTimeOffset horizon, DateTimeOffset now)
+    public void UpdateNextOccurence(DateTimeOffset horizon, DateTimeOffset now)
     {
         var nextOccurrence = CronExpression.GetNextOccurrence(horizon, TimeZone);
         NextRunAt = nextOccurrence ?? DateTimeOffset.MaxValue; // No further occurrences
         LastEnqueueAt = horizon;
-        LeaseToken = null;
-        VisibleAt = null;
         UpdatedAt = now;
     }
 

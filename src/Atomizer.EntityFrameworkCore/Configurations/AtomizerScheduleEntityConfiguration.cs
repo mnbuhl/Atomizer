@@ -35,8 +35,6 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
         builder.Property(e => e.LastEnqueueAt);
         builder.Property(e => e.CreatedAt).IsRequired();
         builder.Property(e => e.UpdatedAt).IsRequired();
-        builder.Property(e => e.LeaseToken).HasMaxLength(512);
-        builder.Property(e => e.VisibleAt);
         builder
             .Property(job => job.RetryIntervals)
             .IsRequired()

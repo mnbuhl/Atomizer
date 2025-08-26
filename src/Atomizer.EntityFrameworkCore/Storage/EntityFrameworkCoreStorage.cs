@@ -62,7 +62,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         return entity.Id;
     }
 
-    public async Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken)
+    public async Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         var updated = job.ToEntity();
 
@@ -70,22 +70,10 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public Task UpdateRangeAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
+    public async Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
     {
         JobEntities.UpdateRange(jobs.Select(j => j.ToEntity()));
-        return _dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    public Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
-        QueueKey queueKey,
-        int batchSize,
-        DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
-        CancellationToken cancellationToken
-    )
-    {
-        return Task.FromResult<IReadOnlyList<AtomizerJob>>(Array.Empty<AtomizerJob>());
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
@@ -153,70 +141,94 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             entity.UpdatedAt = _clock.UtcNow;
         }
 
-        return await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            return await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to release leased jobs for lease token {LeaseToken}", leaseToken.Token);
+            return 0;
+        }
     }
 
     public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
     {
         var entity = schedule.ToEntity();
 
-        var exists = await ScheduleEntities.AsNoTracking().AnyAsync(s => s.JobKey == entity.JobKey, cancellationToken);
+        var existing = await ScheduleEntities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
 
-        if (exists)
+        if (existing is not null)
         {
-            // ScheduleEntities.Update(entity);
-            // await _dbContext.SaveChangesAsync(cancellationToken);
+            entity.Id = existing.Id;
+            ScheduleEntities.Update(entity);
         }
         else
         {
             ScheduleEntities.Add(entity);
+        }
+
+        try
+        {
             await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Might fail due to race conditions in a distributed setup
+            // Look into optimistic concurrency control later
+            _logger.LogError(
+                ex,
+                "Failed to upsert schedule {ScheduleKey} for job {JobKey}",
+                schedule.JobKey,
+                schedule.JobKey
+            );
         }
 
         return entity.Id;
     }
 
-    public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+    public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
+    {
+        ScheduleEntities.UpdateRange(schedules.Select(s => s.ToEntity()));
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
         DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return Task.FromResult<IReadOnlyList<AtomizerSchedule>>(Array.Empty<AtomizerSchedule>());
-    }
-
-    public Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
-        DateTimeOffset now,
-        CancellationToken cancellationToken
-    )
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
-    {
         if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
         {
-            var sql = _providerCache.RawSqlProvider.ReleaseLeasedSchedulesAsync(leaseToken);
-            var result = await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
-            return result;
+            var sql = _providerCache.RawSqlProvider.GetDueSchedulesAsync(now);
+
+            var entities = await ScheduleEntities
+                .FromSqlInterpolated(sql)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+
+            return entities.Select(s => s.ToAtomizerSchedule()).ToList();
         }
 
-        var entities = await ScheduleEntities
-            .Where(s => s.LeaseToken == leaseToken.Token)
-            .ToListAsync(cancellationToken);
-
-        foreach (var entity in entities)
+        if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            entity.LeaseToken = null;
-            entity.VisibleAt = null;
-            entity.UpdatedAt = _clock.UtcNow;
+            return await ScheduleEntities
+                .AsNoTracking()
+                .Where(s => s.Enabled && s.NextRunAt <= now)
+                .OrderBy(s => s.NextRunAt)
+                .Select(s => s.ToAtomizerSchedule())
+                .ToListAsync(cancellationToken);
         }
 
-        return await _dbContext.SaveChangesAsync(cancellationToken);
+        throw new NotSupportedException(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
+        );
     }
 
     public async Task<IAtomizerLock> AcquireLockAsync(

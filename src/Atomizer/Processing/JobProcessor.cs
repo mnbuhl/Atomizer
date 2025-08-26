@@ -51,7 +51,7 @@ internal sealed class JobProcessor : IJobProcessor
             using var scope = _storageScopeFactory.CreateScope();
             var storage = scope.Storage;
 
-            await storage.UpdateAsync(job, ct);
+            await storage.UpdateJobAsync(job, ct);
 
             _logger.LogInformation(
                 "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
@@ -107,7 +107,7 @@ internal sealed class JobProcessor : IJobProcessor
             using var scope = _storageScopeFactory.CreateScope();
             var storage = scope.Storage;
 
-            await storage.UpdateAsync(job, ct);
+            await storage.UpdateJobAsync(job, ct);
         }
         catch (Exception jobFailureEx)
         {

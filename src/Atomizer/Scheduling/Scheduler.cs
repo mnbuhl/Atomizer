@@ -52,22 +52,8 @@ internal sealed class Scheduler : IScheduler
             _logger.LogDebug("Error cancelling execution token for scheduler");
         }
 
-        try
-        {
-            var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
-            releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
-
-            await _schedulePoller.ReleaseLeasedSchedulesAsync(releaseCts.Token);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Release leased schedules operation failed");
-        }
-        finally
-        {
-            _ioCts.Dispose();
-            _executionCts.Dispose();
-            _logger.LogInformation("Atomizer Scheduler stopped");
-        }
+        _ioCts.Dispose();
+        _executionCts.Dispose();
+        _logger.LogInformation("Atomizer Scheduler stopped");
     }
 }

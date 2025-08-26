@@ -16,7 +16,7 @@ public interface IAtomizerStorage
     /// <param name="job">The Atomizer job to be updated.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken);
+    Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken);
 
     /// <summary>
     /// Updates a range of existing Atomizer jobs in the storage.
@@ -24,28 +24,7 @@ public interface IAtomizerStorage
     /// <param name="jobs">The collection of Atomizer jobs to be updated.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task UpdateRangeAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Leases a batch of jobs from the specified queue.
-    /// The storage will mark these jobs as "Processing" and set their visibility timeout as well as LeaseToken.
-    /// The leased jobs will not be available for leasing by other consumers until the visibility timeout expires
-    /// </summary>
-    /// <param name="queueKey">The key of the queue from which to lease jobs.</param>
-    /// <param name="batchSize">The maximum number of jobs to lease in this batch.</param>
-    /// <param name="now">The current date and time in UTC</param>
-    /// <param name="visibilityTimeout">The duration for which the leased jobs will be invisible to other consumers.</param>
-    /// <param name="leaseToken">The lease token representing the consumer leasing the jobs.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <returns>A list of leased Atomizer jobs.</returns>
-    Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
-        QueueKey queueKey,
-        int batchSize,
-        DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
-        CancellationToken cancellationToken
-    );
+    Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken);
 
     /// <summary>
     /// Retrieves jobs that are due for processing from the specified queue.
@@ -80,21 +59,12 @@ public interface IAtomizerStorage
     Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Leases due schedules that are scheduled to run at or before the specified time.
-    /// The storage will add the specified visibility timeout to the leased schedules and set their LeaseToken.
-    /// The leased schedules will not be available for leasing by other consumers until the visibility timeout expires.
+    /// Updates a range of existing schedules jobs in the storage.
     /// </summary>
-    /// <param name="now">The current date and time in UTC.</param>
-    /// <param name="visibilityTimeout">The duration for which the leased schedules will be invisible to other consumers.</param>
-    /// <param name="leaseToken">The lease token representing the consumer leasing the schedules.</param>
+    /// <param name="schedules">The collection of Atomizer schedules to be updated.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <returns>A list of leased Atomizer schedules.</returns>
-    Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
-        DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
-        CancellationToken cancellationToken
-    );
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken);
 
     /// <summary>
     /// Retrieves schedules that are due for execution at or before the specified time.
@@ -103,14 +73,6 @@ public interface IAtomizerStorage
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of due Atomizer schedules.</returns>
     Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(DateTimeOffset now, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Releases all schedules leased with the specified lease token, making them available for leasing again.
-    /// </summary>
-    /// <param name="leaseToken">The lease token representing the consumer releasing the schedules.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <returns>The number of schedules released.</returns>
-    Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
 
     /// <summary>
     /// Acquires a distributed lock for the specified queue key.

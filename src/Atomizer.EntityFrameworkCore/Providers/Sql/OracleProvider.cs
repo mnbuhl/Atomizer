@@ -25,9 +25,4 @@ public class OracleProvider : IDatabaseProviderSql
     {
         throw new NotImplementedException();
     }
-
-    public FormattableString ReleaseLeasedSchedulesAsync(LeaseToken leaseToken)
-    {
-        throw new NotImplementedException();
-    }
 }

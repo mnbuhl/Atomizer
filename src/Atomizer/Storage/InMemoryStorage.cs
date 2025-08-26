@@ -52,7 +52,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult(job.Id);
     }
 
-    public Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken)
+    public Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -69,7 +69,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.CompletedTask;
     }
 
-    public Task UpdateRangeAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
+    public Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
@@ -207,6 +207,11 @@ public sealed class InMemoryStorage : IAtomizerStorage
         }
     }
 
+    public Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+
     public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
         DateTimeOffset now,
         TimeSpan visibilityTimeout,
@@ -222,7 +227,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         lock (_schedulesSync)
         {
             due = _schedules
-                .Values.Where(s => s.Enabled && s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now))
+                .Values.Where(s => s.Enabled && s.NextRunAt <= now)
                 .OrderBy(s => s.NextRunAt)
                 .ThenBy(s => s.CreatedAt)
                 .ToList();
@@ -231,11 +236,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
             {
                 _logger.LogDebug("LeaseDueSchedules: no due schedules");
                 return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
-            }
-
-            foreach (var s in due)
-            {
-                s.Lease(now, visibilityTimeout, leaseToken);
             }
         }
 
@@ -254,33 +254,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
     )
     {
         throw new NotImplementedException();
-    }
-
-    public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var now = _clock.UtcNow;
-
-        int affected = 0;
-        lock (_schedulesSync)
-        {
-            foreach (var s in _schedules.Values)
-            {
-                if (s.LeaseToken?.Token == leaseToken.Token)
-                {
-                    s.Release(now);
-                    affected++;
-                }
-            }
-        }
-
-        _logger.LogDebug(
-            "ReleaseLeasedSchedules: released {Count} schedule(s) for leaseToken={LeaseToken}",
-            affected,
-            leaseToken.Token
-        );
-
-        return Task.FromResult(affected);
     }
 
     public Task<IAtomizerLock> AcquireLockAsync(

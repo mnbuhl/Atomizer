@@ -81,7 +81,7 @@ internal class QueuePoller : IQueuePoller
                                 leasedJobs.Add(job);
                             }
 
-                            await storage.UpdateRangeAsync(leasedJobs, ct);
+                            await storage.UpdateJobsAsync(leasedJobs, ct);
                         }
                         else
                         {
