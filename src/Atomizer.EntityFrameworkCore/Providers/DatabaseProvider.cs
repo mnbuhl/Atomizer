@@ -1,6 +1,6 @@
 ﻿namespace Atomizer.EntityFrameworkCore.Providers;
 
-public enum RelationalDatabaseProvider
+public enum DatabaseProvider
 {
     PostgreSql,
     MySql,

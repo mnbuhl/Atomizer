@@ -97,6 +97,14 @@ public interface IAtomizerStorage
     );
 
     /// <summary>
+    /// Retrieves schedules that are due for execution at or before the specified time.
+    /// </summary>
+    /// <param name="now">The current date and time in UTC.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A list of due Atomizer schedules.</returns>
+    Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Releases all schedules leased with the specified lease token, making them available for leasing again.
     /// </summary>
     /// <param name="leaseToken">The lease token representing the consumer releasing the schedules.</param>

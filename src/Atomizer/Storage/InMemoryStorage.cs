@@ -248,6 +248,14 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
+    public Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
+    {
+        throw new NotImplementedException();
+    }
+
     public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

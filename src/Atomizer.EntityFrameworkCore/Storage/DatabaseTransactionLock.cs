@@ -13,13 +13,15 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
+    private readonly TimeSpan _timeout;
 
     private IDbContextTransaction? _dbTransaction;
     private CancellationToken? _cancellationToken;
 
-    public DatabaseTransactionLock(TDbContext dbContext)
+    public DatabaseTransactionLock(TDbContext dbContext, TimeSpan timeout)
     {
         _dbContext = dbContext;
+        _timeout = timeout;
     }
 
     public void Dispose()
@@ -72,10 +74,9 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
     {
         try
         {
-            _dbTransaction = await _dbContext.Database.BeginTransactionAsync(
-                IsolationLevel.ReadCommitted,
-                cancellationToken
-            );
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(_timeout);
+            _dbTransaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cts.Token);
             Acquired = true;
         }
         catch

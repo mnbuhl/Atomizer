@@ -95,21 +95,41 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         CancellationToken cancellationToken
     )
     {
-        return await JobEntities
-            .AsNoTracking()
-            .Where(j =>
-                j.QueueKey == queueKey.Key
-                && (
-                    j.Status == AtomizerEntityJobStatus.Pending
-                        && (j.VisibleAt == null || j.VisibleAt <= now)
-                        && j.ScheduledAt <= now
-                    || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        {
+            var sql = _providerCache.RawSqlProvider.GetDueJobsAsync(queueKey, now, batchSize);
+
+            var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
+
+            return entities.Select(job => job.ToAtomizerJob()).ToList();
+        }
+
+        if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
+        {
+            return await JobEntities
+                .AsNoTracking()
+                .Where(j =>
+                    j.QueueKey == queueKey.Key
+                    && (
+                        j.Status == AtomizerEntityJobStatus.Pending
+                            && (j.VisibleAt == null || j.VisibleAt <= now)
+                            && j.ScheduledAt <= now
+                        || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
+                    )
                 )
-            )
-            .OrderBy(j => j.ScheduledAt)
-            .Take(batchSize)
-            .Select(job => job.ToAtomizerJob())
-            .ToListAsync(cancellationToken);
+                .OrderBy(j => j.ScheduledAt)
+                .Take(batchSize)
+                .Select(job => job.ToAtomizerJob())
+                .ToListAsync(cancellationToken);
+        }
+
+        throw new NotSupportedException(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
+        );
     }
 
     public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
@@ -125,8 +145,8 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (exists)
         {
-            ScheduleEntities.Update(entity);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            // ScheduleEntities.Update(entity);
+            // await _dbContext.SaveChangesAsync(cancellationToken);
         }
         else
         {
@@ -149,6 +169,14 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         return Task.FromResult<IReadOnlyList<AtomizerSchedule>>(Array.Empty<AtomizerSchedule>());
     }
 
+    public Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
+    {
+        throw new NotImplementedException();
+    }
+
     public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
         return Task.FromResult(0);
@@ -160,7 +188,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         CancellationToken cancellationToken
     )
     {
-        var transaction = new DatabaseTransactionLock<TDbContext>(_dbContext);
+        var transaction = new DatabaseTransactionLock<TDbContext>(_dbContext, lockTimeout);
         await transaction.AcquireAsync(cancellationToken);
 
         return transaction;

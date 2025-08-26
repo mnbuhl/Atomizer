@@ -6,15 +6,15 @@ namespace Atomizer.EntityFrameworkCore.Providers;
 public class EntityMap
 {
     public string Table { get; }
-    public Dictionary<string, string> Columns { get; }
+    public Dictionary<string, string> Col { get; }
 
-    private EntityMap(string table, Dictionary<string, string> columns)
+    private EntityMap(string table, Dictionary<string, string> col)
     {
         Table = table;
-        Columns = columns;
+        Col = col;
     }
 
-    public static EntityMap Build(IModel model, Type clrType, RelationalDatabaseProvider provider)
+    public static EntityMap Build(IModel model, Type clrType, DatabaseProvider provider)
     {
         var entityType =
             model.FindEntityType(clrType)
@@ -27,11 +27,11 @@ public class EntityMap
 
         Func<string, string> escape = provider switch
         {
-            RelationalDatabaseProvider.SqlServer => name => $"[{name}]",
-            RelationalDatabaseProvider.PostgreSql => name => $"\"{name}\"",
-            RelationalDatabaseProvider.MySql => name => $"`{name}`",
-            RelationalDatabaseProvider.Oracle => name => $"\"{name}\"",
-            RelationalDatabaseProvider.Unknown => name => name,
+            DatabaseProvider.SqlServer => name => $"[{name}]",
+            DatabaseProvider.PostgreSql => name => $"\"{name}\"",
+            DatabaseProvider.MySql => name => $"`{name}`",
+            DatabaseProvider.Oracle => name => $"\"{name}\"",
+            DatabaseProvider.Unknown => name => name,
             _ => throw new NotSupportedException($"Database provider {provider} is not supported."),
         };
 
