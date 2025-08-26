@@ -1,8 +1,8 @@
 ﻿using Atomizer.Abstractions;
 using Atomizer.Core;
 using Atomizer.Scheduling;
+using Atomizer.Storage;
 using Atomizer.Tests.TestJobs;
-using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Tests.Scheduling;
 
@@ -27,34 +27,7 @@ public class ScheduleProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_WhenPayloadTypeIsNull_ShouldDisableScheduleAndUpsert()
-    {
-        // Arrange
-        var schedule = AtomizerSchedule.Create(
-            new JobKey("testjob"),
-            QueueKey.Default,
-            null!, // PayloadType is null
-            "payload",
-            Schedule.EverySecond,
-            TimeZoneInfo.Utc,
-            _clock.UtcNow
-        );
-        var horizon = _clock.UtcNow;
-        var token = CancellationToken.None;
-
-        // Act
-        await _sut.ProcessAsync(schedule, horizon, token);
-
-        // Assert
-        schedule.Enabled.Should().BeFalse();
-        await _storage.Received(1).UpsertScheduleAsync(schedule, token);
-        _logger
-            .Received(1)
-            .LogWarning("Schedule {ScheduleKey} has no payload type defined, disabling schedule", schedule.JobKey);
-    }
-
-    [Fact]
-    public async Task ProcessAsync_WhenOccurrencesExist_ShouldInsertJobsAndUpsertSchedule()
+    public async Task ProcessAsync_WhenOccurrencesExist_ShouldInsertJobs()
     {
         // Arrange
         var schedule = AtomizerSchedule.Create(
@@ -69,6 +42,9 @@ public class ScheduleProcessorTests
         var horizon = _clock.UtcNow.AddSeconds(2);
         var token = CancellationToken.None;
         var occurrences = schedule.GetOccurrences(horizon);
+        _storage
+            .AcquireLockAsync(QueueKey.Scheduler, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new NoopLock());
 
         // Act
         await _sut.ProcessAsync(schedule, horizon, token);
@@ -83,8 +59,6 @@ public class ScheduleProcessorTests
                     token
                 );
         }
-
-        await _storage.Received(1).UpsertScheduleAsync(schedule, token);
     }
 
     [Fact]
@@ -104,6 +78,9 @@ public class ScheduleProcessorTests
         var token = CancellationToken.None;
 
         _storage.InsertAsync(Arg.Any<AtomizerJob>(), token).Returns<Task>(_ => throw new Exception("Insert failed"));
+        _storage
+            .AcquireLockAsync(QueueKey.Scheduler, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new NoopLock());
 
         // Act
         await _sut.ProcessAsync(schedule, horizon, token);
@@ -115,31 +92,5 @@ public class ScheduleProcessorTests
                 Arg.Any<Exception>(),
                 Arg.Is<string>(s => s.StartsWith($"Failed to insert scheduled job {schedule.JobKey}"))
             );
-        await _storage.Received(1).UpsertScheduleAsync(schedule, token);
-    }
-
-    [Fact]
-    public async Task ProcessAsync_WhenUpsertScheduleThrows_ShouldLogError()
-    {
-        // Arrange
-        var schedule = AtomizerSchedule.Create(
-            new JobKey("testjob"),
-            QueueKey.Default,
-            typeof(WriteLineMessage),
-            "payload",
-            Schedule.EverySecond,
-            TimeZoneInfo.Utc,
-            _clock.UtcNow
-        );
-        var horizon = _clock.UtcNow.AddSeconds(2);
-        var token = CancellationToken.None;
-
-        _storage.UpsertScheduleAsync(schedule, token).Returns<Task>(_ => throw new Exception("Upsert failed"));
-
-        // Act
-        await _sut.ProcessAsync(schedule, horizon, token);
-
-        // Assert
-        _logger.Received(1).LogError(Arg.Any<Exception>(), $"Failed to upsert schedule {schedule.JobKey}");
     }
 }

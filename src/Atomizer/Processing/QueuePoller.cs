@@ -73,7 +73,7 @@ internal class QueuePoller : IQueuePoller
 
                         if (jobs.Count > 0)
                         {
-                            _logger.LogDebug("Queue '{Queue}' leasing {JobCount} jobs", queue.QueueKey, jobs.Count);
+                            _logger.LogDebug("Queue '{Queue}' leasing {JobCount} job(s)", queue.QueueKey, jobs.Count);
 
                             foreach (var job in jobs)
                             {
