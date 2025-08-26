@@ -1,4 +1,5 @@
 ﻿using Atomizer.Abstractions;
+using Atomizer.Core;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
+    private readonly IAtomizerClock _clock;
     private readonly EntityFrameworkCoreJobStorageOptions _options;
     private readonly ILogger<EntityFrameworkCoreStorage<TDbContext>> _logger;
 
@@ -20,11 +22,13 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     public EntityFrameworkCoreStorage(
         TDbContext dbContext,
         EntityFrameworkCoreJobStorageOptions options,
+        IAtomizerClock clock,
         ILogger<EntityFrameworkCoreStorage<TDbContext>> logger
     )
     {
         _dbContext = dbContext;
         _options = options;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -181,7 +185,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                             .SetProperty(sch => sch.MisfirePolicy, entity.MisfirePolicy)
                             .SetProperty(sch => sch.MaxCatchUp, entity.MaxCatchUp)
                             .SetProperty(sch => sch.Enabled, entity.Enabled)
-                            .SetProperty(sch => sch.MaxAttempts, entity.MaxAttempts)
+                            .SetProperty(sch => sch.RetryIntervals, entity.RetryIntervals)
                             .SetProperty(sch => sch.NextRunAt, entity.NextRunAt)
                             .SetProperty(sch => sch.UpdatedAt, entity.UpdatedAt)
                             .SetProperty(sch => sch.VisibleAt, entity.VisibleAt)
@@ -189,7 +193,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                             .SetProperty(
                                 sch => sch.LastEnqueueAt,
                                 sch =>
-                                    sch.LastEnqueueAt > entity.LastEnqueueAt ? sch.LastEnqueueAt : entity.LastEnqueueAt
+                                    sch.LastEnqueueAt > (entity.LastEnqueueAt ?? _clock.MinValue)
+                                        ? sch.LastEnqueueAt
+                                        : entity.LastEnqueueAt
                             ),
                     cancellationToken
                 );

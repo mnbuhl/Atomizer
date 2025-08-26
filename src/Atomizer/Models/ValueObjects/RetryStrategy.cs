@@ -1,11 +1,14 @@
 ﻿using Atomizer.Exceptions;
+using Atomizer.Models.Base;
 
 namespace Atomizer;
 
-public sealed class RetryStrategy
+public sealed class RetryStrategy : ValueObject
 {
     public int MaxAttempts { get; private set; } = 3;
     public TimeSpan[] RetryIntervals { get; private set; } = [];
+
+    private RetryStrategy() { }
 
     public static RetryStrategy Default => Fixed(TimeSpan.FromSeconds(15), 3, jitter: true);
 
@@ -23,15 +26,14 @@ public sealed class RetryStrategy
             throw new InvalidRetryStrategyException("MaxAttempts must be at least 1.", nameof(maxAttempts));
         }
 
-        var jitteredDelay = jitter
-            ? TimeSpan.FromMilliseconds(delay.TotalMilliseconds * (0.8 + new Random().NextDouble() * 0.4))
-            : delay;
+        List<TimeSpan> intervals = new();
 
-        return new RetryStrategy
+        for (int i = 0; i < maxAttempts; i++)
         {
-            MaxAttempts = maxAttempts,
-            RetryIntervals = Enumerable.Repeat(jitteredDelay, maxAttempts).ToArray(),
-        };
+            intervals.Add(jitter ? ApplyJitter(delay) : delay);
+        }
+
+        return new RetryStrategy { MaxAttempts = maxAttempts, RetryIntervals = intervals.ToArray() };
     }
 
     public static RetryStrategy Intervals(IEnumerable<TimeSpan> intervals)
@@ -93,14 +95,43 @@ public sealed class RetryStrategy
             intervals[i] = currentInterval;
             var nextIntervalMs = currentInterval.TotalMilliseconds * exponent;
 
+            currentInterval = TimeSpan.FromMilliseconds(Math.Min(nextIntervalMs, maxIntervalValue.TotalMilliseconds));
+
             if (jitter)
             {
-                var factor = 0.8 + new Random().NextDouble() * 0.4; // 0.8x - 1.2x
-                nextIntervalMs *= factor;
+                intervals[i] = ApplyJitter(intervals[i]);
             }
-
-            currentInterval = TimeSpan.FromMilliseconds(Math.Min(nextIntervalMs, maxIntervalValue.TotalMilliseconds));
         }
         return new RetryStrategy { MaxAttempts = maxAttempts, RetryIntervals = intervals };
+    }
+
+    public bool ShouldRetry(int attempt)
+    {
+        return attempt < MaxAttempts;
+    }
+
+    public TimeSpan GetRetryInterval(int attempt)
+    {
+        if (attempt < 1 || attempt > MaxAttempts)
+        {
+            throw new ArgumentOutOfRangeException(nameof(attempt), $"Attempt must be between 1 and {MaxAttempts}.");
+        }
+
+        return RetryIntervals[attempt - 1];
+    }
+
+    protected override IEnumerable<object> GetEqualityValues()
+    {
+        yield return MaxAttempts;
+        foreach (var interval in RetryIntervals)
+        {
+            yield return interval;
+        }
+    }
+
+    private static TimeSpan ApplyJitter(TimeSpan interval)
+    {
+        var jitterFactor = 0.8 + new Random().NextDouble() * 0.4; // Random factor between 0.8 and 1.2
+        return TimeSpan.FromMilliseconds(interval.TotalMilliseconds * jitterFactor);
     }
 }

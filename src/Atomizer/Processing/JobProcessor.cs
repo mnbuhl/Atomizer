@@ -74,16 +74,13 @@ internal sealed class JobProcessor : IJobProcessor
     {
         try
         {
-            var retryCtx = new AtomizerRetryContext(job);
-            var retryPolicy = new DefaultRetryPolicy(retryCtx);
-
             var now = _clock.UtcNow;
 
             job.Errors.Add(AtomizerJobError.Create(job.Id, now, job.Attempts, ex, job.LeaseToken?.InstanceId));
 
-            if (retryPolicy.ShouldRetry(job.Attempts))
+            if (job.RetryStrategy.ShouldRetry(job.Attempts))
             {
-                var delay = retryPolicy.GetBackoff(job.Attempts, ex);
+                var delay = job.RetryStrategy.GetRetryInterval(job.Attempts);
                 var nextVisible = now + delay;
 
                 job.Retry(nextVisible, now);

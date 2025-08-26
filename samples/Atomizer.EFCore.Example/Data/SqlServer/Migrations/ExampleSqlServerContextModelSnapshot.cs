@@ -72,9 +72,6 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
-                    b.Property<int>("MaxAttempts")
-                        .HasColumnType("int");
-
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -88,6 +85,11 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("RetryIntervals")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ScheduleJobKey")
                         .HasMaxLength(512)
@@ -172,9 +174,6 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
-                    b.Property<int>("MaxAttempts")
-                        .HasColumnType("int");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("int");
 
@@ -197,6 +196,11 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("RetryIntervals")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Schedule")
                         .IsRequired()

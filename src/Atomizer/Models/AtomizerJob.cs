@@ -11,8 +11,7 @@ public class AtomizerJob : Model
     public DateTimeOffset? VisibleAt { get; set; }
     public AtomizerJobStatus Status { get; set; }
     public int Attempts { get; set; }
-    public int MaxAttempts { get; set; }
-    public IReadOnlyList<TimeSpan> RetryIntervals { get; set; } = [];
+    public RetryStrategy RetryStrategy { get; set; } = RetryStrategy.Default;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
@@ -28,7 +27,7 @@ public class AtomizerJob : Model
         string payload,
         DateTimeOffset createdAt,
         DateTimeOffset scheduledAt,
-        int maxAttempts = 3,
+        RetryStrategy? retryStrategy = null,
         string? idempotencyKey = null,
         JobKey? scheduleJobKey = null
     )
@@ -42,7 +41,7 @@ public class AtomizerJob : Model
             ScheduledAt = scheduledAt,
             Status = AtomizerJobStatus.Pending,
             Attempts = 0,
-            MaxAttempts = maxAttempts,
+            RetryStrategy = retryStrategy ?? RetryStrategy.Default,
             CreatedAt = createdAt,
             UpdatedAt = createdAt,
             IdempotencyKey = idempotencyKey,

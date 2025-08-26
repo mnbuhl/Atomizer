@@ -14,7 +14,7 @@ public class AtomizerSchedule : Model
     public MisfirePolicy MisfirePolicy { get; set; } = MisfirePolicy.ExecuteNow;
     public int MaxCatchUp { get; set; } = 5; // Default to catching up 5 missed runs
     public bool Enabled { get; set; } = true;
-    public int MaxAttempts { get; set; } = 3;
+    public RetryStrategy RetryStrategy { get; set; } = RetryStrategy.Default;
     public DateTimeOffset NextRunAt { get; set; }
     public DateTimeOffset? LastEnqueueAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -35,7 +35,7 @@ public class AtomizerSchedule : Model
         MisfirePolicy misfirePolicy = MisfirePolicy.ExecuteNow,
         int maxCatchUp = 5,
         bool enabled = true,
-        int maxAttempts = 3
+        RetryStrategy? retryStrategy = null
     )
     {
         var atomizerSchedule = new AtomizerSchedule
@@ -50,7 +50,7 @@ public class AtomizerSchedule : Model
             MisfirePolicy = misfirePolicy,
             MaxCatchUp = maxCatchUp,
             Enabled = enabled,
-            MaxAttempts = maxAttempts,
+            RetryStrategy = retryStrategy ?? RetryStrategy.Default,
             CreatedAt = createdAt,
             UpdatedAt = createdAt,
         };

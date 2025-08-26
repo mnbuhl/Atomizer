@@ -33,20 +33,15 @@ public sealed class EnqueueOptions
     public QueueKey Queue { get; set; } = QueueKey.Default;
 
     /// <summary>
-    /// Enqueue the job with a different type than the registered type.
-    /// </summary>
-    public Type? TypeOverride { get; set; }
-
-    /// <summary>
     /// The idempotency key for the job, used to ensure that duplicate jobs are not processed.
     /// </summary>
     public string? IdempotencyKey { get; set; }
 
     /// <summary>
-    /// The maximum number of attempts to process the job before it is considered failed.
-    /// <remarks>Defaults to 3 attempts.</remarks>
+    /// The retry strategy to apply when a job fails.
+    /// <remarks>Defaults to 3 attempts with 15 seconds delays</remarks>
     /// </summary>
-    public int MaxAttempts { get; set; } = 3;
+    public RetryStrategy RetryStrategy { get; set; } = RetryStrategy.Default;
 }
 
 public sealed class RecurringOptions
@@ -57,10 +52,10 @@ public sealed class RecurringOptions
     public QueueKey Queue { get; set; } = QueueKey.Default;
 
     /// <summary>
-    /// The maximum number of attempts to process the job before it is considered failed.
-    /// <remarks>Defaults to 3 attempts.</remarks>
+    /// The retry strategy to apply when a job fails.
+    /// <remarks>Defaults to 3 attempts with 15 seconds delays</remarks>
     /// </summary>
-    public int MaxAttempts { get; set; } = 3;
+    public RetryStrategy RetryStrategy { get; set; } = RetryStrategy.Default;
 
     /// <summary>
     /// The policy to apply when a job misfires.

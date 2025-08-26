@@ -58,7 +58,7 @@ public class AtomizerScheduleEntity
     /// <summary>
     /// Maximum number of attempts for a job.
     /// </summary>
-    public int MaxAttempts { get; set; } = 3;
+    public TimeSpan[] RetryIntervals { get; set; } = [];
 
     /// <summary>
     /// The next scheduled run time.
@@ -89,21 +89,6 @@ public class AtomizerScheduleEntity
     /// When the schedule becomes visible.
     /// </summary>
     public DateTimeOffset? VisibleAt { get; set; }
-
-    public void MapSafePropertiesFrom(AtomizerScheduleEntity source)
-    {
-        QueueKey = source.QueueKey;
-        PayloadType = source.PayloadType;
-        Payload = source.Payload;
-        Schedule = source.Schedule;
-        TimeZone = source.TimeZone;
-        MisfirePolicy = source.MisfirePolicy;
-        MaxCatchUp = source.MaxCatchUp;
-        Enabled = source.Enabled;
-        MaxAttempts = source.MaxAttempts;
-        NextRunAt = source.NextRunAt;
-        UpdatedAt = source.UpdatedAt;
-    }
 }
 
 public enum MisfirePolicyEntity
@@ -129,7 +114,7 @@ public static class AtomizerScheduleEntityMapper
             MisfirePolicy = (MisfirePolicyEntity)(int)schedule.MisfirePolicy,
             MaxCatchUp = schedule.MaxCatchUp,
             Enabled = schedule.Enabled,
-            MaxAttempts = schedule.MaxAttempts,
+            RetryIntervals = schedule.RetryStrategy.RetryIntervals,
             NextRunAt = schedule.NextRunAt,
             LastEnqueueAt = schedule.LastEnqueueAt,
             CreatedAt = schedule.CreatedAt,
@@ -153,7 +138,8 @@ public static class AtomizerScheduleEntityMapper
             MisfirePolicy = (MisfirePolicy)(int)entity.MisfirePolicy,
             MaxCatchUp = entity.MaxCatchUp,
             Enabled = entity.Enabled,
-            MaxAttempts = entity.MaxAttempts,
+            RetryStrategy =
+                entity.RetryIntervals.Length == 0 ? RetryStrategy.None : RetryStrategy.Intervals(entity.RetryIntervals),
             NextRunAt = entity.NextRunAt,
             LastEnqueueAt = entity.LastEnqueueAt,
             CreatedAt = entity.CreatedAt,
