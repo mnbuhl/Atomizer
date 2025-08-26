@@ -19,6 +19,14 @@ public interface IAtomizerStorage
     Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Updates a range of existing Atomizer jobs in the storage.
+    /// </summary>
+    /// <param name="jobs">The collection of Atomizer jobs to be updated.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task UpdateRangeAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Leases a batch of jobs from the specified queue.
     /// The storage will mark these jobs as "Processing" and set their visibility timeout as well as LeaseToken.
     /// The leased jobs will not be available for leasing by other consumers until the visibility timeout expires
@@ -36,6 +44,21 @@ public interface IAtomizerStorage
         DateTimeOffset now,
         TimeSpan visibilityTimeout,
         LeaseToken leaseToken,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>
+    /// Retrieves jobs that are due for processing from the specified queue.
+    /// </summary>
+    /// <param name="queueKey">The key of the queue from which to retrieve due jobs.</param>
+    /// <param name="now">The current date and time in UTC.</param>
+    /// <param name="batchSize">The maximum number of jobs to retrieve in this batch.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A list of due Atomizer jobs.</returns>
+    Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
+        QueueKey queueKey,
+        DateTimeOffset now,
+        int batchSize,
         CancellationToken cancellationToken
     );
 
@@ -80,4 +103,13 @@ public interface IAtomizerStorage
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>The number of schedules released.</returns>
     Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Acquires a distributed lock for the specified queue key.
+    /// </summary>
+    /// <param name="queueKey">The key of the queue for which to acquire the lock.</param>
+    /// <param name="lockTimeout">The duration for which the lock will be held before it is automatically released.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns></returns>
+    Task<IAtomizerLock> AcquireLockAsync(QueueKey queueKey, TimeSpan lockTimeout, CancellationToken cancellationToken);
 }

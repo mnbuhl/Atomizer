@@ -69,6 +69,11 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.CompletedTask;
     }
 
+    public Task UpdateRangeAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+
     public Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
         QueueKey queueKey,
         int batchSize,
@@ -136,6 +141,16 @@ public sealed class InMemoryStorage : IAtomizerStorage
         );
 
         return Task.FromResult((IReadOnlyList<AtomizerJob>)candidates);
+    }
+
+    public Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
+        QueueKey queueKey,
+        DateTimeOffset now,
+        int batchSize,
+        CancellationToken cancellationToken
+    )
+    {
+        throw new NotImplementedException();
     }
 
     public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
@@ -258,6 +273,15 @@ public sealed class InMemoryStorage : IAtomizerStorage
         );
 
         return Task.FromResult(affected);
+    }
+
+    public Task<IAtomizerLock> AcquireLockAsync(
+        QueueKey queueKey,
+        TimeSpan lockTimeout,
+        CancellationToken cancellationToken
+    )
+    {
+        throw new NotImplementedException();
     }
 
     // ---- helpers ----

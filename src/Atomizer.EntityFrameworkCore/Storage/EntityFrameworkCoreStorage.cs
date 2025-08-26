@@ -68,7 +68,13 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
+    public Task UpdateRangeAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
+    {
+        JobEntities.UpdateRange(jobs.Select(j => j.ToEntity()));
+        return _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
         QueueKey queueKey,
         int batchSize,
         DateTimeOffset now,
@@ -77,9 +83,17 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         CancellationToken cancellationToken
     )
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<AtomizerJob>>(Array.Empty<AtomizerJob>());
+    }
 
-        var candidateIds = await JobEntities
+    public async Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
+        QueueKey queueKey,
+        DateTimeOffset now,
+        int batchSize,
+        CancellationToken cancellationToken
+    )
+    {
+        return await JobEntities
             .AsNoTracking()
             .Where(j =>
                 j.QueueKey == queueKey.Key
@@ -91,63 +105,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 )
             )
             .OrderBy(j => j.ScheduledAt)
-            .Select(j => j.Id)
             .Take(batchSize)
+            .Select(job => job.ToAtomizerJob())
             .ToListAsync(cancellationToken);
-
-        if (candidateIds.Count == 0)
-        {
-            _logger.LogDebug("No jobs found for queue {QueueKey} at {Now}", queueKey.Key, now);
-            return Array.Empty<AtomizerJob>();
-        }
-
-        var updated = await JobEntities
-            .Where(j =>
-                candidateIds.Contains(j.Id)
-                && (
-                    j.Status == AtomizerEntityJobStatus.Pending
-                        && (j.VisibleAt == null || j.VisibleAt <= now)
-                        && j.ScheduledAt <= now
-                    || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
-                )
-            )
-            .ExecuteUpdateCompatAsync(
-                s =>
-                    s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Processing)
-                        .SetProperty(j => j.VisibleAt, now.Add(visibilityTimeout))
-                        .SetProperty(j => j.LeaseToken, leaseToken.Token),
-                cancellationToken
-            );
-
-        if (updated == 0)
-        {
-            _logger.LogDebug(
-                "No jobs updated for queue {QueueKey} at {Now} with lease token {LeaseToken}",
-                queueKey.Key,
-                now,
-                leaseToken
-            );
-            return Array.Empty<AtomizerJob>();
-        }
-
-        _logger.LogInformation(
-            "Leased {Count} jobs for queue {QueueKey} with lease token {LeaseToken}",
-            updated,
-            queueKey.Key,
-            leaseToken
-        );
-
-        var leased = await JobEntities
-            .AsNoTracking()
-            .Where(j =>
-                candidateIds.Contains(j.Id)
-                && j.Status == AtomizerEntityJobStatus.Processing
-                && j.LeaseToken == leaseToken.Token
-            )
-            .Select(j => j.ToAtomizerJob())
-            .ToListAsync(cancellationToken);
-
-        return leased;
     }
 
     public async Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
@@ -272,5 +232,17 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             );
 
         return releasedCount;
+    }
+
+    public async Task<IAtomizerLock> AcquireLockAsync(
+        QueueKey queueKey,
+        TimeSpan lockTimeout,
+        CancellationToken cancellationToken
+    )
+    {
+        var transaction = new DatabaseTransactionLock<TDbContext>(_dbContext);
+        await transaction.AcquireAsync(cancellationToken);
+
+        return transaction;
     }
 }
