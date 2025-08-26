@@ -1,7 +1,7 @@
 ﻿using Atomizer.Abstractions;
 using Atomizer.Core;
 using Atomizer.EntityFrameworkCore.Entities;
-using Atomizer.EntityFrameworkCore.Extensions;
+using Atomizer.EntityFrameworkCore.Providers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -14,6 +14,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     private readonly IAtomizerClock _clock;
     private readonly EntityFrameworkCoreJobStorageOptions _options;
     private readonly ILogger<EntityFrameworkCoreStorage<TDbContext>> _logger;
+    private readonly RelationalProviderCache _providerCache;
 
     private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
     private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
@@ -30,6 +31,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         _options = options;
         _clock = clock;
         _logger = logger;
+        _providerCache = RelationalProviderCache.Create(dbContext);
     }
 
     public async Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
@@ -110,19 +112,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
-        var releasedCount = await JobEntities
-            .Where(j => j.LeaseToken == leaseToken.Token && j.Status == AtomizerEntityJobStatus.Processing)
-            .ExecuteUpdateCompatAsync(
-                s =>
-                    s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)
-                        .SetProperty(j => j.VisibleAt, _ => null)
-                        .SetProperty(j => j.LeaseToken, _ => null),
-                cancellationToken
-            );
-
-        return releasedCount;
+        return Task.FromResult(0);
     }
 
     public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
@@ -133,32 +125,8 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (exists)
         {
-            await ScheduleEntities
-                .Where(s => s.JobKey == entity.JobKey)
-                .ExecuteUpdateCompatAsync(
-                    s =>
-                        s.SetProperty(sch => sch.QueueKey, entity.QueueKey)
-                            .SetProperty(sch => sch.PayloadType, entity.PayloadType)
-                            .SetProperty(sch => sch.Payload, entity.Payload)
-                            .SetProperty(sch => sch.Schedule, entity.Schedule)
-                            .SetProperty(sch => sch.TimeZone, entity.TimeZone)
-                            .SetProperty(sch => sch.MisfirePolicy, entity.MisfirePolicy)
-                            .SetProperty(sch => sch.MaxCatchUp, entity.MaxCatchUp)
-                            .SetProperty(sch => sch.Enabled, entity.Enabled)
-                            .SetProperty(sch => sch.RetryIntervals, entity.RetryIntervals)
-                            .SetProperty(sch => sch.NextRunAt, entity.NextRunAt)
-                            .SetProperty(sch => sch.UpdatedAt, entity.UpdatedAt)
-                            .SetProperty(sch => sch.VisibleAt, entity.VisibleAt)
-                            .SetProperty(sch => sch.LeaseToken, entity.LeaseToken)
-                            .SetProperty(
-                                sch => sch.LastEnqueueAt,
-                                sch =>
-                                    sch.LastEnqueueAt > (entity.LastEnqueueAt ?? _clock.MinValue)
-                                        ? sch.LastEnqueueAt
-                                        : entity.LastEnqueueAt
-                            ),
-                    cancellationToken
-                );
+            ScheduleEntities.Update(entity);
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
         else
         {
@@ -169,7 +137,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         return entity.Id;
     }
 
-    public async Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+    public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
         DateTimeOffset now,
         TimeSpan visibilityTimeout,
         LeaseToken leaseToken,
@@ -178,60 +146,12 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var candidateIds = await ScheduleEntities
-            .AsNoTracking()
-            .Where(s => s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now) && s.Enabled)
-            .OrderBy(s => s.NextRunAt)
-            .Select(s => s.Id)
-            .ToListAsync(cancellationToken);
-
-        if (candidateIds.Count == 0)
-        {
-            _logger.LogDebug("No due schedules found at {Now}", now);
-            return Array.Empty<AtomizerSchedule>();
-        }
-
-        var updatedCount = await ScheduleEntities
-            .Where(s => candidateIds.Contains(s.Id) && (s.VisibleAt == null || s.VisibleAt <= now))
-            .ExecuteUpdateCompatAsync(
-                s =>
-                    s.SetProperty(sch => sch.VisibleAt, now.Add(visibilityTimeout))
-                        .SetProperty(sch => sch.LeaseToken, leaseToken.Token),
-                cancellationToken
-            );
-
-        if (updatedCount == 0)
-        {
-            _logger.LogDebug("No schedules updated for lease token {LeaseToken} at {Now}", leaseToken, now);
-            return Array.Empty<AtomizerSchedule>();
-        }
-
-        _logger.LogInformation(
-            "Leased {Count} schedules with lease token {LeaseToken} at {Now}",
-            updatedCount,
-            leaseToken,
-            now
-        );
-
-        var leasedSchedules = await ScheduleEntities
-            .AsNoTracking()
-            .Where(s => candidateIds.Contains(s.Id) && s.LeaseToken == leaseToken.Token)
-            .Select(s => s.ToAtomizerSchedule())
-            .ToListAsync(cancellationToken);
-
-        return leasedSchedules;
+        return Task.FromResult<IReadOnlyList<AtomizerSchedule>>(Array.Empty<AtomizerSchedule>());
     }
 
-    public async Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
-        var releasedCount = await ScheduleEntities
-            .Where(s => s.LeaseToken == leaseToken.Token)
-            .ExecuteUpdateCompatAsync(
-                s => s.SetProperty(sch => sch.VisibleAt, _ => null).SetProperty(sch => sch.LeaseToken, _ => null),
-                cancellationToken
-            );
-
-        return releasedCount;
+        return Task.FromResult(0);
     }
 
     public async Task<IAtomizerLock> AcquireLockAsync(

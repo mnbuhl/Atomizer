@@ -144,7 +144,7 @@ public static class AtomizerScheduleEntityMapper
             LastEnqueueAt = entity.LastEnqueueAt,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
-            LeaseToken = string.IsNullOrEmpty(entity.LeaseToken) ? null : new LeaseToken(entity.LeaseToken),
+            LeaseToken = string.IsNullOrEmpty(entity.LeaseToken) ? null : new LeaseToken(entity.LeaseToken!),
             VisibleAt = entity.VisibleAt,
         };
     }

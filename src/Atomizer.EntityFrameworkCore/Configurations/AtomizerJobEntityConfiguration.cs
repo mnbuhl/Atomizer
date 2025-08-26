@@ -42,7 +42,12 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
                 v =>
                     v.Split(';', StringSplitOptions.RemoveEmptyEntries)
                         .Select(s => TimeSpan.FromMilliseconds(long.Parse(s)))
-                        .ToArray()
+                        .ToArray(),
+                new ValueComparer<TimeSpan[]>(
+                    (c1, c2) => c1!.SequenceEqual(c2!),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToArray()
+                )
             );
     }
 }

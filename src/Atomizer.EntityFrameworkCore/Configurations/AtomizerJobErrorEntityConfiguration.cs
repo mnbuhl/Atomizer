@@ -29,7 +29,7 @@ public class AtomizerJobErrorEntityConfiguration : IEntityTypeConfiguration<Atom
         // Configure the relationship with AtomizerJobEntity
         builder
             .HasOne(error => error.Job)
-            .WithMany(job => job.Errors)
+            .WithMany(job => job!.Errors)
             .HasForeignKey(error => error.JobId)
             .OnDelete(DeleteBehavior.Cascade);
     }
