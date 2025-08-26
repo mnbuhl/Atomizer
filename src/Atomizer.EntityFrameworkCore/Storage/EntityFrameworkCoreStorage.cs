@@ -132,9 +132,28 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         );
     }
 
-    public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public async Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
-        return Task.FromResult(0);
+        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        {
+            var sql = _providerCache.RawSqlProvider.ReleaseLeasedJobsAsync(leaseToken);
+            var result = await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+            return result;
+        }
+
+        var entities = await JobEntities
+            .Where(j => j.LeaseToken == leaseToken.Token && j.Status == AtomizerEntityJobStatus.Processing)
+            .ToListAsync(cancellationToken);
+
+        foreach (var entity in entities)
+        {
+            entity.Status = AtomizerEntityJobStatus.Pending;
+            entity.VisibleAt = null;
+            entity.LeaseToken = null;
+            entity.UpdatedAt = _clock.UtcNow;
+        }
+
+        return await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
@@ -177,9 +196,27 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         throw new NotImplementedException();
     }
 
-    public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public async Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
     {
-        return Task.FromResult(0);
+        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        {
+            var sql = _providerCache.RawSqlProvider.ReleaseLeasedSchedulesAsync(leaseToken);
+            var result = await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+            return result;
+        }
+
+        var entities = await ScheduleEntities
+            .Where(s => s.LeaseToken == leaseToken.Token)
+            .ToListAsync(cancellationToken);
+
+        foreach (var entity in entities)
+        {
+            entity.LeaseToken = null;
+            entity.VisibleAt = null;
+            entity.UpdatedAt = _clock.UtcNow;
+        }
+
+        return await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<IAtomizerLock> AcquireLockAsync(

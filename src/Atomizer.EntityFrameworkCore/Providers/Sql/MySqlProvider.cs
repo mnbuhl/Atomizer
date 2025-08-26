@@ -16,7 +16,17 @@ public class MySqlProvider : IDatabaseProviderSql
         throw new NotImplementedException();
     }
 
+    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken)
+    {
+        throw new NotImplementedException();
+    }
+
     public FormattableString GetDueSchedulesAsync(DateTimeOffset now)
+    {
+        throw new NotImplementedException();
+    }
+
+    public FormattableString ReleaseLeasedSchedulesAsync(LeaseToken leaseToken)
     {
         throw new NotImplementedException();
     }

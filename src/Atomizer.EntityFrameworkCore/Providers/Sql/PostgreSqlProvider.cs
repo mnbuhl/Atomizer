@@ -40,6 +40,21 @@ public class PostgreSqlProvider : IDatabaseProviderSql
         );
     }
 
+    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken)
+    {
+        return FormattableStringFactory.Create(
+            $"""
+                UPDATE {_jobs.Table}
+                SET {_jobs.Col[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending},
+                    {_jobs.Col[nameof(AtomizerJobEntity.LeaseToken)]} = NULL,
+                    {_jobs.Col[nameof(AtomizerJobEntity.VisibleAt)]} = NULL,
+                    {_jobs.Col[nameof(AtomizerJobEntity.UpdatedAt)]} = NOW() AT TIME ZONE 'UTC'
+                WHERE {_jobs.Col[nameof(AtomizerJobEntity.LeaseToken)]} = '{leaseToken.Token}'
+                  AND {_jobs.Col[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing};
+            """
+        );
+    }
+
     public FormattableString GetDueSchedulesAsync(DateTimeOffset now)
     {
         var pgNow = now.ToString("u");
@@ -55,6 +70,19 @@ public class PostgreSqlProvider : IDatabaseProviderSql
                 nameof(AtomizerScheduleEntity.Id)
             ]}
                 FOR NO KEY UPDATE SKIP LOCKED;
+            """
+        );
+    }
+
+    public FormattableString ReleaseLeasedSchedulesAsync(LeaseToken leaseToken)
+    {
+        return FormattableStringFactory.Create(
+            $"""
+                UPDATE {_schedules.Table}
+                SET {_schedules.Col[nameof(AtomizerScheduleEntity.LeaseToken)]} = NULL,
+                    {_schedules.Col[nameof(AtomizerScheduleEntity.VisibleAt)]} = NULL,
+                    {_schedules.Col[nameof(AtomizerScheduleEntity.UpdatedAt)]} = NOW() AT TIME ZONE 'UTC'
+                WHERE {_schedules.Col[nameof(AtomizerScheduleEntity.LeaseToken)]} = '{leaseToken.Token}';
             """
         );
     }
