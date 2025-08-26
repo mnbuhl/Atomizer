@@ -47,14 +47,7 @@ namespace Atomizer.Tests.Processing
                 AtomizerJob.Create(QueueKey.Default, typeof(string), "payload2", _now, _now),
             };
             _storage
-                .LeaseBatchAsync(
-                    _queueOptions.QueueKey,
-                    _queueOptions.BatchSize,
-                    _now,
-                    _queueOptions.VisibilityTimeout,
-                    _leaseToken,
-                    Arg.Any<CancellationToken>()
-                )
+                .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(jobs);
 
             var cts = new CancellationTokenSource();
@@ -78,14 +71,7 @@ namespace Atomizer.Tests.Processing
             // Arrange
             var channel = Channel.CreateUnbounded<AtomizerJob>();
             _storage
-                .LeaseBatchAsync(
-                    _queueOptions.QueueKey,
-                    _queueOptions.BatchSize,
-                    _now,
-                    _queueOptions.VisibilityTimeout,
-                    _leaseToken,
-                    Arg.Any<CancellationToken>()
-                )
+                .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob>());
 
             var cts = new CancellationTokenSource();

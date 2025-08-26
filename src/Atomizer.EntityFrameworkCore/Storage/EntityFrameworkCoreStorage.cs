@@ -2,6 +2,7 @@
 using Atomizer.Core;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
+using Atomizer.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -237,6 +238,11 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         CancellationToken cancellationToken
     )
     {
+        if (_providerCache.DatabaseProvider == DatabaseProvider.Unknown)
+        {
+            return new NoopLock();
+        }
+
         var transaction = new DatabaseTransactionLock<TDbContext>(_dbContext, lockTimeout);
         await transaction.AcquireAsync(cancellationToken);
 

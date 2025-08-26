@@ -7,16 +7,16 @@ namespace Atomizer.EntityFrameworkCore.Providers;
 internal sealed class RelationalProviderCache
 {
     public bool IsSupportedProvider =>
-        _databaseProvider != DatabaseProvider.Unknown && _databaseProvider != DatabaseProvider.Sqlite;
+        DatabaseProvider != DatabaseProvider.Unknown && DatabaseProvider != DatabaseProvider.Sqlite;
     public IDatabaseProviderSql? RawSqlProvider { get; }
 
-    private readonly DatabaseProvider _databaseProvider;
+    public DatabaseProvider DatabaseProvider { get; }
     private readonly EntityMap? _jobs;
     private readonly EntityMap? _schedules;
 
     private RelationalProviderCache(DatabaseProvider databaseProvider, EntityMap? jobs, EntityMap? schedules)
     {
-        _databaseProvider = databaseProvider;
+        DatabaseProvider = databaseProvider;
         _jobs = jobs;
         _schedules = schedules;
 
@@ -65,13 +65,13 @@ internal sealed class RelationalProviderCache
             throw new InvalidOperationException("Database provider is not supported or entity mappings are missing.");
         }
 
-        return _databaseProvider switch
+        return DatabaseProvider switch
         {
             DatabaseProvider.PostgreSql => new PostgreSqlProvider(_jobs, _schedules),
             DatabaseProvider.MySql => new MySqlProvider(_jobs, _schedules),
             DatabaseProvider.SqlServer => new SqlServerProvider(_jobs, _schedules),
             DatabaseProvider.Oracle => new OracleProvider(_jobs, _schedules),
-            _ => throw new NotSupportedException($"Database provider {_databaseProvider} is not supported."),
+            _ => throw new NotSupportedException($"Database provider {DatabaseProvider} is not supported."),
         };
     }
 
