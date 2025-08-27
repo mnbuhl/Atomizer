@@ -542,8 +542,9 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
 }
 
 [Collection(nameof(PostgreSqlDatabaseFixture))]
-public class PostgreSqlStorageTestsExecutor : EntityFrameworkCoreStorageTests
-{
-    public PostgreSqlStorageTestsExecutor(PostgreSqlDatabaseFixture fixture)
-        : base(fixture.DbContext) { }
-}
+public class PostgreSqlStorageTestsExecutor(PostgreSqlDatabaseFixture fixture)
+    : EntityFrameworkCoreStorageTests(fixture.DbContext);
+
+[Collection(nameof(MySqlDatabaseFixture))]
+public class MySqlStorageTestsExecutor(MySqlDatabaseFixture fixture)
+    : EntityFrameworkCoreStorageTests(fixture.DbContext);
