@@ -1,5 +1,7 @@
-﻿using Atomizer.EntityFrameworkCore.Tests.TestSetup;
+﻿using Atomizer.EntityFrameworkCore.Providers;
+using Atomizer.EntityFrameworkCore.Tests.TestSetup;
 using DotNet.Testcontainers.Containers;
+using Microsoft.EntityFrameworkCore;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Fixtures;
 
@@ -18,10 +20,14 @@ public abstract class BaseDatabaseFixture<TDbContext> : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await DatabaseContainer.StartAsync();
-        DbContext = await InitializeDbContext();
+        DbContext = ConfigureDbContext();
+
+        await DbContext.Database.MigrateAsync();
+
+        RelationalProviderCache.ResetInstanceForTests();
     }
 
-    protected abstract Task<TDbContext> InitializeDbContext();
+    protected abstract TDbContext ConfigureDbContext();
 
     public async ValueTask DisposeAsync()
     {

@@ -1,5 +1,4 @@
-﻿using Atomizer.EntityFrameworkCore.Tests.TestSetup;
-using Atomizer.EntityFrameworkCore.Tests.TestSetup.Postgres;
+﻿using Atomizer.EntityFrameworkCore.Tests.TestSetup.Postgres;
 using DotNet.Testcontainers.Builders;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
@@ -21,14 +20,11 @@ public class PostgreSqlDatabaseFixture
                 .Build()
         ) { }
 
-    protected override async Task<PostgresDbContext> InitializeDbContext()
+    protected override PostgresDbContext ConfigureDbContext()
     {
         var optionsBuilder = new DbContextOptionsBuilder<PostgresDbContext>();
         optionsBuilder.UseNpgsql(DatabaseContainer.GetConnectionString());
 
-        var context = new PostgresDbContext(optionsBuilder.Options, "Atomizer");
-
-        await context.Database.MigrateAsync();
-        return context;
+        return new PostgresDbContext(optionsBuilder.Options, "Atomizer");
     }
 }

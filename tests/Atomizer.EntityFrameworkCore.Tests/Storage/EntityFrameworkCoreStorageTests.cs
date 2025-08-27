@@ -4,6 +4,7 @@ using Atomizer.EntityFrameworkCore.Storage;
 using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup;
 using Atomizer.Tests.Utilities;
+using Atomizer.Tests.Utilities.Stubs;
 using Atomizer.Tests.Utilities.TestJobs;
 using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -101,6 +102,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         );
         await _storage.InsertAsync(job, CancellationToken.None);
 
+        _dbContext.ChangeTracker.Clear();
+
         // Act
         job.MarkAsCompleted(_clock.UtcNow);
         await _storage.UpdateJobAsync(job, CancellationToken.None);
@@ -185,18 +188,356 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         map2.Should().NotThrow();
     }
 
-    public ValueTask DisposeAsync()
+    [Fact]
+    public async Task GetDueJobsAsync_WhenDueJobsExist_ShouldReturnDueJobs()
     {
-        return ValueTask.CompletedTask;
+        // Arrange
+        var now = _clock.UtcNow;
+        var pastTime = now.AddMinutes(-10);
+        var futureTime = now.AddMinutes(10);
+
+        var dueJob1 = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Job 1" }""",
+            pastTime,
+            pastTime
+        );
+        var dueJob2 = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Job 2" }""",
+            pastTime,
+            pastTime
+        );
+        var notDueJob = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Not Due Job" }""",
+            futureTime,
+            futureTime
+        );
+
+        await _storage.InsertAsync(dueJob1, CancellationToken.None);
+        await _storage.InsertAsync(dueJob2, CancellationToken.None);
+        await _storage.InsertAsync(notDueJob, CancellationToken.None);
+
+        _dbContext.ChangeTracker.Clear();
+
+        // Act
+        var dueJobs = await _storage.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
+
+        // Assert
+        dueJobs.Should().HaveCount(2);
+        dueJobs.Should().Contain(j => j.Id == dueJob1.Id);
+        dueJobs.Should().Contain(j => j.Id == dueJob2.Id);
+        dueJobs.Should().NotContain(j => j.Id == notDueJob.Id);
     }
 
-    public async ValueTask InitializeAsync()
+    [Fact]
+    public async Task GetDueJobsAsync_WhenNoDueJobsExist_ShouldReturnEmptyList()
     {
-        _dbContext.RemoveRange(_dbContext.Set<AtomizerJobEntity>());
-        _dbContext.RemoveRange(_dbContext.Set<AtomizerJobErrorEntity>());
-        _dbContext.RemoveRange(_dbContext.Set<AtomizerScheduleEntity>());
-        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        // Arrange
+        var now = _clock.UtcNow;
+        var futureTime = now.AddMinutes(10);
+
+        var notDueJob = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Not Due Job" }""",
+            futureTime,
+            futureTime
+        );
+
+        await _storage.InsertAsync(notDueJob, CancellationToken.None);
+
         _dbContext.ChangeTracker.Clear();
+
+        // Act
+        var dueJobs = await _storage.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
+
+        // Assert
+        dueJobs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReleaseLeasedJobsAsync_WhenLeasedJobsExist_ShouldReleaseJobs()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var job = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Leased Job" }""",
+            now,
+            now
+        );
+        await _storage.InsertAsync(job, CancellationToken.None);
+
+        var leaseToken = FakeDataFactory.LeaseToken();
+
+        _dbContext.ChangeTracker.Clear();
+
+        // Simulate leasing the job
+        job.Lease(leaseToken, _clock.UtcNow, TimeSpan.FromMinutes(2));
+        await _storage.UpdateJobAsync(job, CancellationToken.None);
+
+        _dbContext.ChangeTracker.Clear();
+
+        // Act
+        await _storage.ReleaseLeasedAsync(leaseToken, CancellationToken.None);
+        var releasedJobEntity = await _dbContext
+            .Set<AtomizerJobEntity>()
+            .FirstOrDefaultAsync(j => j.Id == job.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        releasedJobEntity.Should().NotBeNull();
+        releasedJobEntity.Status.Should().Be(AtomizerEntityJobStatus.Pending);
+        releasedJobEntity.LeaseToken.Should().BeNull();
+        releasedJobEntity.VisibleAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ReleaseLeasedJobsAsync_WhenNoLeasedJobsExist_ShouldNotThrow()
+    {
+        // Arrange
+        var leaseToken = FakeDataFactory.LeaseToken();
+
+        // Act
+        var act = async () => await _storage.ReleaseLeasedAsync(leaseToken, CancellationToken.None);
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task GetDueSchedulesAsync_WhenDueSchedulesExist_ShouldReturnDueSchedules()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var pastTime = now.AddMinutes(-10);
+        var futureTime = now.AddMinutes(10);
+
+        var dueSchedule1 = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-1"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Schedule 1" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            pastTime
+        );
+        var dueSchedule2 = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-2"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Schedule 2" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            pastTime
+        );
+        var notDueSchedule = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-3"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Not Due Schedule" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            futureTime
+        );
+
+        await _storage.UpsertScheduleAsync(dueSchedule1, CancellationToken.None);
+        await _storage.UpsertScheduleAsync(dueSchedule2, CancellationToken.None);
+        await _storage.UpsertScheduleAsync(notDueSchedule, CancellationToken.None);
+
+        _dbContext.ChangeTracker.Clear();
+
+        // Act
+        var dueSchedules = await _storage.GetDueSchedulesAsync(now.AddMinutes(1), CancellationToken.None);
+
+        // Assert
+        dueSchedules.Should().HaveCount(2);
+        dueSchedules.Should().Contain(s => s.Id == dueSchedule1.Id);
+        dueSchedules.Should().Contain(s => s.Id == dueSchedule2.Id);
+        dueSchedules.Should().NotContain(s => s.Id == notDueSchedule.Id);
+    }
+
+    [Fact]
+    public async Task GetDueSchedulesAsync_WhenNoDueSchedulesExist_ShouldReturnEmptyList()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var futureTime = now.AddMinutes(10);
+
+        var notDueSchedule = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-1"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Not Due Schedule" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            futureTime
+        );
+
+        await _storage.UpsertScheduleAsync(notDueSchedule, CancellationToken.None);
+
+        _dbContext.ChangeTracker.Clear();
+
+        // Act
+        var dueSchedules = await _storage.GetDueSchedulesAsync(now, CancellationToken.None);
+
+        // Assert
+        dueSchedules.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task UpdateSchedulesAsync_WhenSchedulesExist_ShouldUpdateSchedules()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var schedule1 = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-1"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Schedule 1" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            now
+        );
+        var schedule2 = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-2"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Schedule 2" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            now
+        );
+        await _storage.UpsertScheduleAsync(schedule1, CancellationToken.None);
+        await _storage.UpsertScheduleAsync(schedule2, CancellationToken.None);
+
+        _dbContext.ChangeTracker.Clear();
+
+        // Act
+        schedule1.Enabled = false;
+        schedule2.MaxCatchUp = 10;
+        await _storage.UpdateSchedulesAsync(new[] { schedule1, schedule2 }, CancellationToken.None);
+        var updatedScheduleEntities = await _dbContext
+            .Set<AtomizerScheduleEntity>()
+            .Where(s => s.Id == schedule1.Id || s.Id == schedule2.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        updatedScheduleEntities.Should().HaveCount(2);
+
+        var updatedSchedule1 = updatedScheduleEntities.First(s => s.Id == schedule1.Id);
+        updatedSchedule1.Enabled.Should().BeFalse();
+
+        var updatedSchedule2 = updatedScheduleEntities.First(s => s.Id == schedule2.Id);
+        updatedSchedule2.MaxCatchUp.Should().Be(10);
+
+        var map1 = () => updatedSchedule1.ToAtomizerSchedule();
+        map1.Should().NotThrow();
+
+        var map2 = () => updatedSchedule2.ToAtomizerSchedule();
+        map2.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task UpsertScheduleAsync_WhenScheduleDoesNotExist_ShouldInsertSchedule()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var schedule = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-1"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "New Schedule" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            now
+        );
+
+        // Act
+        var scheduleId = await _storage.UpsertScheduleAsync(schedule, CancellationToken.None);
+        var insertedScheduleEntity = await _dbContext
+            .Set<AtomizerScheduleEntity>()
+            .FirstOrDefaultAsync(s => s.Id == scheduleId, TestContext.Current.CancellationToken);
+
+        // Assert
+        scheduleId.Should().Be(schedule.Id);
+        insertedScheduleEntity.Should().NotBeNull();
+        insertedScheduleEntity.JobKey.Should().Be(schedule.JobKey);
+        insertedScheduleEntity.Payload.Should().Be(schedule.Payload);
+
+        var map = () => insertedScheduleEntity.ToAtomizerSchedule();
+        map.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task UpsertScheduleAsync_WhenScheduleExists_ShouldUpdateSchedule()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var schedule = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-1"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Initial Schedule" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            now
+        );
+        await _storage.UpsertScheduleAsync(schedule, CancellationToken.None);
+
+        _dbContext.ChangeTracker.Clear();
+
+        // Act
+        schedule.Payload = """{ "message": "Updated Schedule" }""";
+        var scheduleId = await _storage.UpsertScheduleAsync(schedule, CancellationToken.None);
+        var updatedScheduleEntity = await _dbContext
+            .Set<AtomizerScheduleEntity>()
+            .FirstOrDefaultAsync(s => s.Id == scheduleId, TestContext.Current.CancellationToken);
+
+        // Assert
+        scheduleId.Should().Be(schedule.Id);
+        updatedScheduleEntity.Should().NotBeNull();
+        updatedScheduleEntity.Payload.Should().Be("""{ "message": "Updated Schedule" }""");
+
+        var map = () => updatedScheduleEntity.ToAtomizerSchedule();
+        map.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AcquireLockAsync_ShouldAcquireAndReleaseLock()
+    {
+        // Arrange
+        var timeout = TimeSpan.FromSeconds(5);
+
+        // Act
+        await using var dbLock = await _storage.AcquireLockAsync(
+            QueueKey.Default,
+            timeout,
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        dbLock.Acquired.Should().BeTrue();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _dbContext.ChangeTracker.Clear();
+        _dbContext.Set<AtomizerJobEntity>().RemoveRange(_dbContext.Set<AtomizerJobEntity>());
+        _dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(_dbContext.Set<AtomizerJobErrorEntity>());
+        _dbContext.Set<AtomizerScheduleEntity>().RemoveRange(_dbContext.Set<AtomizerScheduleEntity>());
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    public ValueTask InitializeAsync()
+    {
+        _dbContext.ChangeTracker.Clear();
+        return ValueTask.CompletedTask;
     }
 }
 
