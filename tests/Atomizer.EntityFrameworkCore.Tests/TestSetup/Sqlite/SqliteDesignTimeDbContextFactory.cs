@@ -8,7 +8,7 @@ public class SqliteDesignTimeDbContextFactory : IDesignTimeDbContextFactory<Sqli
 {
     public SqliteDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<TestDbContext>();
+        var optionsBuilder = new DbContextOptionsBuilder<SqliteDbContext>();
         optionsBuilder.UseSqlite();
 
         return new SqliteDbContext(optionsBuilder.Options);

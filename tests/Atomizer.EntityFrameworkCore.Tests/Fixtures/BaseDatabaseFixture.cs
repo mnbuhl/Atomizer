@@ -3,11 +3,12 @@ using DotNet.Testcontainers.Containers;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Fixtures;
 
-public abstract class BaseDatabaseFixture : IAsyncLifetime
+public abstract class BaseDatabaseFixture<TDbContext> : IAsyncLifetime
+    where TDbContext : TestDbContext
 {
     protected readonly IDatabaseContainer DatabaseContainer;
 
-    public TestDbContext DbContext { get; protected set; } = null!;
+    public TDbContext DbContext { get; protected set; } = null!;
 
     protected BaseDatabaseFixture(IDatabaseContainer databaseContainer)
     {
@@ -20,7 +21,7 @@ public abstract class BaseDatabaseFixture : IAsyncLifetime
         DbContext = await InitializeDbContext();
     }
 
-    protected abstract Task<TestDbContext> InitializeDbContext();
+    protected abstract Task<TDbContext> InitializeDbContext();
 
     public async ValueTask DisposeAsync()
     {

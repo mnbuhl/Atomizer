@@ -2,11 +2,11 @@
 
 namespace Atomizer.EntityFrameworkCore.Tests.TestSetup;
 
-public class TestDbContext : DbContext
+public abstract class TestDbContext : DbContext
 {
     private readonly string? _schema;
 
-    public TestDbContext(DbContextOptions<TestDbContext> options, string? schema = null)
+    protected TestDbContext(DbContextOptions options, string? schema = null)
         : base(options)
     {
         _schema = schema;

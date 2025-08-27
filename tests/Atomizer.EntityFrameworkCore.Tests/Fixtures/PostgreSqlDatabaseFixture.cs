@@ -7,7 +7,9 @@ using Testcontainers.PostgreSql;
 namespace Atomizer.EntityFrameworkCore.Tests.Fixtures;
 
 [CollectionDefinition(nameof(PostgreSqlDatabaseFixture))]
-public class PostgreSqlDatabaseFixture : BaseDatabaseFixture, ICollectionFixture<PostgreSqlDatabaseFixture>
+public class PostgreSqlDatabaseFixture
+    : BaseDatabaseFixture<PostgresDbContext>,
+        ICollectionFixture<PostgreSqlDatabaseFixture>
 {
     public PostgreSqlDatabaseFixture()
         : base(
@@ -19,12 +21,12 @@ public class PostgreSqlDatabaseFixture : BaseDatabaseFixture, ICollectionFixture
                 .Build()
         ) { }
 
-    protected override async Task<TestDbContext> InitializeDbContext()
+    protected override async Task<PostgresDbContext> InitializeDbContext()
     {
-        var optionsBuilder = new DbContextOptionsBuilder<TestDbContext>();
+        var optionsBuilder = new DbContextOptionsBuilder<PostgresDbContext>();
         optionsBuilder.UseNpgsql(DatabaseContainer.GetConnectionString());
 
-        var context = new PostgresDbContext(optionsBuilder.Options, "atomizer");
+        var context = new PostgresDbContext(optionsBuilder.Options, "Atomizer");
 
         await context.Database.MigrateAsync();
         return context;

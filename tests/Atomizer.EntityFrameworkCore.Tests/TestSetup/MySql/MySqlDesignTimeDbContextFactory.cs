@@ -7,7 +7,7 @@ public class MySqlDesignTimeDbContextFactory : IDesignTimeDbContextFactory<MySql
 {
     public MySqlDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<TestDbContext>();
+        var optionsBuilder = new DbContextOptionsBuilder<MySqlDbContext>();
         optionsBuilder.UseMySql(new MySqlServerVersion(new Version(9, 0)));
 
         return new MySqlDbContext(optionsBuilder.Options);

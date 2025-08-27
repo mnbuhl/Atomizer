@@ -7,7 +7,7 @@ public class SqlServerDesignTimeDbContextFactory : IDesignTimeDbContextFactory<S
 {
     public SqlServerDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<TestDbContext>();
+        var optionsBuilder = new DbContextOptionsBuilder<SqlServerDbContext>();
         optionsBuilder.UseSqlServer();
 
         return new SqlServerDbContext(optionsBuilder.Options, "Atomizer");

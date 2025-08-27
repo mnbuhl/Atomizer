@@ -7,8 +7,13 @@ public class PostgresDesignTimeDbContextFactory : IDesignTimeDbContextFactory<Po
 {
     public PostgresDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<TestDbContext>();
-        optionsBuilder.UseNpgsql();
+        var optionsBuilder = new DbContextOptionsBuilder<PostgresDbContext>();
+        // optionsBuilder.UseNpgsql(options =>
+        // {
+        //     options.MigrationsAssembly(typeof(PostgresDbContextModelSnapshot).AssemblyQualifiedName);
+        // });
+        optionsBuilder.EnableDetailedErrors();
+        optionsBuilder.EnableSensitiveDataLogging();
 
         return new PostgresDbContext(optionsBuilder.Options, "Atomizer");
     }
