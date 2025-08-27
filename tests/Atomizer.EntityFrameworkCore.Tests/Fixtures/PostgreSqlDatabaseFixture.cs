@@ -1,6 +1,6 @@
 ﻿using Atomizer.EntityFrameworkCore.Tests.TestSetup;
-using Atomizer.EntityFrameworkCore.Tests.TestSetup.Postgres;
 using DotNet.Testcontainers.Builders;
+using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Fixtures;
@@ -18,8 +18,14 @@ public class PostgreSqlDatabaseFixture : BaseDatabaseFixture, ICollectionFixture
                 .Build()
         ) { }
 
-    protected override Task<PostgresDbContext> InitializeDbContext()
+    protected override async Task<TestDbContext> InitializeDbContext()
     {
-        throw new NotImplementedException();
+        var optionsBuilder = new DbContextOptionsBuilder<TestDbContext>();
+        optionsBuilder.UseNpgsql(DatabaseContainer.GetConnectionString());
+
+        var context = new TestDbContext(optionsBuilder.Options, "atomizer");
+
+        await context.Database.MigrateAsync();
+        return context;
     }
 }
