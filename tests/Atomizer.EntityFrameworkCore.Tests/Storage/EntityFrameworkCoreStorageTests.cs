@@ -548,3 +548,7 @@ public class PostgreSqlStorageTestsExecutor(PostgreSqlDatabaseFixture fixture)
 [Collection(nameof(MySqlDatabaseFixture))]
 public class MySqlStorageTestsExecutor(MySqlDatabaseFixture fixture)
     : EntityFrameworkCoreStorageTests(fixture.DbContext);
+
+// [Collection(nameof(OracleDatabaseFixture))]
+// public class OracleStorageTestsExecutor(OracleDatabaseFixture fixture)
+//     : EntityFrameworkCoreStorageTests(fixture.DbContext);
