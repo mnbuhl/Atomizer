@@ -103,7 +103,7 @@ public class AtomizerJob : Model
         VisibleAt = null;
     }
 
-    public void Retry(DateTimeOffset nextVisibleAt, DateTimeOffset now)
+    public void Reschedule(DateTimeOffset nextVisibleAt, DateTimeOffset now)
     {
         VisibleAt = nextVisibleAt;
         Status = AtomizerJobStatus.Pending;

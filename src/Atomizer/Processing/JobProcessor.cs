@@ -83,7 +83,7 @@ internal sealed class JobProcessor : IJobProcessor
                 var delay = job.RetryStrategy.GetRetryInterval(job.Attempts);
                 var nextVisible = now + delay;
 
-                job.Retry(nextVisible, now);
+                job.Reschedule(nextVisible, now);
 
                 _logger.LogWarning(
                     "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",

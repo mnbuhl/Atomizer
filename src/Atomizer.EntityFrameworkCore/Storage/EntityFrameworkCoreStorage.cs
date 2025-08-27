@@ -39,6 +39,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         var entity = job.ToEntity();
 
+        // @todo: make idempotency key unique with index
         var enforceIdempotency = job.IdempotencyKey != null;
 
         if (enforceIdempotency)
