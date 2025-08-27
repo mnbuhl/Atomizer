@@ -34,6 +34,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.0" />
@@ -50,8 +51,5 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\Atomizer.EntityFrameworkCore\Atomizer.EntityFrameworkCore.csproj" />
         <ProjectReference Include="..\Atomizer.Tests.Utilities\Atomizer.Tests.Utilities.csproj" />
-    </ItemGroup>
-    <ItemGroup>
-        <Folder Include="TestSetup\Postgres\" />
     </ItemGroup>
 </Project>

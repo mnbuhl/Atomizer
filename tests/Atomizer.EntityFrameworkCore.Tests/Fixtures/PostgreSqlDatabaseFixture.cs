@@ -1,4 +1,5 @@
 ﻿using Atomizer.EntityFrameworkCore.Tests.TestSetup;
+using Atomizer.EntityFrameworkCore.Tests.TestSetup.Postgres;
 using DotNet.Testcontainers.Builders;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
@@ -23,7 +24,7 @@ public class PostgreSqlDatabaseFixture : BaseDatabaseFixture, ICollectionFixture
         var optionsBuilder = new DbContextOptionsBuilder<TestDbContext>();
         optionsBuilder.UseNpgsql(DatabaseContainer.GetConnectionString());
 
-        var context = new TestDbContext(optionsBuilder.Options, "atomizer");
+        var context = new PostgresDbContext(optionsBuilder.Options, "atomizer");
 
         await context.Database.MigrateAsync();
         return context;
