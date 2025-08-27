@@ -90,29 +90,21 @@ namespace Atomizer.Tests.Storage
         }
 
         /// <summary>
-        /// Verifies that LeaseBatchAsync leases jobs and updates their state.
+        /// Verifies that GetDueJobsAsync retrieves due jobs and updates their state.
         /// </summary>
         [Fact]
-        public async Task LeaseBatchAsync_WhenJobsAvailable_ShouldLeaseJobs()
+        public async Task GetDueJobsAsync_WhenJobsAvailable_ShouldGetJobs()
         {
             // Arrange
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
             await _sut.InsertAsync(job, CancellationToken.None);
-            var leaseToken = new LeaseToken("instance:*:default:*:lease1");
 
             // Act
-            var leased = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
+            var jobs = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
 
             // Assert
-            leased.Should().ContainSingle();
-            leased[0].Status.Should().Be(AtomizerJobStatus.Processing);
-            leased[0].LeaseToken.Should().Be(leaseToken);
-            var leasesByToken = NonPublicSpy.GetFieldValue<
-                InMemoryStorage,
-                ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>>
-            >("_leasesByToken", _sut);
-            leasesByToken.Should().ContainKey(leaseToken.Token);
-            leasesByToken[leaseToken.Token].Should().ContainKey(job.Id);
+            jobs.Should().ContainSingle();
+            jobs[0].Id.Should().Be(job.Id);
         }
 
         /// <summary>
@@ -140,7 +132,8 @@ namespace Atomizer.Tests.Storage
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
             await _sut.InsertAsync(job, CancellationToken.None);
             var leaseToken = new LeaseToken("instance:*:default:*:lease1");
-            await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
+            job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
+            await _sut.UpdateJobsAsync(new[] { job }, CancellationToken.None);
 
             // Act
             var released = await _sut.ReleaseLeasedAsync(leaseToken, CancellationToken.None);

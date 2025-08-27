@@ -64,6 +64,8 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         _jobs[job.Id] = job;
 
+        UpdateLease(job);
+
         _logger.LogDebug("Updated job {JobId} status={Status} attempts={Attempts}", job.Id, job.Status, job.Attempts);
 
         return Task.CompletedTask;
@@ -84,22 +86,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
             _jobs[job.Id] = job;
 
-            if (job.LeaseToken != null)
-            {
-                var leaseSet = _leasesByToken.GetOrAdd(
-                    job.LeaseToken.Token,
-                    _ => new ConcurrentDictionary<Guid, byte>()
-                );
-                leaseSet[job.Id] = 0;
-            }
-            else
-            {
-                // Remove from any existing lease set
-                foreach (var lease in _leasesByToken.Values)
-                {
-                    lease.TryRemove(job.Id, out _);
-                }
-            }
+            UpdateLease(job);
         }
 
         _logger.LogDebug("Updated {Count} jobs", jobsList.Count);
@@ -360,6 +347,23 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 removed,
                 retain
             );
+        }
+    }
+
+    private void UpdateLease(AtomizerJob job)
+    {
+        if (job.LeaseToken != null)
+        {
+            var leaseSet = _leasesByToken.GetOrAdd(job.LeaseToken.Token, _ => new ConcurrentDictionary<Guid, byte>());
+            leaseSet[job.Id] = 0;
+        }
+        else
+        {
+            // Remove from any existing lease set
+            foreach (var lease in _leasesByToken.Values)
+            {
+                lease.TryRemove(job.Id, out _);
+            }
         }
     }
 }
