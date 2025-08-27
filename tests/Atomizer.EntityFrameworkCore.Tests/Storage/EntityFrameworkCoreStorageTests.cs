@@ -117,7 +117,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateJobAsync_WhenJobDoesNotExist_ShouldThrow()
+    public async Task UpdateJobAsync_WhenJobDoesNotExist_ShouldLogErrorAndContinue()
     {
         // Arrange
         var now = _clock.UtcNow;
@@ -130,10 +130,10 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         );
 
         // Act
-        var act = async () => await _storage.UpdateJobAsync(job, CancellationToken.None);
+        await _storage.UpdateJobAsync(job, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<DbUpdateException>();
+        _logger.Received(1).LogError(Arg.Any<DbUpdateException>(), $"Failed to update job {job.Id}");
     }
 
     [Fact]
@@ -185,18 +185,18 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         map2.Should().NotThrow();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+
+    public async ValueTask InitializeAsync()
     {
         _dbContext.RemoveRange(_dbContext.Set<AtomizerJobEntity>());
         _dbContext.RemoveRange(_dbContext.Set<AtomizerJobErrorEntity>());
         _dbContext.RemoveRange(_dbContext.Set<AtomizerScheduleEntity>());
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-    }
-
-    public ValueTask InitializeAsync()
-    {
         _dbContext.ChangeTracker.Clear();
-        return ValueTask.CompletedTask;
     }
 }
 

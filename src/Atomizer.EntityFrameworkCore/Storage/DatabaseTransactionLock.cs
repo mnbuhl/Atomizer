@@ -16,7 +16,6 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
     private readonly TimeSpan _timeout;
 
     private IDbContextTransaction? _dbTransaction;
-    private CancellationToken? _cancellationToken;
 
     public DatabaseTransactionLock(TDbContext dbContext, TimeSpan timeout)
     {
@@ -38,7 +37,6 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
         finally
         {
             _dbTransaction?.Dispose();
-            _dbContext.Dispose();
         }
     }
 
@@ -48,14 +46,14 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
         {
             if (_dbTransaction != null)
             {
-                await _dbTransaction.CommitAsync(_cancellationToken ?? CancellationToken.None);
+                await _dbTransaction.CommitAsync();
             }
         }
         catch
         {
             if (_dbTransaction != null)
             {
-                await _dbTransaction.RollbackAsync(_cancellationToken ?? CancellationToken.None);
+                await _dbTransaction.RollbackAsync();
             }
             throw;
         }
@@ -65,8 +63,6 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
             {
                 await _dbTransaction.DisposeAsync();
             }
-
-            await _dbContext.DisposeAsync();
         }
     }
 
@@ -83,8 +79,6 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
         {
             Acquired = false;
         }
-
-        _cancellationToken = cancellationToken;
     }
 
     public bool Acquired { get; private set; }

@@ -68,14 +68,28 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         var updated = job.ToEntity();
 
-        JobEntities.Update(updated);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            JobEntities.Update(updated);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to update job {JobId}", job.Id);
+        }
     }
 
     public async Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
     {
-        JobEntities.UpdateRange(jobs.Select(j => j.ToEntity()));
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            JobEntities.UpdateRange(jobs.Select(j => j.ToEntity()));
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to update jobs");
+        }
     }
 
     public async Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
@@ -193,8 +207,15 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
     public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
-        ScheduleEntities.UpdateRange(schedules.Select(s => s.ToEntity()));
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            ScheduleEntities.UpdateRange(schedules.Select(s => s.ToEntity()));
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to update schedules");
+        }
     }
 
     public async Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
