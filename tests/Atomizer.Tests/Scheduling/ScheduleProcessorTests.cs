@@ -2,7 +2,7 @@
 using Atomizer.Core;
 using Atomizer.Scheduling;
 using Atomizer.Storage;
-using Atomizer.Tests.TestJobs;
+using Atomizer.Tests.Utilities.TestJobs;
 
 namespace Atomizer.Tests.Scheduling;
 

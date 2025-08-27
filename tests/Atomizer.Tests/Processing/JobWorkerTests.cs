@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Threading.Channels;
 using Atomizer.Processing;
-using Atomizer.Tests.TestJobs;
+using Atomizer.Tests.Utilities.TestJobs;
 
 namespace Atomizer.Tests.Processing;
 

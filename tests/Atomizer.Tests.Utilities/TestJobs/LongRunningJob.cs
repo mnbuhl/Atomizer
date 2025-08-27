@@ -1,4 +1,4 @@
-﻿namespace Atomizer.Tests.TestJobs;
+﻿namespace Atomizer.Tests.Utilities.TestJobs;
 
 public record LongRunningJobPayload(int DurationInSeconds);
 
