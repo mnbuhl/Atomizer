@@ -60,9 +60,7 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     NextRunAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    LeaseToken = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
-                    VisibleAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {

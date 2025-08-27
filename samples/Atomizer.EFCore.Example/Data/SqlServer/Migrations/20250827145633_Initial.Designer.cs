@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
 {
     [DbContext(typeof(ExampleSqlServerContext))]
-    [Migration("20250826094607_Initial")]
+    [Migration("20250827145633_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -173,10 +173,6 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<string>("LeaseToken")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("int");
 
@@ -216,9 +212,6 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset?>("VisibleAt")
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");

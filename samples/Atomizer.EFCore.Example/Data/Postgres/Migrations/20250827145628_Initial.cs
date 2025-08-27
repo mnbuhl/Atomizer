@@ -60,9 +60,7 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     NextRunAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    LeaseToken = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    VisibleAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {

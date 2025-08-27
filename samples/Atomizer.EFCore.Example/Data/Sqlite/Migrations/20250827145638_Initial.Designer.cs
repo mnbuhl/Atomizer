@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
 {
     [DbContext(typeof(ExampleSqliteContext))]
-    [Migration("20250826094612_Initial")]
+    [Migration("20250827145638_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -168,10 +168,6 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("LeaseToken")
-                        .HasMaxLength(512)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("INTEGER");
 
@@ -211,9 +207,6 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("VisibleAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

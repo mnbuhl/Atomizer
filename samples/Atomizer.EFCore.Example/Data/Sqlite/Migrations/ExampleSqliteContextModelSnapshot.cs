@@ -165,10 +165,6 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("LeaseToken")
-                        .HasMaxLength(512)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("INTEGER");
 
@@ -208,9 +204,6 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("VisibleAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

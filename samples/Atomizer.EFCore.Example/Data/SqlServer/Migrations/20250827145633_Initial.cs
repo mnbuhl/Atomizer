@@ -60,9 +60,7 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     NextRunAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    LeaseToken = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
-                    VisibleAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true)
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
                 },
                 constraints: table =>
                 {

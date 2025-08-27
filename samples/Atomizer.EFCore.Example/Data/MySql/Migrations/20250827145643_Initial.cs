@@ -73,10 +73,7 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                     NextRunAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                    LeaseToken = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    VisibleAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: true)
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
