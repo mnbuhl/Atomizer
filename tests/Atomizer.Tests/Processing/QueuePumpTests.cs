@@ -17,7 +17,7 @@ public class QueuePumpTests
         // Arrange
         var queueOptions = new QueueOptions(QueueKey.Default) { DegreeOfParallelism = 2, BatchSize = 1 };
         var poller = Substitute.For<IQueuePoller>();
-        var storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
+        var storageScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
         var logger = Substitute.For<TestableLogger<QueuePump>>();
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
@@ -66,7 +66,7 @@ public class QueuePumpTests
         // Arrange
         var queueOptions = new QueueOptions(QueueKey.Default) { DegreeOfParallelism = 2, BatchSize = 1 };
         var poller = Substitute.For<IQueuePoller>();
-        var storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
+        var storageScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
         var logger = Substitute.For<TestableLogger<QueuePump>>();
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
@@ -102,8 +102,8 @@ public class QueuePumpTests
         // Arrange
         var queueOptions = new QueueOptions(QueueKey.Default) { DegreeOfParallelism = 1, BatchSize = 1 };
         var poller = Substitute.For<IQueuePoller>();
-        var storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
-        var storageScope = Substitute.For<IAtomizerStorageScope>();
+        var storageScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
+        var storageScope = Substitute.For<IAtomizerServiceScope>();
         var storage = Substitute.For<IAtomizerStorage>();
         storageScope.Storage.Returns(storage);
         storageScopeFactory.CreateScope().Returns(storageScope);
@@ -159,7 +159,7 @@ public class QueuePumpTests
         // Arrange
         var queueOptions = new QueueOptions(QueueKey.Default) { DegreeOfParallelism = 1, BatchSize = 1 };
         var poller = Substitute.For<IQueuePoller>();
-        var storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
+        var storageScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
         var logger = Substitute.For<TestableLogger<QueuePump>>();
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();

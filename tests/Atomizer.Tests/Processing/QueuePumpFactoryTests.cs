@@ -11,8 +11,8 @@ namespace Atomizer.Tests.Processing
     public class QueuePumpFactoryTests
     {
         private readonly IQueuePoller _queuePoller = Substitute.For<IQueuePoller>();
-        private readonly IAtomizerStorageScopeFactory _storageScopeFactory =
-            Substitute.For<IAtomizerStorageScopeFactory>();
+        private readonly IAtomizerServiceScopeFactory _serviceScopeFactory =
+            Substitute.For<IAtomizerServiceScopeFactory>();
         private readonly ILoggerFactory _loggerFactory = Substitute.For<ILoggerFactory>();
         private readonly AtomizerRuntimeIdentity _identity = new AtomizerRuntimeIdentity();
         private readonly IJobWorkerFactory _workerFactory = Substitute.For<IJobWorkerFactory>();
@@ -24,7 +24,7 @@ namespace Atomizer.Tests.Processing
         {
             _sut = new QueuePumpFactory(
                 _queuePoller,
-                _storageScopeFactory,
+                _serviceScopeFactory,
                 _loggerFactory,
                 _identity,
                 _workerFactory,

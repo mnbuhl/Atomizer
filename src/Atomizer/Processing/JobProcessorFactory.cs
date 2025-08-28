@@ -13,19 +13,19 @@ internal sealed class JobProcessorFactory : IJobProcessorFactory
 {
     private readonly IAtomizerClock _clock;
     private readonly IAtomizerJobDispatcher _dispatcher;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILoggerFactory _loggerFactory;
 
     public JobProcessorFactory(
         IAtomizerClock clock,
         IAtomizerJobDispatcher dispatcher,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILoggerFactory loggerFactory
     )
     {
         _clock = clock;
         _dispatcher = dispatcher;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _loggerFactory = loggerFactory;
     }
 
@@ -36,7 +36,7 @@ internal sealed class JobProcessorFactory : IJobProcessorFactory
         return new JobProcessor(
             _clock,
             _dispatcher,
-            _storageScopeFactory,
+            _serviceScopeFactory,
             _loggerFactory.CreateLogger($"{typeof(JobProcessor).FullName};{processorId}")
         );
     }

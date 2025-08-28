@@ -11,8 +11,8 @@ public class JobProcessorTests
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
     private readonly IAtomizerJobDispatcher _dispatcher = Substitute.For<IAtomizerJobDispatcher>();
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
-    private readonly IAtomizerStorageScope _storageScope = Substitute.For<IAtomizerStorageScope>();
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
+    private readonly IAtomizerServiceScope _serviceScope = Substitute.For<IAtomizerServiceScope>();
     private readonly IAtomizerStorage _storage = Substitute.For<IAtomizerStorage>();
     private readonly TestableLogger _logger = Substitute.For<TestableLogger>();
     private readonly JobProcessor _sut;
@@ -22,9 +22,9 @@ public class JobProcessorTests
     public JobProcessorTests()
     {
         _clock.UtcNow.Returns(_now);
-        _storageScope.Storage.Returns(_storage);
-        _storageScopeFactory.CreateScope().Returns(_storageScope);
-        _sut = new JobProcessor(_clock, _dispatcher, _storageScopeFactory, _logger);
+        _serviceScope.Storage.Returns(_storage);
+        _serviceScopeFactory.CreateScope().Returns(_serviceScope);
+        _sut = new JobProcessor(_clock, _dispatcher, _serviceScopeFactory, _logger);
         _job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
         _job.Status = AtomizerJobStatus.Processing;
     }

@@ -1,5 +1,6 @@
 ﻿using Atomizer.Abstractions;
 using Atomizer.Core;
+using Atomizer.Locking;
 using Atomizer.Scheduling;
 using Atomizer.Storage;
 using Atomizer.Tests.Utilities.TestJobs;
@@ -12,18 +13,18 @@ namespace Atomizer.Tests.Scheduling;
 public class ScheduleProcessorTests
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
     private readonly TestableLogger<ScheduleProcessor> _logger = Substitute.For<TestableLogger<ScheduleProcessor>>();
     private readonly ScheduleProcessor _sut;
-    private readonly IAtomizerStorageScope _scope = Substitute.For<IAtomizerStorageScope>();
+    private readonly IAtomizerServiceScope _scope = Substitute.For<IAtomizerServiceScope>();
     private readonly IAtomizerStorage _storage = Substitute.For<IAtomizerStorage>();
 
     public ScheduleProcessorTests()
     {
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
         _scope.Storage.Returns(_storage);
-        _storageScopeFactory.CreateScope().Returns(_scope);
-        _sut = new ScheduleProcessor(_clock, _storageScopeFactory, _logger);
+        _serviceScopeFactory.CreateScope().Returns(_scope);
+        _sut = new ScheduleProcessor(_clock, _serviceScopeFactory, _logger);
     }
 
     [Fact]

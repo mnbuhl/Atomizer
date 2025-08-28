@@ -13,7 +13,7 @@ internal sealed class SchedulePoller : ISchedulePoller
 {
     private readonly SchedulingOptions _options;
     private readonly IAtomizerClock _clock;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<SchedulePoller> _logger;
     private readonly IScheduleProcessor _scheduleProcessor;
 
@@ -22,13 +22,13 @@ internal sealed class SchedulePoller : ISchedulePoller
     public SchedulePoller(
         AtomizerOptions options,
         IAtomizerClock clock,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILogger<SchedulePoller> logger,
         IScheduleProcessor scheduleProcessor
     )
     {
         _clock = clock;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
         _scheduleProcessor = scheduleProcessor;
         _options = options.SchedulingOptions;
@@ -48,7 +48,7 @@ internal sealed class SchedulePoller : ISchedulePoller
                     _lastStorageCheck = now;
                     var horizon = now + _options.ScheduleLeadTime!.Value;
 
-                    using var scope = _storageScopeFactory.CreateScope();
+                    using var scope = _serviceScopeFactory.CreateScope();
                     var storage = scope.Storage;
 
 #if NETCOREAPP3_0_OR_GREATER

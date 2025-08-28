@@ -13,19 +13,19 @@ internal interface IQueuePoller
 internal class QueuePoller : IQueuePoller
 {
     private readonly IAtomizerClock _clock;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<QueuePoller> _logger;
 
     private DateTimeOffset _lastStorageCheck;
 
     public QueuePoller(
         IAtomizerClock clock,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILogger<QueuePoller> logger
     )
     {
         _clock = clock;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
 
         _lastStorageCheck = _clock.MinValue;
@@ -51,7 +51,7 @@ internal class QueuePoller : IQueuePoller
 
                 if (now - _lastStorageCheck >= storageCheckInterval && itemsInChannel < queue.DegreeOfParallelism)
                 {
-                    using var scope = _storageScopeFactory.CreateScope();
+                    using var scope = _serviceScopeFactory.CreateScope();
                     var storage = scope.Storage;
 
                     _lastStorageCheck = now;

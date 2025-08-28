@@ -12,7 +12,7 @@ namespace Atomizer.Tests.Scheduling;
 public class SchedulePollerTests
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
     private readonly TestableLogger<SchedulePoller> _logger = Substitute.For<TestableLogger<SchedulePoller>>();
     private readonly IScheduleProcessor _scheduleProcessor = Substitute.For<IScheduleProcessor>();
     private readonly SchedulePoller _sut;
@@ -30,7 +30,7 @@ public class SchedulePollerTests
         atomizerOptions.SchedulingOptions = options;
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
         _clock.MinValue.Returns(DateTimeOffset.MinValue);
-        _sut = new SchedulePoller(atomizerOptions, _clock, _storageScopeFactory, _logger, _scheduleProcessor);
+        _sut = new SchedulePoller(atomizerOptions, _clock, _serviceScopeFactory, _logger, _scheduleProcessor);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class SchedulePollerTests
         // Arrange
         var ioCts = new CancellationTokenSource();
         var execCts = new CancellationTokenSource();
-        var scope = Substitute.For<IAtomizerStorageScope>();
+        var scope = Substitute.For<IAtomizerServiceScope>();
         var storage = Substitute.For<IAtomizerStorage>();
         var schedule1 = AtomizerSchedule.Create(
             "testjob",
@@ -60,7 +60,7 @@ public class SchedulePollerTests
             _clock.UtcNow
         );
         scope.Storage.Returns(storage);
-        _storageScopeFactory.CreateScope().Returns(scope);
+        _serviceScopeFactory.CreateScope().Returns(scope);
         storage
             .GetDueSchedulesAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(new[] { schedule1, schedule2 });
@@ -100,9 +100,9 @@ public class SchedulePollerTests
         // Arrange
         var ioCts = new CancellationTokenSource();
         var execCts = new CancellationTokenSource();
-        var scope = Substitute.For<IAtomizerStorageScope>();
+        var scope = Substitute.For<IAtomizerServiceScope>();
         scope.Storage.Returns(_ => throw new InvalidOperationException("fail"));
-        _storageScopeFactory.CreateScope().Returns(scope);
+        _serviceScopeFactory.CreateScope().Returns(scope);
 
         // Act
         var runTask = _sut.RunAsync(ioCts.Token, execCts.Token);

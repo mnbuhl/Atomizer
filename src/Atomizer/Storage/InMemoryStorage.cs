@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Atomizer.Abstractions;
 using Atomizer.Core;
+using Atomizer.Locking;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage;

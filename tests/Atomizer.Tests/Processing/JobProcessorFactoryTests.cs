@@ -12,7 +12,7 @@ public class JobProcessorFactoryTests
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
     private readonly IAtomizerJobDispatcher _dispatcher = Substitute.For<IAtomizerJobDispatcher>();
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
     private readonly ILoggerFactory _loggerFactory = Substitute.For<ILoggerFactory>();
     private readonly ILogger _logger = Substitute.For<ILogger>();
 
@@ -21,7 +21,7 @@ public class JobProcessorFactoryTests
     public JobProcessorFactoryTests()
     {
         _loggerFactory.CreateLogger(Arg.Any<string>()).Returns(_logger);
-        _sut = new JobProcessorFactory(_clock, _dispatcher, _storageScopeFactory, _loggerFactory);
+        _sut = new JobProcessorFactory(_clock, _dispatcher, _serviceScopeFactory, _loggerFactory);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 ﻿using Atomizer.Abstractions;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
+using Atomizer.Locking;
 using Atomizer.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

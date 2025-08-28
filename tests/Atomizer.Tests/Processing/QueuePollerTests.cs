@@ -1,6 +1,7 @@
 ﻿using System.Threading.Channels;
 using Atomizer.Abstractions;
 using Atomizer.Core;
+using Atomizer.Locking;
 using Atomizer.Processing;
 using Atomizer.Storage;
 
@@ -12,8 +13,8 @@ namespace Atomizer.Tests.Processing
     public class QueuePollerTests
     {
         private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
-        private readonly IAtomizerStorageScopeFactory _scopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
-        private readonly IAtomizerStorageScope _scope = Substitute.For<IAtomizerStorageScope>();
+        private readonly IAtomizerServiceScopeFactory _scopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
+        private readonly IAtomizerServiceScope _scope = Substitute.For<IAtomizerServiceScope>();
         private readonly IAtomizerStorage _storage = Substitute.For<IAtomizerStorage>();
         private readonly TestableLogger<QueuePoller> _logger = Substitute.For<TestableLogger<QueuePoller>>();
         private readonly QueuePoller _sut;

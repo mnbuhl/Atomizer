@@ -3,24 +3,26 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Core;
 
-internal sealed class ServiceProviderStorageScopeFactory : IAtomizerStorageScopeFactory
+internal sealed class ServiceProviderServiceScopeFactory : IAtomizerServiceScopeFactory
 {
     private readonly IServiceProvider _root;
 
-    public ServiceProviderStorageScopeFactory(IServiceProvider root) => _root = root;
+    public ServiceProviderServiceScopeFactory(IServiceProvider root) => _root = root;
 
-    public IAtomizerStorageScope CreateScope() => new ServiceProviderStorageScope(_root.CreateScope());
+    public IAtomizerServiceScope CreateScope() => new ServiceProviderServiceScope(_root.CreateScope());
 }
 
-internal sealed class ServiceProviderStorageScope : IAtomizerStorageScope
+internal sealed class ServiceProviderServiceScope : IAtomizerServiceScope
 {
     private readonly IServiceScope _scope;
     public IAtomizerStorage Storage { get; }
+    public IAtomizerLockProvider LockProvider { get; }
 
-    public ServiceProviderStorageScope(IServiceScope scope)
+    public ServiceProviderServiceScope(IServiceScope scope)
     {
         _scope = scope;
         Storage = scope.ServiceProvider.GetRequiredService<IAtomizerStorage>();
+        LockProvider = scope.ServiceProvider.GetRequiredService<IAtomizerLockProvider>();
     }
 
     public void Dispose() => _scope.Dispose();
