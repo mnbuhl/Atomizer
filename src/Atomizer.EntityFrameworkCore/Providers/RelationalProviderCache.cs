@@ -6,8 +6,7 @@ namespace Atomizer.EntityFrameworkCore.Providers;
 
 internal sealed class RelationalProviderCache
 {
-    public bool IsSupportedProvider =>
-        DatabaseProvider != DatabaseProvider.Unknown && DatabaseProvider != DatabaseProvider.Sqlite;
+    public bool IsSupportedProvider => DetermineSupportedProvider(DatabaseProvider);
     public IDatabaseProviderSql? RawSqlProvider { get; }
 
     public DatabaseProvider DatabaseProvider { get; }
@@ -44,7 +43,7 @@ internal sealed class RelationalProviderCache
 
         EntityMap? jobs = null,
             schedules = null;
-        if (provider != DatabaseProvider.Unknown)
+        if (DetermineSupportedProvider(provider))
         {
             var model = dbContext.Model; // capture once
             jobs = EntityMap.Build(model, typeof(AtomizerJobEntity), provider);
@@ -85,6 +84,9 @@ internal sealed class RelationalProviderCache
             "Microsoft.EntityFrameworkCore.Sqlite" => DatabaseProvider.Sqlite,
             _ => DatabaseProvider.Unknown,
         };
+
+    private static bool DetermineSupportedProvider(DatabaseProvider provider) =>
+        provider != DatabaseProvider.Unknown && provider != DatabaseProvider.Sqlite;
 
     internal static void ResetInstanceForTests() => Interlocked.Exchange(ref _instance, null);
 }

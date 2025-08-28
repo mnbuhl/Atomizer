@@ -136,7 +136,7 @@ namespace Atomizer.Tests.Storage
             await _sut.UpdateJobsAsync(new[] { job }, CancellationToken.None);
 
             // Act
-            var released = await _sut.ReleaseLeasedAsync(leaseToken, CancellationToken.None);
+            var released = await _sut.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
 
             // Assert
             released.Should().Be(1);

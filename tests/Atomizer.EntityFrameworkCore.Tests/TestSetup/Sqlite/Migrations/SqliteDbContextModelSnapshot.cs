@@ -26,14 +26,14 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     b.Property<int>("Attempts")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("CompletedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("FailedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("FailedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(512)
@@ -66,17 +66,17 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("ScheduledAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("ScheduledAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("VisibleAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("VisibleAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -92,8 +92,8 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     b.Property<int>("Attempt")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2048)
@@ -127,8 +127,8 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("INTEGER");
@@ -138,8 +138,8 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("LastEnqueueAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("LastEnqueueAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("INTEGER");
@@ -147,8 +147,8 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     b.Property<int>("MisfirePolicy")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("NextRunAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("NextRunAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Payload")
                         .IsRequired()
@@ -179,8 +179,8 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 

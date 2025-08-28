@@ -44,8 +44,9 @@ public class OracleProvider : IDatabaseProviderSql
         );
     }
 
-    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken)
+    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken, DateTimeOffset now)
     {
+        var oracleNow = now.ToString("u").Replace(' ', 'T');
         var c = _jobs.Col;
         return FormattableStringFactory.Create(
             $"""
@@ -53,7 +54,7 @@ public class OracleProvider : IDatabaseProviderSql
                 SET {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending},
                     {c[nameof(AtomizerJobEntity.LeaseToken)]} = NULL,
                     {c[nameof(AtomizerJobEntity.VisibleAt)]} = NULL,
-                    {c[nameof(AtomizerJobEntity.UpdatedAt)]} = SYSTIMESTAMP AT TIME ZONE 'UTC'
+                    {c[nameof(AtomizerJobEntity.UpdatedAt)]} = '{oracleNow}'
                 WHERE {c[nameof(AtomizerJobEntity.LeaseToken)]} = '{leaseToken.Token}'
                   AND {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing}
             """

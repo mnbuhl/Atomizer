@@ -41,7 +41,7 @@ public class MySqlProvider : IDatabaseProviderSql
         );
     }
 
-    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken)
+    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken, DateTimeOffset now)
     {
         var c = _jobs.Col;
         return FormattableStringFactory.Create(
@@ -50,7 +50,7 @@ public class MySqlProvider : IDatabaseProviderSql
                 SET {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending},
                     {c[nameof(AtomizerJobEntity.LeaseToken)]} = NULL,
                     {c[nameof(AtomizerJobEntity.VisibleAt)]} = NULL,
-                    {c[nameof(AtomizerJobEntity.UpdatedAt)]} = NOW()
+                    {c[nameof(AtomizerJobEntity.UpdatedAt)]} = '{now:yyyy-MM-dd HH:mm:ss}'
                 WHERE {c[nameof(AtomizerJobEntity.LeaseToken)]} = '{leaseToken.Token}'
                   AND {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing};
             """

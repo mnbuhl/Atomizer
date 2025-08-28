@@ -31,9 +31,9 @@ namespace Atomizer.Tests.Processing
             var executeAsync = NonPublicSpy.CreateFunc<AtomizerQueueService, CancellationToken, Task>("ExecuteAsync");
 
             // Act
-            var timestamp = DateTimeOffset.UtcNow;
+            var timestamp = Stopwatch.GetTimestamp();
             await executeAsync(_sut, token);
-            var elapsed = DateTimeOffset.UtcNow - timestamp;
+            var elapsed = TimeSpan.FromTicks(Stopwatch.GetTimestamp() - timestamp);
 
             // Assert
             elapsed.Should().BeGreaterThanOrEqualTo(_options.StartupDelay.Value);

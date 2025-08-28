@@ -1,5 +1,4 @@
 ﻿using Atomizer.Abstractions;
-using Atomizer.Core;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
 using Atomizer.Storage;
@@ -12,7 +11,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
-    private readonly IAtomizerClock _clock;
     private readonly EntityFrameworkCoreJobStorageOptions _options;
     private readonly ILogger<EntityFrameworkCoreStorage<TDbContext>> _logger;
     private readonly RelationalProviderCache _providerCache;
@@ -24,13 +22,11 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     public EntityFrameworkCoreStorage(
         TDbContext dbContext,
         EntityFrameworkCoreJobStorageOptions options,
-        IAtomizerClock clock,
         ILogger<EntityFrameworkCoreStorage<TDbContext>> logger
     )
     {
         _dbContext = dbContext;
         _options = options;
-        _clock = clock;
         _logger = logger;
         _providerCache = RelationalProviderCache.Create(dbContext);
     }
@@ -136,11 +132,15 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         );
     }
 
-    public async Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public async Task<int> ReleaseLeasedAsync(
+        LeaseToken leaseToken,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
     {
         if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
         {
-            var sql = _providerCache.RawSqlProvider.ReleaseLeasedJobsAsync(leaseToken);
+            var sql = _providerCache.RawSqlProvider.ReleaseLeasedJobsAsync(leaseToken, now);
             var result = await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
             return result;
         }
@@ -154,7 +154,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             entity.Status = AtomizerEntityJobStatus.Pending;
             entity.VisibleAt = null;
             entity.LeaseToken = null;
-            entity.UpdatedAt = _clock.UtcNow;
+            entity.UpdatedAt = now;
         }
 
         try

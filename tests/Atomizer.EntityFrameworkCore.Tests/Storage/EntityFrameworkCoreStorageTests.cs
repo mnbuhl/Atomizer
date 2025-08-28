@@ -17,16 +17,23 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     private readonly EntityFrameworkCoreStorage<TestDbContext> _storage;
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
     private readonly TestDbContext _dbContext;
-    private readonly EntityFrameworkCoreJobStorageOptions _options = new EntityFrameworkCoreJobStorageOptions();
+
     private readonly TestableLogger<EntityFrameworkCoreStorage<TestDbContext>> _logger = Substitute.For<
         TestableLogger<EntityFrameworkCoreStorage<TestDbContext>>
     >();
 
-    protected EntityFrameworkCoreStorageTests(TestDbContext storage)
+    protected EntityFrameworkCoreStorageTests(
+        TestDbContext storage,
+        EntityFrameworkCoreJobStorageOptions? options = null
+    )
     {
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
         _dbContext = storage;
-        _storage = new EntityFrameworkCoreStorage<TestDbContext>(storage, _options, _clock, _logger);
+        _storage = new EntityFrameworkCoreStorage<TestDbContext>(
+            storage,
+            options ?? new EntityFrameworkCoreJobStorageOptions(),
+            _logger
+        );
     }
 
     [Fact]
@@ -285,7 +292,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
 
         // Act
-        await _storage.ReleaseLeasedAsync(leaseToken, CancellationToken.None);
+        await _storage.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
         var releasedJobEntity = await _dbContext
             .Set<AtomizerJobEntity>()
             .FirstOrDefaultAsync(j => j.Id == job.Id, TestContext.Current.CancellationToken);
@@ -304,7 +311,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         var leaseToken = FakeDataFactory.LeaseToken();
 
         // Act
-        var act = async () => await _storage.ReleaseLeasedAsync(leaseToken, CancellationToken.None);
+        var act = async () => await _storage.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
 
         // Assert
         await act.Should().NotThrowAsync();
@@ -548,6 +555,17 @@ public class PostgreSqlStorageTestsExecutor(PostgreSqlDatabaseFixture fixture)
 [Collection(nameof(MySqlDatabaseFixture))]
 public class MySqlStorageTestsExecutor(MySqlDatabaseFixture fixture)
     : EntityFrameworkCoreStorageTests(fixture.DbContext);
+
+[Collection(nameof(SqlServerDatabaseFixture))]
+public class SqlServerStorageTestsExecutor(SqlServerDatabaseFixture fixture)
+    : EntityFrameworkCoreStorageTests(fixture.DbContext);
+
+[Collection(nameof(SqliteDatabaseFixture))]
+public class SqliteStorageTestsExecutor(SqliteDatabaseFixture fixture)
+    : EntityFrameworkCoreStorageTests(
+        fixture.DbContext,
+        new EntityFrameworkCoreJobStorageOptions { AllowUnsafeProviderFallback = true }
+    );
 
 // [Collection(nameof(OracleDatabaseFixture))]
 // public class OracleStorageTestsExecutor(OracleDatabaseFixture fixture)

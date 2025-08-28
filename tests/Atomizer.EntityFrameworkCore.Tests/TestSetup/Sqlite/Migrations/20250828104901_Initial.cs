@@ -17,15 +17,15 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     QueueKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
                     PayloadType = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
                     Payload = table.Column<string>(type: "TEXT", nullable: false),
-                    ScheduledAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    VisibleAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    ScheduledAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    VisibleAt = table.Column<long>(type: "INTEGER", nullable: true),
                     Status = table.Column<int>(type: "INTEGER", nullable: false),
                     Attempts = table.Column<int>(type: "INTEGER", nullable: false),
                     RetryIntervals = table.Column<string>(type: "TEXT", maxLength: 4096, nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    CompletedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
-                    FailedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    CompletedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    FailedAt = table.Column<long>(type: "INTEGER", nullable: true),
                     LeaseToken = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
                     ScheduleJobKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
                     IdempotencyKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true)
@@ -50,10 +50,10 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     MaxCatchUp = table.Column<int>(type: "INTEGER", nullable: false),
                     Enabled = table.Column<bool>(type: "INTEGER", nullable: false),
                     RetryIntervals = table.Column<string>(type: "TEXT", maxLength: 4096, nullable: false),
-                    NextRunAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    LastEnqueueAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    NextRunAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    LastEnqueueAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -69,7 +69,7 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     ErrorMessage = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
                     StackTrace = table.Column<string>(type: "TEXT", maxLength: 5120, nullable: true),
                     ExceptionType = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
                     Attempt = table.Column<int>(type: "INTEGER", nullable: false),
                     RuntimeIdentity = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true)
                 },

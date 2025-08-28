@@ -21,7 +21,6 @@ public static class AtomizerOptionsExtensions
             sp => new EntityFrameworkCoreStorage<TDbContext>(
                 sp.GetRequiredService<TDbContext>(),
                 efOptions,
-                sp.GetRequiredService<IAtomizerClock>(),
                 sp.GetRequiredService<ILogger<EntityFrameworkCoreStorage<TDbContext>>>()
             ),
             ServiceLifetime.Scoped

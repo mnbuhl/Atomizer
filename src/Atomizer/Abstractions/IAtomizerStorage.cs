@@ -46,9 +46,10 @@ public interface IAtomizerStorage
     /// The storage will mark these jobs as "Pending" and clear their visibility timeout as well as LeaseToken.
     /// </summary>
     /// <param name="leaseToken">The lease token representing the consumer releasing the jobs.</param>
+    /// <param name="now">The current date and time in UTC.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>The number of jobs released.</returns>
-    Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken);
+    Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, DateTimeOffset now, CancellationToken cancellationToken);
 
     /// <summary>
     /// Inserts or updates an Atomizer schedule in the storage and returns its unique identifier.

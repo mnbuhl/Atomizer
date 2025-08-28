@@ -22,6 +22,7 @@ public class QueuePumpTests
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
         var worker = Substitute.For<IJobWorker>();
+        var clock = Substitute.For<IAtomizerClock>();
         workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         worker
             .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
@@ -35,7 +36,7 @@ public class QueuePumpTests
             )
             .Returns(Task.CompletedTask);
 
-        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity);
+        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity, clock);
 
         // Act
         pump.Start(CancellationToken.None);
@@ -70,6 +71,7 @@ public class QueuePumpTests
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
         var worker = Substitute.For<IJobWorker>();
+        var clock = Substitute.For<IAtomizerClock>();
         workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         worker
             .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
@@ -83,7 +85,7 @@ public class QueuePumpTests
             )
             .Returns(Task.CompletedTask);
 
-        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity);
+        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity, clock);
         pump.Start(CancellationToken.None);
 
         // Act
@@ -109,6 +111,7 @@ public class QueuePumpTests
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
         var worker = Substitute.For<IJobWorker>();
+        var clock = Substitute.For<IAtomizerClock>();
         workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         // Simulate a worker that takes 3 seconds to complete
         worker
@@ -126,7 +129,7 @@ public class QueuePumpTests
             )
             .Returns(Task.CompletedTask);
 
-        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity);
+        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity, clock);
         pump.Start(CancellationToken.None);
 
         // Act
@@ -145,7 +148,9 @@ public class QueuePumpTests
         logger.Received(1).LogInformation($"Stopping queue '{queueOptions.QueueKey}'...");
         logger.Received(1).LogInformation($"Queue '{queueOptions.QueueKey}' stopped");
 
-        await storage.Received(1).ReleaseLeasedAsync(Arg.Any<LeaseToken>(), Arg.Any<CancellationToken>());
+        await storage
+            .Received(1)
+            .ReleaseLeasedAsync(Arg.Any<LeaseToken>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -158,8 +163,9 @@ public class QueuePumpTests
         var logger = Substitute.For<TestableLogger<QueuePump>>();
         var workerFactory = Substitute.For<IJobWorkerFactory>();
         var identity = new AtomizerRuntimeIdentity();
+        var clock = Substitute.For<IAtomizerClock>();
 
-        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity);
+        var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity, clock);
 
         // Act
         var act = async () => await pump.StopAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
