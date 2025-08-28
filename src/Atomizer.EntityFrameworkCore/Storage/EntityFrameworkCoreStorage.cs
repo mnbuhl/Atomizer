@@ -1,7 +1,7 @@
 ﻿using Atomizer.Abstractions;
-using Atomizer.Core;
 using Atomizer.EntityFrameworkCore.Entities;
-using Atomizer.EntityFrameworkCore.Extensions;
+using Atomizer.EntityFrameworkCore.Providers;
+using Atomizer.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -11,9 +11,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
-    private readonly IAtomizerClock _clock;
     private readonly EntityFrameworkCoreJobStorageOptions _options;
     private readonly ILogger<EntityFrameworkCoreStorage<TDbContext>> _logger;
+    private readonly RelationalProviderCache _providerCache;
 
     private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
     private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
@@ -22,20 +22,20 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     public EntityFrameworkCoreStorage(
         TDbContext dbContext,
         EntityFrameworkCoreJobStorageOptions options,
-        IAtomizerClock clock,
         ILogger<EntityFrameworkCoreStorage<TDbContext>> logger
     )
     {
         _dbContext = dbContext;
         _options = options;
-        _clock = clock;
         _logger = logger;
+        _providerCache = RelationalProviderCache.Create(dbContext);
     }
 
     public async Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         var entity = job.ToEntity();
 
+        // @todo: make idempotency key unique with index
         var enforceIdempotency = job.IdempotencyKey != null;
 
         if (enforceIdempotency)
@@ -60,217 +60,214 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         return entity.Id;
     }
 
-    public async Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken)
+    public async Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         var updated = job.ToEntity();
 
-        JobEntities.Update(updated);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            JobEntities.Update(updated);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to update job {JobId}", job.Id);
+        }
     }
 
-    public async Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
+    public async Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
+    {
+        try
+        {
+            JobEntities.UpdateRange(jobs.Select(j => j.ToEntity()));
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to update jobs");
+        }
+    }
+
+    public async Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
         QueueKey queueKey,
-        int batchSize,
         DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
+        int batchSize,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var candidateIds = await JobEntities
-            .AsNoTracking()
-            .Where(j =>
-                j.QueueKey == queueKey.Key
-                && (
-                    j.Status == AtomizerEntityJobStatus.Pending
-                        && (j.VisibleAt == null || j.VisibleAt <= now)
-                        && j.ScheduledAt <= now
-                    || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
-                )
-            )
-            .OrderBy(j => j.ScheduledAt)
-            .Select(j => j.Id)
-            .Take(batchSize)
-            .ToListAsync(cancellationToken);
-
-        if (candidateIds.Count == 0)
+        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
         {
-            _logger.LogDebug("No jobs found for queue {QueueKey} at {Now}", queueKey.Key, now);
-            return Array.Empty<AtomizerJob>();
+            var sql = _providerCache.RawSqlProvider.GetDueJobsAsync(queueKey, now, batchSize);
+
+            var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
+
+            return entities.Select(job => job.ToAtomizerJob()).ToList();
         }
 
-        var updated = await JobEntities
-            .Where(j =>
-                candidateIds.Contains(j.Id)
-                && (
-                    j.Status == AtomizerEntityJobStatus.Pending
-                        && (j.VisibleAt == null || j.VisibleAt <= now)
-                        && j.ScheduledAt <= now
-                    || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
-                )
-            )
-            .ExecuteUpdateCompatAsync(
-                s =>
-                    s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Processing)
-                        .SetProperty(j => j.VisibleAt, now.Add(visibilityTimeout))
-                        .SetProperty(j => j.LeaseToken, leaseToken.Token),
-                cancellationToken
-            );
-
-        if (updated == 0)
+        if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            _logger.LogDebug(
-                "No jobs updated for queue {QueueKey} at {Now} with lease token {LeaseToken}",
-                queueKey.Key,
-                now,
-                leaseToken
-            );
-            return Array.Empty<AtomizerJob>();
+            return await JobEntities
+                .AsNoTracking()
+                .Where(j =>
+                    j.QueueKey == queueKey.Key
+                    && (
+                        j.Status == AtomizerEntityJobStatus.Pending
+                            && (j.VisibleAt == null || j.VisibleAt <= now)
+                            && j.ScheduledAt <= now
+                        || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
+                    )
+                )
+                .OrderBy(j => j.ScheduledAt)
+                .Take(batchSize)
+                .Select(job => job.ToAtomizerJob())
+                .ToListAsync(cancellationToken);
         }
 
-        _logger.LogInformation(
-            "Leased {Count} jobs for queue {QueueKey} with lease token {LeaseToken}",
-            updated,
-            queueKey.Key,
-            leaseToken
+        throw new NotSupportedException(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
         );
-
-        var leased = await JobEntities
-            .AsNoTracking()
-            .Where(j =>
-                candidateIds.Contains(j.Id)
-                && j.Status == AtomizerEntityJobStatus.Processing
-                && j.LeaseToken == leaseToken.Token
-            )
-            .Select(j => j.ToAtomizerJob())
-            .ToListAsync(cancellationToken);
-
-        return leased;
     }
 
-    public async Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public async Task<int> ReleaseLeasedAsync(
+        LeaseToken leaseToken,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
     {
-        var releasedCount = await JobEntities
-            .Where(j => j.LeaseToken == leaseToken.Token && j.Status == AtomizerEntityJobStatus.Processing)
-            .ExecuteUpdateCompatAsync(
-                s =>
-                    s.SetProperty(j => j.Status, AtomizerEntityJobStatus.Pending)
-                        .SetProperty(j => j.VisibleAt, _ => null)
-                        .SetProperty(j => j.LeaseToken, _ => null),
-                cancellationToken
-            );
+        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        {
+            var sql = _providerCache.RawSqlProvider.ReleaseLeasedJobsAsync(leaseToken, now);
+            var result = await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+            return result;
+        }
 
-        return releasedCount;
+        var entities = await JobEntities
+            .Where(j => j.LeaseToken == leaseToken.Token && j.Status == AtomizerEntityJobStatus.Processing)
+            .ToListAsync(cancellationToken);
+
+        foreach (var entity in entities)
+        {
+            entity.Status = AtomizerEntityJobStatus.Pending;
+            entity.VisibleAt = null;
+            entity.LeaseToken = null;
+            entity.UpdatedAt = now;
+        }
+
+        try
+        {
+            return await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to release leased jobs for lease token {LeaseToken}", leaseToken.Token);
+            return 0;
+        }
     }
 
     public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
     {
         var entity = schedule.ToEntity();
 
-        var exists = await ScheduleEntities.AsNoTracking().AnyAsync(s => s.JobKey == entity.JobKey, cancellationToken);
+        var existing = await ScheduleEntities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
 
-        if (exists)
+        if (existing is not null)
         {
-            await ScheduleEntities
-                .Where(s => s.JobKey == entity.JobKey)
-                .ExecuteUpdateCompatAsync(
-                    s =>
-                        s.SetProperty(sch => sch.QueueKey, entity.QueueKey)
-                            .SetProperty(sch => sch.PayloadType, entity.PayloadType)
-                            .SetProperty(sch => sch.Payload, entity.Payload)
-                            .SetProperty(sch => sch.Schedule, entity.Schedule)
-                            .SetProperty(sch => sch.TimeZone, entity.TimeZone)
-                            .SetProperty(sch => sch.MisfirePolicy, entity.MisfirePolicy)
-                            .SetProperty(sch => sch.MaxCatchUp, entity.MaxCatchUp)
-                            .SetProperty(sch => sch.Enabled, entity.Enabled)
-                            .SetProperty(sch => sch.RetryIntervals, entity.RetryIntervals)
-                            .SetProperty(sch => sch.NextRunAt, entity.NextRunAt)
-                            .SetProperty(sch => sch.UpdatedAt, entity.UpdatedAt)
-                            .SetProperty(sch => sch.VisibleAt, entity.VisibleAt)
-                            .SetProperty(sch => sch.LeaseToken, entity.LeaseToken)
-                            .SetProperty(
-                                sch => sch.LastEnqueueAt,
-                                sch =>
-                                    sch.LastEnqueueAt > (entity.LastEnqueueAt ?? _clock.MinValue)
-                                        ? sch.LastEnqueueAt
-                                        : entity.LastEnqueueAt
-                            ),
-                    cancellationToken
-                );
+            entity.Id = existing.Id;
+            ScheduleEntities.Update(entity);
         }
         else
         {
             ScheduleEntities.Add(entity);
+        }
+
+        try
+        {
             await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Might fail due to race conditions in a distributed setup
+            // Look into optimistic concurrency control later
+            _logger.LogError(
+                ex,
+                "Failed to upsert schedule {ScheduleKey} for job {JobKey}",
+                schedule.JobKey,
+                schedule.JobKey
+            );
         }
 
         return entity.Id;
     }
 
-    public async Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+    public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ScheduleEntities.UpdateRange(schedules.Select(s => s.ToEntity()));
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Failed to update schedules");
+        }
+    }
+
+    public async Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
         DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var candidateIds = await ScheduleEntities
-            .AsNoTracking()
-            .Where(s => s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now) && s.Enabled)
-            .OrderBy(s => s.NextRunAt)
-            .Select(s => s.Id)
-            .ToListAsync(cancellationToken);
-
-        if (candidateIds.Count == 0)
+        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
         {
-            _logger.LogDebug("No due schedules found at {Now}", now);
-            return Array.Empty<AtomizerSchedule>();
+            var sql = _providerCache.RawSqlProvider.GetDueSchedulesAsync(now);
+
+            var entities = await ScheduleEntities
+                .FromSqlInterpolated(sql)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+
+            return entities.Select(s => s.ToAtomizerSchedule()).ToList();
         }
 
-        var updatedCount = await ScheduleEntities
-            .Where(s => candidateIds.Contains(s.Id) && (s.VisibleAt == null || s.VisibleAt <= now))
-            .ExecuteUpdateCompatAsync(
-                s =>
-                    s.SetProperty(sch => sch.VisibleAt, now.Add(visibilityTimeout))
-                        .SetProperty(sch => sch.LeaseToken, leaseToken.Token),
-                cancellationToken
-            );
-
-        if (updatedCount == 0)
+        if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            _logger.LogDebug("No schedules updated for lease token {LeaseToken} at {Now}", leaseToken, now);
-            return Array.Empty<AtomizerSchedule>();
+            return await ScheduleEntities
+                .AsNoTracking()
+                .Where(s => s.Enabled && s.NextRunAt <= now)
+                .OrderBy(s => s.NextRunAt)
+                .Select(s => s.ToAtomizerSchedule())
+                .ToListAsync(cancellationToken);
         }
 
-        _logger.LogInformation(
-            "Leased {Count} schedules with lease token {LeaseToken} at {Now}",
-            updatedCount,
-            leaseToken,
-            now
+        throw new NotSupportedException(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
         );
-
-        var leasedSchedules = await ScheduleEntities
-            .AsNoTracking()
-            .Where(s => candidateIds.Contains(s.Id) && s.LeaseToken == leaseToken.Token)
-            .Select(s => s.ToAtomizerSchedule())
-            .ToListAsync(cancellationToken);
-
-        return leasedSchedules;
     }
 
-    public async Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public async Task<IAtomizerLock> AcquireLockAsync(
+        QueueKey queueKey,
+        TimeSpan lockTimeout,
+        CancellationToken cancellationToken
+    )
     {
-        var releasedCount = await ScheduleEntities
-            .Where(s => s.LeaseToken == leaseToken.Token)
-            .ExecuteUpdateCompatAsync(
-                s => s.SetProperty(sch => sch.VisibleAt, _ => null).SetProperty(sch => sch.LeaseToken, _ => null),
-                cancellationToken
-            );
+        if (_providerCache.DatabaseProvider == DatabaseProvider.Unknown)
+        {
+            return new NoopLock();
+        }
 
-        return releasedCount;
+        var transaction = new DatabaseTransactionLock<TDbContext>(_dbContext, lockTimeout);
+        await transaction.AcquireAsync(cancellationToken);
+
+        return transaction;
     }
 }

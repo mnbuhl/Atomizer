@@ -51,7 +51,7 @@ internal sealed class JobProcessor : IJobProcessor
             using var scope = _storageScopeFactory.CreateScope();
             var storage = scope.Storage;
 
-            await storage.UpdateAsync(job, ct);
+            await storage.UpdateJobAsync(job, ct);
 
             _logger.LogInformation(
                 "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
@@ -83,7 +83,7 @@ internal sealed class JobProcessor : IJobProcessor
                 var delay = job.RetryStrategy.GetRetryInterval(job.Attempts);
                 var nextVisible = now + delay;
 
-                job.Retry(nextVisible, now);
+                job.Reschedule(nextVisible, now);
 
                 _logger.LogWarning(
                     "Job {JobId} failed (attempt {Attempt}) on '{Queue}', retrying after {Delay}ms",
@@ -107,7 +107,7 @@ internal sealed class JobProcessor : IJobProcessor
             using var scope = _storageScopeFactory.CreateScope();
             var storage = scope.Storage;
 
-            await storage.UpdateAsync(job, ct);
+            await storage.UpdateJobAsync(job, ct);
         }
         catch (Exception jobFailureEx)
         {

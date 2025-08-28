@@ -170,10 +170,6 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("LeaseToken")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("integer");
 
@@ -213,9 +209,6 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .HasColumnType("character varying(64)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("VisibleAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");

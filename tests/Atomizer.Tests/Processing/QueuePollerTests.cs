@@ -2,6 +2,7 @@
 using Atomizer.Abstractions;
 using Atomizer.Core;
 using Atomizer.Processing;
+using Atomizer.Storage;
 
 namespace Atomizer.Tests.Processing
 {
@@ -47,15 +48,11 @@ namespace Atomizer.Tests.Processing
                 AtomizerJob.Create(QueueKey.Default, typeof(string), "payload2", _now, _now),
             };
             _storage
-                .LeaseBatchAsync(
-                    _queueOptions.QueueKey,
-                    _queueOptions.BatchSize,
-                    _now,
-                    _queueOptions.VisibilityTimeout,
-                    _leaseToken,
-                    Arg.Any<CancellationToken>()
-                )
+                .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(jobs);
+            _storage
+                .AcquireLockAsync(_queueOptions.QueueKey, _queueOptions.VisibilityTimeout, Arg.Any<CancellationToken>())
+                .Returns(new NoopLock());
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100); // short run
@@ -69,7 +66,7 @@ namespace Atomizer.Tests.Processing
             job1.Should().Be(jobs[0]);
             job2.Should().Be(jobs[1]);
 
-            _logger.Received().LogDebug($"Queue '{_queueOptions.QueueKey}' leased {jobs.Count} job(s)");
+            _logger.Received().LogDebug($"Queue '{_queueOptions.QueueKey}' leasing {jobs.Count} job(s)");
         }
 
         [Fact]
@@ -78,15 +75,11 @@ namespace Atomizer.Tests.Processing
             // Arrange
             var channel = Channel.CreateUnbounded<AtomizerJob>();
             _storage
-                .LeaseBatchAsync(
-                    _queueOptions.QueueKey,
-                    _queueOptions.BatchSize,
-                    _now,
-                    _queueOptions.VisibilityTimeout,
-                    _leaseToken,
-                    Arg.Any<CancellationToken>()
-                )
+                .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob>());
+            _storage
+                .AcquireLockAsync(_queueOptions.QueueKey, _queueOptions.VisibilityTimeout, Arg.Any<CancellationToken>())
+                .Returns(new NoopLock());
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100);

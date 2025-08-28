@@ -16,12 +16,20 @@ namespace Atomizer.Tests.Processing
         private readonly ILoggerFactory _loggerFactory = Substitute.For<ILoggerFactory>();
         private readonly AtomizerRuntimeIdentity _identity = new AtomizerRuntimeIdentity();
         private readonly IJobWorkerFactory _workerFactory = Substitute.For<IJobWorkerFactory>();
+        private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
 
         private readonly QueuePumpFactory _sut;
 
         public QueuePumpFactoryTests()
         {
-            _sut = new QueuePumpFactory(_queuePoller, _storageScopeFactory, _loggerFactory, _identity, _workerFactory);
+            _sut = new QueuePumpFactory(
+                _queuePoller,
+                _storageScopeFactory,
+                _loggerFactory,
+                _identity,
+                _workerFactory,
+                _clock
+            );
         }
 
         [Fact]

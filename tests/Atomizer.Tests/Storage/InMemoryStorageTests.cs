@@ -63,7 +63,7 @@ namespace Atomizer.Tests.Storage
             job.Status = AtomizerJobStatus.Processing;
 
             // Act
-            await _sut.UpdateAsync(job, CancellationToken.None);
+            await _sut.UpdateJobAsync(job, CancellationToken.None);
 
             // Assert
             var jobs = NonPublicSpy.GetFieldValue<InMemoryStorage, ConcurrentDictionary<Guid, AtomizerJob>>(
@@ -83,43 +83,28 @@ namespace Atomizer.Tests.Storage
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
 
             // Act
-            Func<Task> act = async () => await _sut.UpdateAsync(job, CancellationToken.None);
+            Func<Task> act = async () => await _sut.UpdateJobAsync(job, CancellationToken.None);
 
             // Assert
             await act.Should().ThrowAsync<KeyNotFoundException>();
         }
 
         /// <summary>
-        /// Verifies that LeaseBatchAsync leases jobs and updates their state.
+        /// Verifies that GetDueJobsAsync retrieves due jobs and updates their state.
         /// </summary>
         [Fact]
-        public async Task LeaseBatchAsync_WhenJobsAvailable_ShouldLeaseJobs()
+        public async Task GetDueJobsAsync_WhenJobsAvailable_ShouldGetJobs()
         {
             // Arrange
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
             await _sut.InsertAsync(job, CancellationToken.None);
-            var leaseToken = new LeaseToken("instance:*:default:*:lease1");
 
             // Act
-            var leased = await _sut.LeaseBatchAsync(
-                QueueKey.Default,
-                1,
-                _now,
-                TimeSpan.FromMinutes(1),
-                leaseToken,
-                CancellationToken.None
-            );
+            var jobs = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
 
             // Assert
-            leased.Should().ContainSingle();
-            leased[0].Status.Should().Be(AtomizerJobStatus.Processing);
-            leased[0].LeaseToken.Should().Be(leaseToken);
-            var leasesByToken = NonPublicSpy.GetFieldValue<
-                InMemoryStorage,
-                ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>>
-            >("_leasesByToken", _sut);
-            leasesByToken.Should().ContainKey(leaseToken.Token);
-            leasesByToken[leaseToken.Token].Should().ContainKey(job.Id);
+            jobs.Should().ContainSingle();
+            jobs[0].Id.Should().Be(job.Id);
         }
 
         /// <summary>
@@ -129,17 +114,9 @@ namespace Atomizer.Tests.Storage
         public async Task LeaseBatchAsync_WhenQueueEmpty_ShouldReturnEmpty()
         {
             // Arrange
-            var leaseToken = new LeaseToken("instance:*:default:*:lease1");
 
             // Act
-            var leased = await _sut.LeaseBatchAsync(
-                QueueKey.Default,
-                1,
-                _now,
-                TimeSpan.FromMinutes(1),
-                leaseToken,
-                CancellationToken.None
-            );
+            var leased = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 1, CancellationToken.None);
 
             // Assert
             leased.Should().BeEmpty();
@@ -155,17 +132,11 @@ namespace Atomizer.Tests.Storage
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
             await _sut.InsertAsync(job, CancellationToken.None);
             var leaseToken = new LeaseToken("instance:*:default:*:lease1");
-            await _sut.LeaseBatchAsync(
-                QueueKey.Default,
-                1,
-                _now,
-                TimeSpan.FromMinutes(1),
-                leaseToken,
-                CancellationToken.None
-            );
+            job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
+            await _sut.UpdateJobsAsync(new[] { job }, CancellationToken.None);
 
             // Act
-            var released = await _sut.ReleaseLeasedAsync(leaseToken, CancellationToken.None);
+            var released = await _sut.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
 
             // Assert
             released.Should().Be(1);
@@ -217,7 +188,7 @@ namespace Atomizer.Tests.Storage
         /// Verifies that LeaseDueSchedulesAsync leases due schedules and updates their state.
         /// </summary>
         [Fact]
-        public async Task LeaseDueSchedulesAsync_WhenDueSchedulesExist_ShouldLeaseSchedules()
+        public async Task GetDueSchedulesAsync_WhenDueSchedulesExist_ShouldGetSchedules()
         {
             // Arrange
             var schedule = AtomizerSchedule.Create(
@@ -230,57 +201,18 @@ namespace Atomizer.Tests.Storage
                 _now.AddMinutes(-1)
             );
             await _sut.UpsertScheduleAsync(schedule, CancellationToken.None);
-            var leaseToken = new LeaseToken("instance:*:default:*:lease1");
 
             // Act
-            var leased = await _sut.LeaseDueSchedulesAsync(
-                _now,
-                TimeSpan.FromMinutes(1),
-                leaseToken,
-                CancellationToken.None
-            );
+            var leased = await _sut.GetDueSchedulesAsync(_now, CancellationToken.None);
 
             // Assert
             leased.Should().ContainSingle();
-            leased[0].LeaseToken.Should().Be(leaseToken);
+            leased[0].JobKey.Should().Be(schedule.JobKey);
             var schedules = NonPublicSpy.GetFieldValue<InMemoryStorage, Dictionary<JobKey, AtomizerSchedule>>(
                 "_schedules",
                 _sut
             );
-            schedules[schedule.JobKey].LeaseToken.Should().Be(leaseToken);
-        }
-
-        /// <summary>
-        /// Verifies that ReleaseLeasedSchedulesAsync releases leased schedules and resets their state.
-        /// </summary>
-        [Fact]
-        public async Task ReleaseLeasedSchedulesAsync_WhenSchedulesLeased_ShouldReleaseSchedules()
-        {
-            // Arrange
-            var schedule = AtomizerSchedule.Create(
-                new JobKey("job1"),
-                QueueKey.Default,
-                typeof(string),
-                "payload",
-                Schedule.Default,
-                TimeZoneInfo.Utc,
-                _now.AddMinutes(-1)
-            );
-            await _sut.UpsertScheduleAsync(schedule, CancellationToken.None);
-            var leaseToken = new LeaseToken("instance:*:default:*:lease1");
-            await _sut.LeaseDueSchedulesAsync(_now, TimeSpan.FromMinutes(1), leaseToken, CancellationToken.None);
-
-            // Act
-            var released = await _sut.ReleaseLeasedSchedulesAsync(leaseToken, CancellationToken.None);
-
-            // Assert
-            released.Should().Be(1);
-            var schedules = NonPublicSpy.GetFieldValue<InMemoryStorage, Dictionary<JobKey, AtomizerSchedule>>(
-                "_schedules",
-                _sut
-            );
-            schedules[schedule.JobKey].LeaseToken.Should().BeNull();
-            schedules[schedule.JobKey].VisibleAt.Should().BeNull();
+            schedules[schedule.JobKey].JobKey.Should().Be(schedule.JobKey);
         }
     }
 }

@@ -42,10 +42,13 @@ internal class QueuePoller : IQueuePoller
 
         while (!ct.IsCancellationRequested)
         {
+            var leasedJobs = new List<AtomizerJob>();
+
             try
             {
                 var now = _clock.UtcNow;
                 var itemsInChannel = channel.Reader.CanCount ? channel.Reader.Count : 0;
+
                 if (now - _lastStorageCheck >= storageCheckInterval && itemsInChannel < queue.DegreeOfParallelism)
                 {
                     using var scope = _storageScopeFactory.CreateScope();
@@ -53,27 +56,37 @@ internal class QueuePoller : IQueuePoller
 
                     _lastStorageCheck = now;
 
-                    var leased = await storage.LeaseBatchAsync(
+#if NETCOREAPP3_0_OR_GREATER
+                    await using var storageLock = await storage.AcquireLockAsync(
                         queue.QueueKey,
-                        queue.BatchSize,
-                        now,
                         queue.VisibilityTimeout,
-                        leaseToken,
                         ct
                     );
-
-                    if (leased.Count > 0)
+#else
+                    using var storageLock = await storage.AcquireLockAsync(queue.QueueKey, queue.VisibilityTimeout, ct);
+#endif
+                    if (storageLock.Acquired)
                     {
-                        _logger.LogDebug("Queue '{Queue}' leased {Count} job(s)", queue.QueueKey, leased.Count);
+                        _logger.LogDebug("Failed to acquire storage lock for queue '{Queue}'", queue.QueueKey);
 
-                        foreach (var job in leased)
+                        var jobs = await storage.GetDueJobsAsync(queue.QueueKey, now, queue.BatchSize, ct);
+
+                        if (jobs.Count > 0)
                         {
-                            await channel.Writer.WriteAsync(job, ct);
+                            _logger.LogDebug("Queue '{Queue}' leasing {JobCount} job(s)", queue.QueueKey, jobs.Count);
+
+                            foreach (var job in jobs)
+                            {
+                                job.Lease(leaseToken, now, queue.VisibilityTimeout);
+                                leasedJobs.Add(job);
+                            }
+
+                            await storage.UpdateJobsAsync(leasedJobs, ct);
                         }
-                    }
-                    else
-                    {
-                        _logger.LogDebug("Queue '{Queue}' found no jobs to lease", queue.QueueKey);
+                        else
+                        {
+                            _logger.LogDebug("Queue '{Queue}' found no jobs to lease", queue.QueueKey);
+                        }
                     }
                 }
             }
@@ -85,6 +98,32 @@ internal class QueuePoller : IQueuePoller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in poll loop for queue '{QueueKey}'", queue.QueueKey);
+            }
+
+            if (leasedJobs.Count > 0)
+            {
+                foreach (var job in leasedJobs)
+                {
+                    try
+                    {
+                        await channel.Writer.WriteAsync(job, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Error writing leased job {JobId} to channel for queue '{Queue}'. Will be retried after visibility timeout",
+                            job.Id,
+                            queue.QueueKey
+                        );
+                    }
+                }
+
+                _logger.LogDebug(
+                    "Queue '{Queue}' wrote {JobCount} leased jobs to channel",
+                    queue.QueueKey,
+                    leasedJobs.Count
+                );
             }
 
             try

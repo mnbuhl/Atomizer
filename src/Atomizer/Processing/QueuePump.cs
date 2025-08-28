@@ -18,10 +18,10 @@ internal sealed class QueuePump : IQueuePump
     private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
     private readonly IJobWorkerFactory _workerFactory;
     private readonly IQueuePoller _poller;
+    private readonly IAtomizerClock _clock;
 
     private readonly Channel<AtomizerJob> _channel;
     private readonly List<Task> _workers = new List<Task>();
-    private Task _pollTask = Task.CompletedTask;
 
     private CancellationTokenSource _ioCts = new CancellationTokenSource();
     private CancellationTokenSource _executionCts = new CancellationTokenSource();
@@ -34,7 +34,8 @@ internal sealed class QueuePump : IQueuePump
         IAtomizerStorageScopeFactory storageScopeFactory,
         ILogger<QueuePump> logger,
         IJobWorkerFactory workerFactory,
-        AtomizerRuntimeIdentity identity
+        AtomizerRuntimeIdentity identity,
+        IAtomizerClock clock
     )
     {
         _queue = queue;
@@ -42,6 +43,7 @@ internal sealed class QueuePump : IQueuePump
         _storageScopeFactory = storageScopeFactory;
         _logger = logger;
         _workerFactory = workerFactory;
+        _clock = clock;
 
         _channel = Channel.CreateBounded<AtomizerJob>(
             new BoundedChannelOptions(Math.Max(1, _queue.DegreeOfParallelism) * Math.Max(1, _queue.BatchSize))
@@ -67,10 +69,7 @@ internal sealed class QueuePump : IQueuePump
         );
 
         // Start poller
-        _pollTask = Task.Run(
-            async () => await _poller.RunAsync(_queue, _leaseToken, _channel, _ioCts.Token),
-            _ioCts.Token
-        );
+        _ = Task.Run(async () => await _poller.RunAsync(_queue, _leaseToken, _channel, _ioCts.Token), _ioCts.Token);
 
         // Start workers
         var workers = Math.Max(1, _queue.DegreeOfParallelism);
@@ -126,7 +125,7 @@ internal sealed class QueuePump : IQueuePump
             using var scope = _storageScopeFactory.CreateScope();
             var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
             releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
-            var released = await scope.Storage.ReleaseLeasedAsync(_leaseToken, releaseCts.Token);
+            var released = await scope.Storage.ReleaseLeasedAsync(_leaseToken, _clock.UtcNow, releaseCts.Token);
             if (released > 0)
                 _logger.LogInformation(
                     "Released {Count} leased job(s) for queue '{QueueKey}'",

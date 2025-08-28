@@ -170,10 +170,6 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("LeaseToken")
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)");
-
                     b.Property<int>("MaxCatchUp")
                         .HasColumnType("int");
 
@@ -213,9 +209,6 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .HasColumnType("varchar(64)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTimeOffset?>("VisibleAt")
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");

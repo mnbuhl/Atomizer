@@ -52,7 +52,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult(job.Id);
     }
 
-    public Task UpdateAsync(AtomizerJob job, CancellationToken cancellationToken)
+    public Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -64,28 +64,49 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         _jobs[job.Id] = job;
 
+        UpdateLease(job);
+
         _logger.LogDebug("Updated job {JobId} status={Status} attempts={Attempts}", job.Id, job.Status, job.Attempts);
 
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<AtomizerJob>> LeaseBatchAsync(
+    public Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var jobsList = jobs.ToList();
+
+        foreach (var job in jobsList)
+        {
+            if (!_jobs.TryGetValue(job.Id, out _))
+            {
+                _logger.LogDebug("Update requested for missing job {JobId}", job.Id);
+                continue;
+            }
+
+            _jobs[job.Id] = job;
+
+            UpdateLease(job);
+        }
+
+        _logger.LogDebug("Updated {Count} jobs", jobsList.Count);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
         QueueKey queueKey,
-        int batchSize,
         DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
+        int batchSize,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         _logger.LogDebug(
-            "LeaseBatch requested queue={QueueKey} batchSize={BatchSize} now={Now:o} leaseToken={LeaseToken}",
+            "LeaseBatch requested queue={QueueKey} batchSize={BatchSize} now={Now:o}",
             queueKey,
             batchSize,
-            now,
-            leaseToken.Token
+            now
         );
 
         var qlock = GetQueueLock(queueKey);
@@ -117,15 +138,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 _logger.LogDebug("LeaseBatch: no eligible candidates for queue {QueueKey}", queueKey);
                 return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
             }
-
-            // Transition under queue lock to keep queue state consistent
-            foreach (var job in candidates)
-            {
-                job.Lease(leaseToken, now, visibilityTimeout);
-
-                var set = _leasesByToken.GetOrAdd(leaseToken.Token, _ => new ConcurrentDictionary<Guid, byte>());
-                set[job.Id] = 0;
-            }
         }
 
         _logger.LogDebug(
@@ -138,10 +150,9 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerJob>)candidates);
     }
 
-    public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, DateTimeOffset now, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var now = _clock.UtcNow;
 
         if (!_leasesByToken.TryRemove(leaseToken.Token, out var leasedIds) || leasedIds.Count == 0)
         {
@@ -192,22 +203,46 @@ public sealed class InMemoryStorage : IAtomizerStorage
         }
     }
 
-    public Task<IReadOnlyList<AtomizerSchedule>> LeaseDueSchedulesAsync(
+    public Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var now = _clock.UtcNow;
+
+        var schedulesList = schedules.ToList();
+
+        lock (_schedulesSync)
+        {
+            foreach (var schedule in schedulesList)
+            {
+                if (!_schedules.ContainsKey(schedule.JobKey))
+                {
+                    _logger.LogDebug("UpdateSchedules: schedule for jobKey={JobKey} not found", schedule.JobKey);
+                    continue;
+                }
+
+                schedule.UpdatedAt = now;
+                _schedules[schedule.JobKey] = schedule;
+            }
+        }
+
+        _logger.LogDebug("UpdateSchedules: updated {Count} schedules", schedulesList.Count);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
         DateTimeOffset now,
-        TimeSpan visibilityTimeout,
-        LeaseToken leaseToken,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        _logger.LogDebug("LeaseDueSchedules requested now={Now:o} leaseToken={LeaseToken}", now, leaseToken.Token);
+        _logger.LogDebug("GetDueSchedules requested now={Now:o}", now);
 
         List<AtomizerSchedule> due;
         lock (_schedulesSync)
         {
             due = _schedules
-                .Values.Where(s => s.Enabled && s.NextRunAt <= now && (s.VisibleAt == null || s.VisibleAt <= now))
+                .Values.Where(s => s.Enabled && s.NextRunAt <= now)
                 .OrderBy(s => s.NextRunAt)
                 .ThenBy(s => s.CreatedAt)
                 .ToList();
@@ -216,11 +251,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
             {
                 _logger.LogDebug("LeaseDueSchedules: no due schedules");
                 return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
-            }
-
-            foreach (var s in due)
-            {
-                s.Lease(now, visibilityTimeout, leaseToken);
             }
         }
 
@@ -233,31 +263,13 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
-    public Task<int> ReleaseLeasedSchedulesAsync(LeaseToken leaseToken, CancellationToken cancellationToken)
+    public Task<IAtomizerLock> AcquireLockAsync(
+        QueueKey queueKey,
+        TimeSpan lockTimeout,
+        CancellationToken cancellationToken
+    )
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var now = _clock.UtcNow;
-
-        int affected = 0;
-        lock (_schedulesSync)
-        {
-            foreach (var s in _schedules.Values)
-            {
-                if (s.LeaseToken?.Token == leaseToken.Token)
-                {
-                    s.Release(now);
-                    affected++;
-                }
-            }
-        }
-
-        _logger.LogDebug(
-            "ReleaseLeasedSchedules: released {Count} schedule(s) for leaseToken={LeaseToken}",
-            affected,
-            leaseToken.Token
-        );
-
-        return Task.FromResult(affected);
+        return Task.FromResult<IAtomizerLock>(new NoopLock());
     }
 
     // ---- helpers ----
@@ -334,6 +346,23 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 removed,
                 retain
             );
+        }
+    }
+
+    private void UpdateLease(AtomizerJob job)
+    {
+        if (job.LeaseToken != null)
+        {
+            var leaseSet = _leasesByToken.GetOrAdd(job.LeaseToken.Token, _ => new ConcurrentDictionary<Guid, byte>());
+            leaseSet[job.Id] = 0;
+        }
+        else
+        {
+            // Remove from any existing lease set
+            foreach (var lease in _leasesByToken.Values)
+            {
+                lease.TryRemove(job.Id, out _);
+            }
         }
     }
 }
