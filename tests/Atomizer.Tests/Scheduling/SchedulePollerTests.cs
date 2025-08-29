@@ -41,6 +41,11 @@ public class SchedulePollerTests
         var execCts = new CancellationTokenSource();
         var scope = Substitute.For<IAtomizerServiceScope>();
         var storage = Substitute.For<IAtomizerStorage>();
+        var leasingScopeFactory = Substitute.For<IAtomizerLeasingScopeFactory>();
+        var leasingScope = Substitute.For<IAtomizerLeasingScope>();
+        leasingScopeFactory
+            .CreateScopeAsync(Arg.Any<QueueKey>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(leasingScope);
         var schedule1 = AtomizerSchedule.Create(
             "testjob",
             QueueKey.Default,
@@ -60,6 +65,8 @@ public class SchedulePollerTests
             _clock.UtcNow
         );
         scope.Storage.Returns(storage);
+        scope.LeasingScopeFactory.Returns(leasingScopeFactory);
+        leasingScope.Acquired.Returns(true);
         _serviceScopeFactory.CreateScope().Returns(scope);
         storage
             .GetDueSchedulesAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
@@ -101,7 +108,7 @@ public class SchedulePollerTests
         var ioCts = new CancellationTokenSource();
         var execCts = new CancellationTokenSource();
         var scope = Substitute.For<IAtomizerServiceScope>();
-        scope.Storage.Returns(_ => throw new InvalidOperationException("fail"));
+        scope.LeasingScopeFactory.Returns(_ => throw new InvalidOperationException("fail"));
         _serviceScopeFactory.CreateScope().Returns(scope);
 
         // Act

@@ -3,9 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer;
 
-public class LockProviderOptions
+public class LeasingScopeOptions
 {
-    public LockProviderOptions(
+    public LeasingScopeOptions(
         Func<IServiceProvider, IAtomizerLeasingScopeFactory> lockProviderFactory,
         ServiceLifetime lockProviderLifetime = ServiceLifetime.Singleton
     )

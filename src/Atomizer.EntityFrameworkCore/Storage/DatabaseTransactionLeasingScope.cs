@@ -8,35 +8,30 @@ namespace Atomizer.EntityFrameworkCore.Storage;
 /// <summary>
 /// Wraps a database transaction as a lock mechanism to fit into Atomizer's locking abstraction.
 /// </summary>
-/// <typeparam name="TDbContext">The type of the DbContext.</typeparam>
-public class DatabaseTransactionLeasingScope<TDbContext> : IAtomizerLeasingScope
-    where TDbContext : DbContext
+public class DatabaseTransactionLeasingScope : IAtomizerLeasingScope
 {
-    private readonly TDbContext _dbContext;
-    private readonly TimeSpan _timeout;
+    private readonly IDbContextTransaction? _transaction;
 
-    private IDbContextTransaction? _dbTransaction;
-
-    public DatabaseTransactionLeasingScope(TDbContext dbContext, TimeSpan timeout)
+    public DatabaseTransactionLeasingScope(IDbContextTransaction? transaction)
     {
-        _dbContext = dbContext;
-        _timeout = timeout;
+        _transaction = transaction;
+        Acquired = transaction != null;
     }
 
     public void Dispose()
     {
         try
         {
-            _dbTransaction?.Commit();
+            _transaction?.Commit();
         }
         catch
         {
-            _dbTransaction?.Rollback();
+            _transaction?.Rollback();
             throw;
         }
         finally
         {
-            _dbTransaction?.Dispose();
+            _transaction?.Dispose();
         }
     }
 
@@ -44,42 +39,48 @@ public class DatabaseTransactionLeasingScope<TDbContext> : IAtomizerLeasingScope
     {
         try
         {
-            if (_dbTransaction != null)
+            if (_transaction != null)
             {
-                await _dbTransaction.CommitAsync();
+                await _transaction.CommitAsync();
             }
         }
         catch
         {
-            if (_dbTransaction != null)
+            if (_transaction != null)
             {
-                await _dbTransaction.RollbackAsync();
+                await _transaction.RollbackAsync();
             }
             throw;
         }
         finally
         {
-            if (_dbTransaction != null)
+            if (_transaction != null)
             {
-                await _dbTransaction.DisposeAsync();
+                await _transaction.DisposeAsync();
             }
         }
     }
 
-    public async Task AcquireAsync(CancellationToken cancellationToken)
+    public static async Task<IAtomizerLeasingScope> StartTransaction<TDbContext>(
+        TDbContext dbContext,
+        TimeSpan timeout,
+        CancellationToken cancellationToken
+    )
+        where TDbContext : DbContext
     {
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(_timeout);
-            _dbTransaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cts.Token);
-            Acquired = true;
+            cts.CancelAfter(timeout);
+            return new DatabaseTransactionLeasingScope(
+                await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cts.Token)
+            );
         }
         catch
         {
-            Acquired = false;
+            return new DatabaseTransactionLeasingScope(null);
         }
     }
 
-    public bool Acquired { get; private set; }
+    public bool Acquired { get; }
 }

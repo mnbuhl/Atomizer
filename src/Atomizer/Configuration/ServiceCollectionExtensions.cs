@@ -50,8 +50,8 @@ public static class ServiceCollectionExtensions
         services.Add(
             ServiceDescriptor.Describe(
                 typeof(IAtomizerLeasingScopeFactory),
-                options.LockProviderOptions.LockProviderFactory,
-                options.LockProviderOptions.LockProviderLifetime
+                options.LeasingScopeOptions.LockProviderFactory,
+                options.LeasingScopeOptions.LockProviderLifetime
             )
         );
 
