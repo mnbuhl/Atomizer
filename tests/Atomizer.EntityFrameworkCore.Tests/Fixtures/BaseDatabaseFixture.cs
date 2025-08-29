@@ -29,6 +29,11 @@ public abstract class BaseDatabaseFixture<TDbContext> : IAsyncLifetime
 
     protected abstract TDbContext ConfigureDbContext();
 
+    public TDbContext CreateNewDbContext()
+    {
+        return ConfigureDbContext();
+    }
+
     public async ValueTask DisposeAsync()
     {
         await DbContext.DisposeAsync();

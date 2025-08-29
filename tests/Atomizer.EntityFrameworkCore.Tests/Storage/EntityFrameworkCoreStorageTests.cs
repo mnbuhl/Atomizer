@@ -480,6 +480,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     }
 }
 
+// ---- Executors per provider (fixtures provide the concrete DbContext) ----
+
 [Collection(nameof(PostgreSqlDatabaseFixture))]
 public class PostgreSqlStorageTestsExecutor(PostgreSqlDatabaseFixture fixture)
     : EntityFrameworkCoreStorageTests(fixture.DbContext);
