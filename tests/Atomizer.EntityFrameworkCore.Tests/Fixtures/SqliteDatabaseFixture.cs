@@ -8,13 +8,12 @@ namespace Atomizer.EntityFrameworkCore.Tests.Fixtures;
 public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, IAsyncLifetime
 {
     public SqliteDbContext DbContext { get; private set; } = null!;
-
-    private string DatabaseName => $"atomizer_db_{Guid.NewGuid():N}.db";
+    private string _databaseName = string.Empty;
 
     public async ValueTask InitializeAsync()
     {
+        _databaseName = $"atomizer_db_{Guid.NewGuid():N}.db";
         RelationalProviderCache.ResetInstanceForTests();
-        DeleteDatabaseFiles();
 
         DbContext = ConfigureDbContext();
         await DbContext.Database.MigrateAsync();
@@ -23,9 +22,9 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
     private SqliteDbContext ConfigureDbContext()
     {
         var options = new DbContextOptionsBuilder<SqliteDbContext>();
-        options.UseSqlite($"Data Source={DatabaseName}");
+        options.UseSqlite($"Data Source={_databaseName}");
 
-        return new SqliteDbContext(options.Options, "Atomizer");
+        return new SqliteDbContext(options.Options);
     }
 
     public SqliteDbContext CreateNewDbContext()
@@ -35,17 +34,7 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
 
     public async ValueTask DisposeAsync()
     {
+        await DbContext.Database.EnsureDeletedAsync();
         await DbContext.DisposeAsync();
-
-        DeleteDatabaseFiles();
-    }
-
-    private void DeleteDatabaseFiles()
-    {
-        var sqliteFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), $"{DatabaseName}*");
-        foreach (var file in sqliteFiles)
-        {
-            File.Delete(file);
-        }
     }
 }

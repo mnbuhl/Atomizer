@@ -221,13 +221,14 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         );
 
         await using var dbContext1 = _dbContextFactory();
-        var storage1 = _storageFactory(dbContext1);
 
         if (dbContext1.Database.IsSqlite())
         {
             // SQLite does not support "FOR UPDATE SKIP LOCKED" behavior, so we skip this test for SQLite.
             return;
         }
+
+        var storage1 = _storageFactory(dbContext1);
 
         await using var dbContext2 = _dbContextFactory();
         var storage2 = _storageFactory(dbContext2);
@@ -456,13 +457,14 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         );
 
         await using var dbContext1 = _dbContextFactory();
-        var storage1 = _storageFactory(dbContext1);
 
         if (dbContext1.Database.IsSqlite())
         {
             // SQLite does not support "FOR UPDATE SKIP LOCKED" behavior, so we skip this test for SQLite.
             return;
         }
+
+        var storage1 = _storageFactory(dbContext1);
 
         await using var dbContext2 = _dbContextFactory();
         var storage2 = _storageFactory(dbContext2);
