@@ -1,4 +1,5 @@
-﻿using Atomizer.EntityFrameworkCore.Entities;
+﻿using System.Collections.Concurrent;
+using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers.Sql;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,36 +26,32 @@ internal sealed class RelationalProviderCache
         }
     }
 
-    private static RelationalProviderCache? _instance;
+    private static readonly ConcurrentDictionary<DatabaseProvider, RelationalProviderCache> Instances = new();
 
     public static RelationalProviderCache Create<TDbContext>(TDbContext dbContext)
         where TDbContext : DbContext
     {
-        // Fast-path: already initialized
-        var existing = Volatile.Read(ref _instance);
-
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        // First caller decides. If provider is Unknown, we freeze as Unknown forever (by design).
+        // Determine provider for this DbContext
         var provider = DetectProvider(dbContext.Database.ProviderName ?? string.Empty);
 
-        EntityMap? jobs = null,
-            schedules = null;
-        if (DetermineSupportedProvider(provider))
-        {
-            var model = dbContext.Model; // capture once
-            jobs = EntityMap.Build(model, typeof(AtomizerJobEntity), provider);
-            schedules = EntityMap.Build(model, typeof(AtomizerScheduleEntity), provider);
-        }
+        // Freeze Unknown per-provider as well (same semantics as before, but keyed).
+        return Instances.GetOrAdd(
+            provider,
+            _ =>
+            {
+                EntityMap? jobs = null,
+                    schedules = null;
 
-        var created = new RelationalProviderCache(provider, jobs, schedules);
+                if (DetermineSupportedProvider(provider))
+                {
+                    var model = dbContext.Model; // capture once
+                    jobs = EntityMap.Build(model, typeof(AtomizerJobEntity), provider);
+                    schedules = EntityMap.Build(model, typeof(AtomizerScheduleEntity), provider);
+                }
 
-        // Publish if not already set; otherwise return the winner.
-        var winner = Interlocked.CompareExchange(ref _instance, created, null);
-        return winner ?? created;
+                return new RelationalProviderCache(provider, jobs, schedules);
+            }
+        );
     }
 
     private IDatabaseProviderSql CreateRawSqlProvider()
@@ -88,5 +85,18 @@ internal sealed class RelationalProviderCache
     private static bool DetermineSupportedProvider(DatabaseProvider provider) =>
         provider != DatabaseProvider.Unknown && provider != DatabaseProvider.Sqlite;
 
-    internal static void ResetInstanceForTests() => Interlocked.Exchange(ref _instance, null);
+    // Testing helpers
+    internal static bool TryGet(DatabaseProvider provider, out RelationalProviderCache? cache) =>
+        Instances.TryGetValue(provider, out cache);
+
+    internal static void ResetInstanceForTests(DatabaseProvider? provider = null)
+    {
+        if (provider is null)
+        {
+            Instances.Clear();
+            return;
+        }
+
+        Instances.TryRemove(provider.Value, out _);
+    }
 }

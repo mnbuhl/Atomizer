@@ -14,23 +14,23 @@ namespace Atomizer.EntityFrameworkCore.Tests.Storage;
 
 public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
 {
-    private readonly EntityFrameworkCoreStorage<TestDbContext> _storage;
+    private readonly Func<TestDbContext> _dbContextFactory;
+    private readonly Func<TestDbContext, EntityFrameworkCoreStorage<TestDbContext>> _storageFactory;
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
-    private readonly TestDbContext _dbContext;
 
     private readonly TestableLogger<EntityFrameworkCoreStorage<TestDbContext>> _logger = Substitute.For<
         TestableLogger<EntityFrameworkCoreStorage<TestDbContext>>
     >();
 
     protected EntityFrameworkCoreStorageTests(
-        TestDbContext storage,
+        Func<TestDbContext> contextFactory,
         EntityFrameworkCoreJobStorageOptions? options = null
     )
     {
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
-        _dbContext = storage;
-        _storage = new EntityFrameworkCoreStorage<TestDbContext>(
-            storage,
+        _dbContextFactory = contextFactory;
+        _storageFactory = context => new EntityFrameworkCoreStorage<TestDbContext>(
+            context,
             options ?? new EntityFrameworkCoreJobStorageOptions(),
             _logger
         );
@@ -50,7 +50,9 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         );
 
         // Act
-        var jobId = await _storage.InsertAsync(job, CancellationToken.None);
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        var jobId = await storage.InsertAsync(job, CancellationToken.None);
 
         // Assert
         jobId.Should().NotBeEmpty();
@@ -81,9 +83,11 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         );
 
         // Act
-        var jobId1 = await _storage.InsertAsync(job1, CancellationToken.None);
-        var jobId2 = await _storage.InsertAsync(job2, CancellationToken.None);
-        var jobsInDb = await _dbContext.Set<AtomizerJobEntity>().ToListAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        var jobId1 = await storage.InsertAsync(job1, CancellationToken.None);
+        var jobId2 = await storage.InsertAsync(job2, CancellationToken.None);
+        var jobsInDb = await dbContext.Set<AtomizerJobEntity>().ToListAsync(TestContext.Current.CancellationToken);
 
         // Assert
         jobId1.Should().Be(job1.Id);
@@ -93,57 +97,6 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
 
         var map = () => jobsInDb[0].ToAtomizerJob();
         map.Should().NotThrow();
-    }
-
-    [Fact]
-    public async Task UpdateJobAsync_WhenJobExists_ShouldUpdateJob()
-    {
-        // Arrange
-        var now = _clock.UtcNow;
-        var job = AtomizerJob.Create(
-            QueueKey.Default,
-            typeof(WriteLineMessage),
-            """{ "message": "Hello, World!" }""",
-            now,
-            now
-        );
-        await _storage.InsertAsync(job, CancellationToken.None);
-
-        _dbContext.ChangeTracker.Clear();
-
-        // Act
-        job.MarkAsCompleted(_clock.UtcNow);
-        await _storage.UpdateJobAsync(job, CancellationToken.None);
-        var updatedJobEntity = await _dbContext
-            .Set<AtomizerJobEntity>()
-            .FirstOrDefaultAsync(j => j.Id == job.Id, TestContext.Current.CancellationToken);
-
-        // Assert
-        updatedJobEntity.Should().NotBeNull();
-        updatedJobEntity.Status.Should().Be(AtomizerEntityJobStatus.Completed);
-
-        var map = () => updatedJobEntity.ToAtomizerJob();
-        map.Should().NotThrow();
-    }
-
-    [Fact]
-    public async Task UpdateJobAsync_WhenJobDoesNotExist_ShouldLogErrorAndContinue()
-    {
-        // Arrange
-        var now = _clock.UtcNow;
-        var job = AtomizerJob.Create(
-            QueueKey.Default,
-            typeof(WriteLineMessage),
-            """{ "message": "Hello, World!" }""",
-            now,
-            now
-        );
-
-        // Act
-        await _storage.UpdateJobAsync(job, CancellationToken.None);
-
-        // Assert
-        _logger.Received(1).LogError(Arg.Any<DbUpdateException>(), $"Failed to update job {job.Id}");
     }
 
     [Fact]
@@ -165,16 +118,18 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             now,
             now
         );
-        await _storage.InsertAsync(job1, CancellationToken.None);
-        await _storage.InsertAsync(job2, CancellationToken.None);
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        await storage.InsertAsync(job1, CancellationToken.None);
+        await storage.InsertAsync(job2, CancellationToken.None);
 
-        _dbContext.ChangeTracker.Clear();
+        dbContext.ChangeTracker.Clear();
 
         // Act
         job1.MarkAsCompleted(_clock.UtcNow);
         job2.MarkAsFailed(_clock.UtcNow);
-        await _storage.UpdateJobsAsync(new[] { job1, job2 }, CancellationToken.None);
-        var updatedJobEntities = await _dbContext
+        await storage.UpdateJobsAsync(new[] { job1, job2 }, CancellationToken.None);
+        var updatedJobEntities = await dbContext
             .Set<AtomizerJobEntity>()
             .Where(j => j.Id == job1.Id || j.Id == job2.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
@@ -225,20 +180,81 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             futureTime
         );
 
-        await _storage.InsertAsync(dueJob1, CancellationToken.None);
-        await _storage.InsertAsync(dueJob2, CancellationToken.None);
-        await _storage.InsertAsync(notDueJob, CancellationToken.None);
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        await storage.InsertAsync(dueJob1, CancellationToken.None);
+        await storage.InsertAsync(dueJob2, CancellationToken.None);
+        await storage.InsertAsync(notDueJob, CancellationToken.None);
 
-        _dbContext.ChangeTracker.Clear();
+        dbContext.ChangeTracker.Clear();
 
         // Act
-        var dueJobs = await _storage.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
+        var dueJobs = await storage.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
 
         // Assert
         dueJobs.Should().HaveCount(2);
         dueJobs.Should().Contain(j => j.Id == dueJob1.Id);
         dueJobs.Should().Contain(j => j.Id == dueJob2.Id);
         dueJobs.Should().NotContain(j => j.Id == notDueJob.Id);
+    }
+
+    [Fact]
+    public async Task GetDueJobsAsync_WhenForUpdate_ShouldNotReturnSameJobs()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var pastTime = now.AddMinutes(-10);
+
+        var dueJob1 = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Job 1" }""",
+            pastTime,
+            pastTime
+        );
+        var dueJob2 = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Job 2" }""",
+            pastTime,
+            pastTime
+        );
+
+        await using var dbContext1 = _dbContextFactory();
+        var storage1 = _storageFactory(dbContext1);
+
+        if (dbContext1.Database.IsSqlite())
+        {
+            // SQLite does not support "FOR UPDATE SKIP LOCKED" behavior, so we skip this test for SQLite.
+            return;
+        }
+
+        await using var dbContext2 = _dbContextFactory();
+        var storage2 = _storageFactory(dbContext2);
+
+        await storage1.InsertAsync(dueJob1, CancellationToken.None);
+        await storage2.InsertAsync(dueJob2, CancellationToken.None);
+
+        dbContext1.ChangeTracker.Clear();
+
+        await using var transaction1 = await dbContext1.Database.BeginTransactionAsync(
+            TestContext.Current.CancellationToken
+        );
+
+        await using var transaction2 = await dbContext2.Database.BeginTransactionAsync(
+            TestContext.Current.CancellationToken
+        );
+
+        // Act
+        var dueJobsFirstFetch = await storage1.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
+        var dueJobsSecondFetch = await storage2.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
+
+        await transaction1.RollbackAsync(TestContext.Current.CancellationToken);
+        await transaction2.RollbackAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        dueJobsFirstFetch.Should().HaveCount(2);
+        dueJobsSecondFetch.Should().BeEmpty();
     }
 
     [Fact]
@@ -256,12 +272,15 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             futureTime
         );
 
-        await _storage.InsertAsync(notDueJob, CancellationToken.None);
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
 
-        _dbContext.ChangeTracker.Clear();
+        await storage.InsertAsync(notDueJob, CancellationToken.None);
+
+        dbContext.ChangeTracker.Clear();
 
         // Act
-        var dueJobs = await _storage.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
+        var dueJobs = await storage.GetDueJobsAsync(QueueKey.Default, now, 10, CancellationToken.None);
 
         // Assert
         dueJobs.Should().BeEmpty();
@@ -279,21 +298,25 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             now,
             now
         );
-        await _storage.InsertAsync(job, CancellationToken.None);
+
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
+        await storage.InsertAsync(job, CancellationToken.None);
 
         var leaseToken = FakeDataFactory.LeaseToken();
 
-        _dbContext.ChangeTracker.Clear();
+        dbContext.ChangeTracker.Clear();
 
         // Simulate leasing the job
         job.Lease(leaseToken, _clock.UtcNow, TimeSpan.FromMinutes(2));
-        await _storage.UpdateJobAsync(job, CancellationToken.None);
+        await storage.UpdateJobsAsync([job], CancellationToken.None);
 
-        _dbContext.ChangeTracker.Clear();
+        dbContext.ChangeTracker.Clear();
 
         // Act
-        await _storage.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
-        var releasedJobEntity = await _dbContext
+        await storage.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
+        var releasedJobEntity = await dbContext
             .Set<AtomizerJobEntity>()
             .FirstOrDefaultAsync(j => j.Id == job.Id, TestContext.Current.CancellationToken);
 
@@ -310,8 +333,11 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         // Arrange
         var leaseToken = FakeDataFactory.LeaseToken();
 
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
         // Act
-        var act = async () => await _storage.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
+        var act = async () => await storage.ReleaseLeasedAsync(leaseToken, _clock.UtcNow, CancellationToken.None);
 
         // Assert
         await act.Should().NotThrowAsync();
@@ -353,14 +379,17 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             futureTime
         );
 
-        await _storage.UpsertScheduleAsync(dueSchedule1, CancellationToken.None);
-        await _storage.UpsertScheduleAsync(dueSchedule2, CancellationToken.None);
-        await _storage.UpsertScheduleAsync(notDueSchedule, CancellationToken.None);
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
 
-        _dbContext.ChangeTracker.Clear();
+        await storage.UpsertScheduleAsync(dueSchedule1, CancellationToken.None);
+        await storage.UpsertScheduleAsync(dueSchedule2, CancellationToken.None);
+        await storage.UpsertScheduleAsync(notDueSchedule, CancellationToken.None);
+
+        dbContext.ChangeTracker.Clear();
 
         // Act
-        var dueSchedules = await _storage.GetDueSchedulesAsync(now.AddMinutes(1), CancellationToken.None);
+        var dueSchedules = await storage.GetDueSchedulesAsync(now.AddMinutes(1), CancellationToken.None);
 
         // Assert
         dueSchedules.Should().HaveCount(2);
@@ -386,15 +415,81 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             futureTime
         );
 
-        await _storage.UpsertScheduleAsync(notDueSchedule, CancellationToken.None);
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
 
-        _dbContext.ChangeTracker.Clear();
+        await storage.UpsertScheduleAsync(notDueSchedule, CancellationToken.None);
+
+        dbContext.ChangeTracker.Clear();
 
         // Act
-        var dueSchedules = await _storage.GetDueSchedulesAsync(now, CancellationToken.None);
+        var dueSchedules = await storage.GetDueSchedulesAsync(now, CancellationToken.None);
 
         // Assert
         dueSchedules.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetDueSchedules_WhenForUpdate_ShouldNotReturnSameSchedules()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var pastTime = now.AddMinutes(-10);
+
+        var dueSchedule1 = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-1"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Schedule 1" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            pastTime
+        );
+        var dueSchedule2 = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-2"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Due Schedule 2" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            pastTime
+        );
+
+        await using var dbContext1 = _dbContextFactory();
+        var storage1 = _storageFactory(dbContext1);
+
+        if (dbContext1.Database.IsSqlite())
+        {
+            // SQLite does not support "FOR UPDATE SKIP LOCKED" behavior, so we skip this test for SQLite.
+            return;
+        }
+
+        await using var dbContext2 = _dbContextFactory();
+        var storage2 = _storageFactory(dbContext2);
+
+        await storage1.UpsertScheduleAsync(dueSchedule1, CancellationToken.None);
+        await storage2.UpsertScheduleAsync(dueSchedule2, CancellationToken.None);
+
+        dbContext1.ChangeTracker.Clear();
+
+        await using var transaction1 = await dbContext1.Database.BeginTransactionAsync(
+            TestContext.Current.CancellationToken
+        );
+
+        await using var transaction2 = await dbContext2.Database.BeginTransactionAsync(
+            TestContext.Current.CancellationToken
+        );
+
+        // Act
+        var dueSchedulesFirstFetch = await storage1.GetDueSchedulesAsync(now, CancellationToken.None);
+        var dueSchedulesSecondFetch = await storage2.GetDueSchedulesAsync(now, CancellationToken.None);
+
+        await transaction1.RollbackAsync(TestContext.Current.CancellationToken);
+        await transaction2.RollbackAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        dueSchedulesFirstFetch.Should().HaveCount(2);
+        dueSchedulesSecondFetch.Should().BeEmpty();
     }
 
     [Fact]
@@ -420,16 +515,20 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             TimeZoneInfo.Utc,
             now
         );
-        await _storage.UpsertScheduleAsync(schedule1, CancellationToken.None);
-        await _storage.UpsertScheduleAsync(schedule2, CancellationToken.None);
 
-        _dbContext.ChangeTracker.Clear();
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
+        await storage.UpsertScheduleAsync(schedule1, CancellationToken.None);
+        await storage.UpsertScheduleAsync(schedule2, CancellationToken.None);
+
+        dbContext.ChangeTracker.Clear();
 
         // Act
         schedule1.Enabled = false;
         schedule2.MaxCatchUp = 10;
-        await _storage.UpdateSchedulesAsync(new[] { schedule1, schedule2 }, CancellationToken.None);
-        var updatedScheduleEntities = await _dbContext
+        await storage.UpdateSchedulesAsync(new[] { schedule1, schedule2 }, CancellationToken.None);
+        var updatedScheduleEntities = await dbContext
             .Set<AtomizerScheduleEntity>()
             .Where(s => s.Id == schedule1.Id || s.Id == schedule2.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
@@ -465,9 +564,12 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             now
         );
 
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
         // Act
-        var scheduleId = await _storage.UpsertScheduleAsync(schedule, CancellationToken.None);
-        var insertedScheduleEntity = await _dbContext
+        var scheduleId = await storage.UpsertScheduleAsync(schedule, CancellationToken.None);
+        var insertedScheduleEntity = await dbContext
             .Set<AtomizerScheduleEntity>()
             .FirstOrDefaultAsync(s => s.Id == scheduleId, TestContext.Current.CancellationToken);
 
@@ -495,14 +597,18 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             TimeZoneInfo.Utc,
             now
         );
-        await _storage.UpsertScheduleAsync(schedule, CancellationToken.None);
 
-        _dbContext.ChangeTracker.Clear();
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
+        await storage.UpsertScheduleAsync(schedule, CancellationToken.None);
+
+        dbContext.ChangeTracker.Clear();
 
         // Act
         schedule.Payload = """{ "message": "Updated Schedule" }""";
-        var scheduleId = await _storage.UpsertScheduleAsync(schedule, CancellationToken.None);
-        var updatedScheduleEntity = await _dbContext
+        var scheduleId = await storage.UpsertScheduleAsync(schedule, CancellationToken.None);
+        var updatedScheduleEntity = await dbContext
             .Set<AtomizerScheduleEntity>()
             .FirstOrDefaultAsync(s => s.Id == scheduleId, TestContext.Current.CancellationToken);
 
@@ -515,58 +621,42 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         map.Should().NotThrow();
     }
 
-    [Fact]
-    public async Task AcquireLockAsync_ShouldAcquireAndReleaseLock()
-    {
-        // Arrange
-        var timeout = TimeSpan.FromSeconds(5);
-
-        // Act
-        await using var dbLock = await _storage.AcquireLockAsync(
-            QueueKey.Default,
-            timeout,
-            TestContext.Current.CancellationToken
-        );
-
-        // Assert
-        dbLock.Acquired.Should().BeTrue();
-    }
-
     public async ValueTask DisposeAsync()
     {
-        _dbContext.ChangeTracker.Clear();
-        _dbContext.Set<AtomizerJobEntity>().RemoveRange(_dbContext.Set<AtomizerJobEntity>());
-        _dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(_dbContext.Set<AtomizerJobErrorEntity>());
-        _dbContext.Set<AtomizerScheduleEntity>().RemoveRange(_dbContext.Set<AtomizerScheduleEntity>());
-        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = _dbContextFactory();
+        dbContext.Set<AtomizerJobEntity>().RemoveRange(dbContext.Set<AtomizerJobEntity>());
+        dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(dbContext.Set<AtomizerJobErrorEntity>());
+        dbContext.Set<AtomizerScheduleEntity>().RemoveRange(dbContext.Set<AtomizerScheduleEntity>());
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     public ValueTask InitializeAsync()
     {
-        _dbContext.ChangeTracker.Clear();
         return ValueTask.CompletedTask;
     }
 }
 
+// ---- Executors per provider (fixtures provide the concrete DbContext) ----
+
 [Collection(nameof(PostgreSqlDatabaseFixture))]
 public class PostgreSqlStorageTestsExecutor(PostgreSqlDatabaseFixture fixture)
-    : EntityFrameworkCoreStorageTests(fixture.DbContext);
+    : EntityFrameworkCoreStorageTests(fixture.CreateNewDbContext);
 
 [Collection(nameof(MySqlDatabaseFixture))]
 public class MySqlStorageTestsExecutor(MySqlDatabaseFixture fixture)
-    : EntityFrameworkCoreStorageTests(fixture.DbContext);
+    : EntityFrameworkCoreStorageTests(fixture.CreateNewDbContext);
 
 [Collection(nameof(SqlServerDatabaseFixture))]
 public class SqlServerStorageTestsExecutor(SqlServerDatabaseFixture fixture)
-    : EntityFrameworkCoreStorageTests(fixture.DbContext);
+    : EntityFrameworkCoreStorageTests(fixture.CreateNewDbContext);
 
 [Collection(nameof(SqliteDatabaseFixture))]
 public class SqliteStorageTestsExecutor(SqliteDatabaseFixture fixture)
     : EntityFrameworkCoreStorageTests(
-        fixture.DbContext,
+        fixture.CreateNewDbContext,
         new EntityFrameworkCoreJobStorageOptions { AllowUnsafeProviderFallback = true }
     );
 
 // [Collection(nameof(OracleDatabaseFixture))]
 // public class OracleStorageTestsExecutor(OracleDatabaseFixture fixture)
-//     : EntityFrameworkCoreStorageTests(fixture.DbContext);
+//     : EntityFrameworkCoreStorageTests(fixture.CreateNewDbContext);

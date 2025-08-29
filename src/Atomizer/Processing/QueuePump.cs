@@ -15,7 +15,7 @@ internal sealed class QueuePump : IQueuePump
 {
     private readonly QueueOptions _queue;
     private readonly ILogger<QueuePump> _logger;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly IJobWorkerFactory _workerFactory;
     private readonly IQueuePoller _poller;
     private readonly IAtomizerClock _clock;
@@ -31,7 +31,7 @@ internal sealed class QueuePump : IQueuePump
     public QueuePump(
         QueueOptions queue,
         IQueuePoller poller,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILogger<QueuePump> logger,
         IJobWorkerFactory workerFactory,
         AtomizerRuntimeIdentity identity,
@@ -40,7 +40,7 @@ internal sealed class QueuePump : IQueuePump
     {
         _queue = queue;
         _poller = poller;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
         _workerFactory = workerFactory;
         _clock = clock;
@@ -122,7 +122,7 @@ internal sealed class QueuePump : IQueuePump
         // 4) Release any remaining leases for this pump
         try
         {
-            using var scope = _storageScopeFactory.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var releaseCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
             releaseCts.CancelAfter(TimeSpan.FromSeconds(5));
             var released = await scope.Storage.ReleaseLeasedAsync(_leaseToken, _clock.UtcNow, releaseCts.Token);

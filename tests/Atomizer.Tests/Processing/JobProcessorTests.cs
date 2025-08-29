@@ -11,8 +11,8 @@ public class JobProcessorTests
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
     private readonly IAtomizerJobDispatcher _dispatcher = Substitute.For<IAtomizerJobDispatcher>();
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
-    private readonly IAtomizerStorageScope _storageScope = Substitute.For<IAtomizerStorageScope>();
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
+    private readonly IAtomizerServiceScope _serviceScope = Substitute.For<IAtomizerServiceScope>();
     private readonly IAtomizerStorage _storage = Substitute.For<IAtomizerStorage>();
     private readonly TestableLogger _logger = Substitute.For<TestableLogger>();
     private readonly JobProcessor _sut;
@@ -22,9 +22,9 @@ public class JobProcessorTests
     public JobProcessorTests()
     {
         _clock.UtcNow.Returns(_now);
-        _storageScope.Storage.Returns(_storage);
-        _storageScopeFactory.CreateScope().Returns(_storageScope);
-        _sut = new JobProcessor(_clock, _dispatcher, _storageScopeFactory, _logger);
+        _serviceScope.Storage.Returns(_storage);
+        _serviceScopeFactory.CreateScope().Returns(_serviceScope);
+        _sut = new JobProcessor(_clock, _dispatcher, _serviceScopeFactory, _logger);
         _job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
         _job.Status = AtomizerJobStatus.Processing;
     }
@@ -45,7 +45,7 @@ public class JobProcessorTests
         _job.VisibleAt.Should().BeNull();
         _job.Errors.Should().BeEmpty();
 
-        await _storage.Received(1).UpdateJobAsync(_job, Arg.Any<CancellationToken>());
+        await _storage.Received(1).UpdateJobsAsync(Arg.Any<AtomizerJob[]>(), Arg.Any<CancellationToken>());
 
         _logger.Received().LogDebug($"Executing job {_job.Id} (attempt {_job.Attempts}) on '{_job.QueueKey}'");
         _logger.Received().LogInformation(Arg.Is<string>(s => s.StartsWith($"Job {_job.Id} succeeded in")));
@@ -85,7 +85,7 @@ public class JobProcessorTests
         _job.VisibleAt.Should().NotBeNull();
 
         _job.Errors.Should().ContainSingle();
-        await _storage.Received(1).UpdateJobAsync(_job, Arg.Any<CancellationToken>());
+        await _storage.Received(1).UpdateJobsAsync(Arg.Any<AtomizerJob[]>(), Arg.Any<CancellationToken>());
         _logger
             .Received()
             .LogWarning(
@@ -125,7 +125,7 @@ public class JobProcessorTests
     {
         // Arrange
         _storage
-            .UpdateJobAsync(Arg.Any<AtomizerJob>(), Arg.Any<CancellationToken>())
+            .UpdateJobsAsync(Arg.Any<IEnumerable<AtomizerJob>>(), Arg.Any<CancellationToken>())
             .Returns(_ => throw new Exception("storage fail"));
 
         // Act

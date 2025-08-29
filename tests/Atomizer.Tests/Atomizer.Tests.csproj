@@ -5,6 +5,7 @@
         <OutputType>Exe</OutputType>
         <RootNamespace>Atomizer.Tests</RootNamespace>
         <TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
+        <LangVersion>12</LangVersion>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <!--

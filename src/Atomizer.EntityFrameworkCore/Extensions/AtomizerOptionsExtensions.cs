@@ -26,6 +26,14 @@ public static class AtomizerOptionsExtensions
             ServiceLifetime.Scoped
         );
 
+        options.LeasingScopeOptions = new LeasingScopeOptions(
+            sp => new DatabaseTransactionLeasingScopeFactory<TDbContext>(
+                sp.GetRequiredService<TDbContext>(),
+                sp.GetRequiredService<ILogger<DatabaseTransactionLeasingScopeFactory<TDbContext>>>()
+            ),
+            ServiceLifetime.Scoped
+        );
+
         return options;
     }
 }

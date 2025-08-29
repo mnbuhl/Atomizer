@@ -13,19 +13,19 @@ internal sealed class JobProcessor : IJobProcessor
 {
     private readonly IAtomizerClock _clock;
     private readonly IAtomizerJobDispatcher _dispatcher;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger _logger;
 
     public JobProcessor(
         IAtomizerClock clock,
         IAtomizerJobDispatcher dispatcher,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILogger logger
     )
     {
         _clock = clock;
         _dispatcher = dispatcher;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -48,10 +48,10 @@ internal sealed class JobProcessor : IJobProcessor
 
             job.MarkAsCompleted(now);
 
-            using var scope = _storageScopeFactory.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var storage = scope.Storage;
 
-            await storage.UpdateJobAsync(job, ct);
+            await storage.UpdateJobsAsync(new[] { job }, ct);
 
             _logger.LogInformation(
                 "Job {JobId} succeeded in {Ms}ms on '{Queue}'",
@@ -104,10 +104,10 @@ internal sealed class JobProcessor : IJobProcessor
                 );
             }
 
-            using var scope = _storageScopeFactory.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var storage = scope.Storage;
 
-            await storage.UpdateJobAsync(job, ct);
+            await storage.UpdateJobsAsync(new[] { job }, ct);
         }
         catch (Exception jobFailureEx)
         {

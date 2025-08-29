@@ -37,20 +37,23 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
         services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
         services.AddSingleton<IAtomizerJobSerializer, DefaultJobSerializer>();
-        services.AddSingleton<IAtomizerStorageScopeFactory, ServiceProviderStorageScopeFactory>();
+        services.AddSingleton<IAtomizerServiceScopeFactory, ServiceProviderServiceScopeFactory>();
 
-        switch (options.JobStorageOptions.JobStorageLifetime)
-        {
-            case ServiceLifetime.Singleton:
-                services.AddSingleton(options.JobStorageOptions.JobStorageFactory);
-                break;
-            case ServiceLifetime.Scoped:
-                services.AddScoped(options.JobStorageOptions.JobStorageFactory);
-                break;
-            case ServiceLifetime.Transient:
-                services.AddTransient(options.JobStorageOptions.JobStorageFactory);
-                break;
-        }
+        services.Add(
+            ServiceDescriptor.Describe(
+                typeof(IAtomizerStorage),
+                options.JobStorageOptions.JobStorageFactory,
+                options.JobStorageOptions.JobStorageLifetime
+            )
+        );
+
+        services.Add(
+            ServiceDescriptor.Describe(
+                typeof(IAtomizerLeasingScopeFactory),
+                options.LeasingScopeOptions.LockProviderFactory,
+                options.LeasingScopeOptions.LockProviderLifetime
+            )
+        );
 
         return services;
     }

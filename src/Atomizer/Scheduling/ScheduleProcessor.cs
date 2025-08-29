@@ -12,17 +12,17 @@ internal interface IScheduleProcessor
 internal sealed class ScheduleProcessor : IScheduleProcessor
 {
     private readonly IAtomizerClock _clock;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<ScheduleProcessor> _logger;
 
     public ScheduleProcessor(
         IAtomizerClock clock,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILogger<ScheduleProcessor> logger
     )
     {
         _clock = clock;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -31,7 +31,7 @@ internal sealed class ScheduleProcessor : IScheduleProcessor
         var now = _clock.UtcNow;
         var occurrences = schedule.GetOccurrences(horizon);
 
-        using var scope = _storageScopeFactory.CreateScope();
+        using var scope = _serviceScopeFactory.CreateScope();
         var storage = scope.Storage;
 
         foreach (var occurrence in occurrences)

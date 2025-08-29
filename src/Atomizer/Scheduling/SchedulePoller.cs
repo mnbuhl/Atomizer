@@ -13,7 +13,7 @@ internal sealed class SchedulePoller : ISchedulePoller
 {
     private readonly SchedulingOptions _options;
     private readonly IAtomizerClock _clock;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<SchedulePoller> _logger;
     private readonly IScheduleProcessor _scheduleProcessor;
 
@@ -22,13 +22,13 @@ internal sealed class SchedulePoller : ISchedulePoller
     public SchedulePoller(
         AtomizerOptions options,
         IAtomizerClock clock,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILogger<SchedulePoller> logger,
         IScheduleProcessor scheduleProcessor
     )
     {
         _clock = clock;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
         _scheduleProcessor = scheduleProcessor;
         _options = options.SchedulingOptions;
@@ -48,42 +48,50 @@ internal sealed class SchedulePoller : ISchedulePoller
                     _lastStorageCheck = now;
                     var horizon = now + _options.ScheduleLeadTime!.Value;
 
-                    using var scope = _storageScopeFactory.CreateScope();
-                    var storage = scope.Storage;
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var leasingScopeFactory = scope.LeasingScopeFactory;
 
 #if NETCOREAPP3_0_OR_GREATER
-                    await using var storageLock = await storage.AcquireLockAsync(
+                    await using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
                         QueueKey.Scheduler,
                         TimeSpan.FromMinutes(1),
                         execToken
                     );
 #else
-                    using var storageLock = await storage.AcquireLockAsync(
+                    using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
                         QueueKey.Scheduler,
                         TimeSpan.FromMinutes(1),
                         execToken
                     );
 #endif
-
-                    var dueSchedules = await storage.GetDueSchedulesAsync(horizon, ioToken);
-
-                    foreach (var schedule in dueSchedules)
+                    if (leasingScope.Acquired)
                     {
-                        if (schedule.PayloadType is null)
+                        var storage = scope.Storage;
+
+                        var dueSchedules = await storage.GetDueSchedulesAsync(horizon, ioToken);
+
+                        foreach (var schedule in dueSchedules)
                         {
-                            _logger.LogWarning(
-                                "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
-                                schedule.JobKey
-                            );
-                            schedule.Disable(now);
-                            continue;
+                            if (schedule.PayloadType is null)
+                            {
+                                _logger.LogWarning(
+                                    "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
+                                    schedule.JobKey
+                                );
+                                schedule.Disable(now);
+                                continue;
+                            }
+
+                            await _scheduleProcessor.ProcessAsync(schedule, horizon, execToken);
+                            schedule.UpdateNextOccurence(horizon, now);
                         }
 
-                        await _scheduleProcessor.ProcessAsync(schedule, horizon, execToken);
-                        schedule.UpdateNextOccurence(horizon, now);
+                        await storage.UpdateSchedulesAsync(dueSchedules, execToken);
                     }
-
-                    await storage.UpdateSchedulesAsync(dueSchedules, execToken);
+                    else
+                    {
+                        _logger.LogDebug("Could not acquire leasing scope for schedule poller");
+                    }
                 }
             }
             catch (OperationCanceledException) when (ioToken.IsCancellationRequested)

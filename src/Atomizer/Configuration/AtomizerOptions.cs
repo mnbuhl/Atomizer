@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Atomizer.Core;
 using Atomizer.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,6 +8,8 @@ namespace Atomizer;
 public sealed class AtomizerOptions
 {
     public JobStorageOptions? JobStorageOptions { get; set; }
+    public LeasingScopeOptions LeasingScopeOptions { get; set; } =
+        new LeasingScopeOptions(_ => new NoopLeasingScopeFactory());
 
     internal SchedulingOptions SchedulingOptions { get; set; } = new SchedulingOptions();
 

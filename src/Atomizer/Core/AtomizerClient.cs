@@ -5,19 +5,19 @@ namespace Atomizer.Core;
 
 public class AtomizerClient : IAtomizerClient
 {
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly IAtomizerJobSerializer _jobSerializer;
     private readonly IAtomizerClock _clock;
     private readonly ILogger<AtomizerClient> _logger;
 
     public AtomizerClient(
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         IAtomizerJobSerializer jobSerializer,
         IAtomizerClock clock,
         ILogger<AtomizerClient> logger
     )
     {
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _jobSerializer = jobSerializer;
         _clock = clock;
         _logger = logger;
@@ -73,7 +73,7 @@ public class AtomizerClient : IAtomizerClient
             options.RetryStrategy
         );
 
-        using var scope = _storageScopeFactory.CreateScope();
+        using var scope = _serviceScopeFactory.CreateScope();
         return await scope.Storage.UpsertScheduleAsync(atomizerSchedule, cancellation);
     }
 
@@ -96,7 +96,7 @@ public class AtomizerClient : IAtomizerClient
             options.IdempotencyKey
         );
 
-        using var scope = _storageScopeFactory.CreateScope();
+        using var scope = _serviceScopeFactory.CreateScope();
         var jobId = await scope.Storage.InsertAsync(job, ct);
 
         _logger.LogDebug(

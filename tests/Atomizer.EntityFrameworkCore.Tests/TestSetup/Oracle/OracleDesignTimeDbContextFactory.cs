@@ -10,6 +10,6 @@ public class OracleDesignTimeDbContextFactory : IDesignTimeDbContextFactory<Orac
         var optionsBuilder = new DbContextOptionsBuilder<OracleDbContext>();
         optionsBuilder.UseOracle();
 
-        return new OracleDbContext(optionsBuilder.Options, "Atomizer");
+        return new OracleDbContext(optionsBuilder.Options);
     }
 }

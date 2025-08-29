@@ -13,19 +13,19 @@ internal interface IQueuePoller
 internal class QueuePoller : IQueuePoller
 {
     private readonly IAtomizerClock _clock;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<QueuePoller> _logger;
 
     private DateTimeOffset _lastStorageCheck;
 
     public QueuePoller(
         IAtomizerClock clock,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILogger<QueuePoller> logger
     )
     {
         _clock = clock;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
 
         _lastStorageCheck = _clock.MinValue;
@@ -51,24 +51,28 @@ internal class QueuePoller : IQueuePoller
 
                 if (now - _lastStorageCheck >= storageCheckInterval && itemsInChannel < queue.DegreeOfParallelism)
                 {
-                    using var scope = _storageScopeFactory.CreateScope();
-                    var storage = scope.Storage;
+                    using var scope = _serviceScopeFactory.CreateScope();
 
                     _lastStorageCheck = now;
+                    var leasingScopeFactory = scope.LeasingScopeFactory;
 
 #if NETCOREAPP3_0_OR_GREATER
-                    await using var storageLock = await storage.AcquireLockAsync(
+                    await using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
                         queue.QueueKey,
                         queue.VisibilityTimeout,
                         ct
                     );
 #else
-                    using var storageLock = await storage.AcquireLockAsync(queue.QueueKey, queue.VisibilityTimeout, ct);
+                    using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
+                        queue.QueueKey,
+                        queue.VisibilityTimeout,
+                        ct
+                    );
 #endif
-                    if (storageLock.Acquired)
-                    {
-                        _logger.LogDebug("Failed to acquire storage lock for queue '{Queue}'", queue.QueueKey);
+                    var storage = scope.Storage;
 
+                    if (leasingScope.Acquired)
+                    {
                         var jobs = await storage.GetDueJobsAsync(queue.QueueKey, now, queue.BatchSize, ct);
 
                         if (jobs.Count > 0)
@@ -87,6 +91,10 @@ internal class QueuePoller : IQueuePoller
                         {
                             _logger.LogDebug("Queue '{Queue}' found no jobs to lease", queue.QueueKey);
                         }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("Failed to acquire processing scope for queue '{Queue}'", queue.QueueKey);
                     }
                 }
             }

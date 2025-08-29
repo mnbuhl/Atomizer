@@ -13,14 +13,14 @@ internal sealed class QueuePumpFactory : IQueuePumpFactory
 {
     private readonly IQueuePoller _queuePoller;
     private readonly IJobWorkerFactory _workerFactory;
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly ILoggerFactory _loggerFactory;
     private readonly AtomizerRuntimeIdentity _atomizerRuntimeIdentity;
     private readonly IAtomizerClock _clock;
 
     public QueuePumpFactory(
         IQueuePoller queuePoller,
-        IAtomizerStorageScopeFactory storageScopeFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
         ILoggerFactory loggerFactory,
         AtomizerRuntimeIdentity atomizerRuntimeIdentity,
         IJobWorkerFactory workerFactory,
@@ -28,7 +28,7 @@ internal sealed class QueuePumpFactory : IQueuePumpFactory
     )
     {
         _queuePoller = queuePoller;
-        _storageScopeFactory = storageScopeFactory;
+        _serviceScopeFactory = serviceScopeFactory;
         _loggerFactory = loggerFactory;
         _atomizerRuntimeIdentity = atomizerRuntimeIdentity;
         _workerFactory = workerFactory;
@@ -40,7 +40,7 @@ internal sealed class QueuePumpFactory : IQueuePumpFactory
         return new QueuePump(
             queue,
             _queuePoller,
-            _storageScopeFactory,
+            _serviceScopeFactory,
             _loggerFactory.CreateLogger<QueuePump>(),
             _workerFactory,
             _atomizerRuntimeIdentity,

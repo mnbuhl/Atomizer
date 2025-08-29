@@ -12,18 +12,18 @@ namespace Atomizer.Tests.Scheduling;
 public class ScheduleProcessorTests
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
-    private readonly IAtomizerStorageScopeFactory _storageScopeFactory = Substitute.For<IAtomizerStorageScopeFactory>();
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
     private readonly TestableLogger<ScheduleProcessor> _logger = Substitute.For<TestableLogger<ScheduleProcessor>>();
     private readonly ScheduleProcessor _sut;
-    private readonly IAtomizerStorageScope _scope = Substitute.For<IAtomizerStorageScope>();
+    private readonly IAtomizerServiceScope _scope = Substitute.For<IAtomizerServiceScope>();
     private readonly IAtomizerStorage _storage = Substitute.For<IAtomizerStorage>();
 
     public ScheduleProcessorTests()
     {
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
         _scope.Storage.Returns(_storage);
-        _storageScopeFactory.CreateScope().Returns(_scope);
-        _sut = new ScheduleProcessor(_clock, _storageScopeFactory, _logger);
+        _serviceScopeFactory.CreateScope().Returns(_scope);
+        _sut = new ScheduleProcessor(_clock, _serviceScopeFactory, _logger);
     }
 
     [Fact]
@@ -42,9 +42,6 @@ public class ScheduleProcessorTests
         var horizon = _clock.UtcNow.AddSeconds(2);
         var token = CancellationToken.None;
         var occurrences = schedule.GetOccurrences(horizon);
-        _storage
-            .AcquireLockAsync(QueueKey.Scheduler, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
-            .Returns(new NoopLock());
 
         // Act
         await _sut.ProcessAsync(schedule, horizon, token);
@@ -78,9 +75,6 @@ public class ScheduleProcessorTests
         var token = CancellationToken.None;
 
         _storage.InsertAsync(Arg.Any<AtomizerJob>(), token).Returns<Task>(_ => throw new Exception("Insert failed"));
-        _storage
-            .AcquireLockAsync(QueueKey.Scheduler, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
-            .Returns(new NoopLock());
 
         // Act
         await _sut.ProcessAsync(schedule, horizon, token);

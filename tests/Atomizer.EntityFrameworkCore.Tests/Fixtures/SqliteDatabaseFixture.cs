@@ -11,15 +11,24 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
 
     public async ValueTask InitializeAsync()
     {
+        RelationalProviderCache.ResetInstanceForTests();
         DeleteDatabaseFiles();
 
+        DbContext = ConfigureDbContext();
+        await DbContext.Database.MigrateAsync();
+    }
+
+    private SqliteDbContext ConfigureDbContext()
+    {
         var options = new DbContextOptionsBuilder<SqliteDbContext>();
         options.UseSqlite("Data Source=atomizer_test.db");
 
-        DbContext = new SqliteDbContext(options.Options, "Atomizer");
-        await DbContext.Database.MigrateAsync();
+        return new SqliteDbContext(options.Options, "Atomizer");
+    }
 
-        RelationalProviderCache.ResetInstanceForTests();
+    public SqliteDbContext CreateNewDbContext()
+    {
+        return ConfigureDbContext();
     }
 
     public async ValueTask DisposeAsync()

@@ -11,11 +11,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
     private readonly Dictionary<QueueKey, HashSet<Guid>> _queues = new(); // guarded per-queue
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>> _leasesByToken = new();
 
-    // Locks
-    private readonly ConcurrentDictionary<QueueKey, object> _queueLocks = new();
-    private readonly object _schedulesSync = new();
-
-    // Schedules (single lock)
     private readonly Dictionary<JobKey, AtomizerSchedule> _schedules = new();
 
     private readonly InMemoryJobStorageOptions _options;
@@ -32,15 +27,10 @@ public sealed class InMemoryStorage : IAtomizerStorage
     public Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Evict(); // opportunistic global pass; uses per-queue locks internally
 
         _jobs[job.Id] = job;
 
-        var qlock = GetQueueLock(job.QueueKey);
-        lock (qlock)
-        {
-            IndexIntoQueueWithoutLock(job);
-        }
+        IndexIntoQueue(job);
 
         _logger.LogDebug(
             "Inserted job {JobId} into queue {QueueKey} with ScheduledAt={ScheduledAt:o}",
@@ -49,26 +39,9 @@ public sealed class InMemoryStorage : IAtomizerStorage
             job.ScheduledAt
         );
 
+        EvictCompletedAndFailed();
+
         return Task.FromResult(job.Id);
-    }
-
-    public Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (!_jobs.TryGetValue(job.Id, out _))
-        {
-            _logger.LogDebug("Update requested for missing job {JobId}", job.Id);
-            throw new KeyNotFoundException($"Job {job.Id} not found");
-        }
-
-        _jobs[job.Id] = job;
-
-        UpdateLease(job);
-
-        _logger.LogDebug("Updated job {JobId} status={Status} attempts={Attempts}", job.Id, job.Status, job.Attempts);
-
-        return Task.CompletedTask;
     }
 
     public Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
@@ -80,7 +53,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         {
             if (!_jobs.TryGetValue(job.Id, out _))
             {
-                _logger.LogDebug("Update requested for missing job {JobId}", job.Id);
+                _logger.LogError("Update requested for missing job {JobId}", job.Id);
                 continue;
             }
 
@@ -109,35 +82,31 @@ public sealed class InMemoryStorage : IAtomizerStorage
             now
         );
 
-        var qlock = GetQueueLock(queueKey);
         List<AtomizerJob> candidates;
 
-        lock (qlock)
+        if (!_queues.TryGetValue(queueKey, out var ids) || ids.Count == 0)
         {
-            if (!_queues.TryGetValue(queueKey, out var ids) || ids.Count == 0)
-            {
-                _logger.LogDebug("LeaseBatch: queue {QueueKey} is empty", queueKey);
-                return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
-            }
+            _logger.LogDebug("LeaseBatch: queue {QueueKey} is empty", queueKey);
+            return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
+        }
 
-            candidates = ids.Select(id => _jobs[id]) // safe: ids derived under the same lock
-                .Where(j =>
-                    (
-                        j.Status == AtomizerJobStatus.Pending
-                        && (j.VisibleAt == null || j.VisibleAt <= now)
-                        && j.ScheduledAt <= now
-                    ) || (j.Status == AtomizerJobStatus.Processing && j.VisibleAt <= now) // expired lease
-                )
-                .OrderBy(j => j.ScheduledAt)
-                .ThenBy(j => j.CreatedAt)
-                .Take(Math.Max(0, batchSize))
-                .ToList();
+        candidates = ids.Select(id => _jobs[id]) // safe: ids derived under the same lock
+            .Where(j =>
+                (
+                    j.Status == AtomizerJobStatus.Pending
+                    && (j.VisibleAt == null || j.VisibleAt <= now)
+                    && j.ScheduledAt <= now
+                ) || (j.Status == AtomizerJobStatus.Processing && j.VisibleAt <= now) // expired lease
+            )
+            .OrderBy(j => j.ScheduledAt)
+            .ThenBy(j => j.CreatedAt)
+            .Take(Math.Max(0, batchSize))
+            .ToList();
 
-            if (candidates.Count == 0)
-            {
-                _logger.LogDebug("LeaseBatch: no eligible candidates for queue {QueueKey}", queueKey);
-                return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
-            }
+        if (candidates.Count == 0)
+        {
+            _logger.LogDebug("LeaseBatch: no eligible candidates for queue {QueueKey}", queueKey);
+            return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
         }
 
         _logger.LogDebug(
@@ -167,16 +136,12 @@ public sealed class InMemoryStorage : IAtomizerStorage
             if (!_jobs.TryGetValue(jobId, out var job))
                 continue;
 
-            var qlock = GetQueueLock(job.QueueKey);
-            lock (qlock)
-            {
-                // Double-check token under lock in case it changed
-                if (job.LeaseToken?.Token != leaseToken.Token)
-                    continue;
+            // Double-check token under lock in case it changed
+            if (job.LeaseToken?.Token != leaseToken.Token)
+                continue;
 
-                job.Release(now);
-                released++;
-            }
+            job.Release(now);
+            released++;
         }
 
         _logger.LogDebug(
@@ -192,15 +157,12 @@ public sealed class InMemoryStorage : IAtomizerStorage
         cancellationToken.ThrowIfCancellationRequested();
         var now = _clock.UtcNow;
 
-        lock (_schedulesSync)
-        {
-            schedule.CreatedAt = schedule.CreatedAt == default ? now : schedule.CreatedAt;
-            schedule.UpdatedAt = now;
-            _schedules[schedule.JobKey] = schedule;
+        schedule.CreatedAt = schedule.CreatedAt == default ? now : schedule.CreatedAt;
+        schedule.UpdatedAt = now;
+        _schedules[schedule.JobKey] = schedule;
 
-            _logger.LogDebug("UpsertSchedule: upserted schedule for jobKey={JobKey}", schedule.JobKey);
-            return Task.FromResult(schedule.Id);
-        }
+        _logger.LogDebug("UpsertSchedule: upserted schedule for jobKey={JobKey}", schedule.JobKey);
+        return Task.FromResult(schedule.Id);
     }
 
     public Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
@@ -210,19 +172,16 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         var schedulesList = schedules.ToList();
 
-        lock (_schedulesSync)
+        foreach (var schedule in schedulesList)
         {
-            foreach (var schedule in schedulesList)
+            if (!_schedules.ContainsKey(schedule.JobKey))
             {
-                if (!_schedules.ContainsKey(schedule.JobKey))
-                {
-                    _logger.LogDebug("UpdateSchedules: schedule for jobKey={JobKey} not found", schedule.JobKey);
-                    continue;
-                }
-
-                schedule.UpdatedAt = now;
-                _schedules[schedule.JobKey] = schedule;
+                _logger.LogDebug("UpdateSchedules: schedule for jobKey={JobKey} not found", schedule.JobKey);
+                continue;
             }
+
+            schedule.UpdatedAt = now;
+            _schedules[schedule.JobKey] = schedule;
         }
 
         _logger.LogDebug("UpdateSchedules: updated {Count} schedules", schedulesList.Count);
@@ -238,20 +197,16 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         _logger.LogDebug("GetDueSchedules requested now={Now:o}", now);
 
-        List<AtomizerSchedule> due;
-        lock (_schedulesSync)
-        {
-            due = _schedules
-                .Values.Where(s => s.Enabled && s.NextRunAt <= now)
-                .OrderBy(s => s.NextRunAt)
-                .ThenBy(s => s.CreatedAt)
-                .ToList();
+        var due = _schedules
+            .Values.Where(s => s.Enabled && s.NextRunAt <= now)
+            .OrderBy(s => s.NextRunAt)
+            .ThenBy(s => s.CreatedAt)
+            .ToList();
 
-            if (due.Count == 0)
-            {
-                _logger.LogDebug("LeaseDueSchedules: no due schedules");
-                return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
-            }
+        if (due.Count == 0)
+        {
+            _logger.LogDebug("LeaseDueSchedules: no due schedules");
+            return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
         }
 
         _logger.LogDebug(
@@ -263,20 +218,9 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
-    public Task<IAtomizerLock> AcquireLockAsync(
-        QueueKey queueKey,
-        TimeSpan lockTimeout,
-        CancellationToken cancellationToken
-    )
-    {
-        return Task.FromResult<IAtomizerLock>(new NoopLock());
-    }
-
     // ---- helpers ----
 
-    private object GetQueueLock(QueueKey key) => _queueLocks.GetOrAdd(key, _ => new object());
-
-    private void IndexIntoQueueWithoutLock(AtomizerJob job)
+    private void IndexIntoQueue(AtomizerJob job)
     {
         if (!_queues.TryGetValue(job.QueueKey, out var ids))
         {
@@ -286,7 +230,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         ids.Add(job.Id);
     }
 
-    private void UnindexFromQueueWithoutLock(AtomizerJob job)
+    private void UnindexFromQueue(AtomizerJob job)
     {
         if (_queues.TryGetValue(job.QueueKey, out var ids))
         {
@@ -298,7 +242,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         }
     }
 
-    private void Evict()
+    private void EvictCompletedAndFailed()
     {
         var retain = Math.Max(0, _options.AmountOfJobsToRetainInMemory);
 
@@ -316,12 +260,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         foreach (var job in toRemove)
         {
-            // Remove from queue index under that queue's lock
-            var qlock = GetQueueLock(job.QueueKey);
-            lock (qlock)
-            {
-                UnindexFromQueueWithoutLock(job);
-            }
+            UnindexFromQueue(job);
 
             // Remove from leases set (if any)
             var leaseToken = job.LeaseToken?.Token;
