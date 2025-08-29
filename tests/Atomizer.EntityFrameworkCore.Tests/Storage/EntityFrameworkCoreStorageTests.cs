@@ -96,57 +96,6 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateJobAsync_WhenJobExists_ShouldUpdateJob()
-    {
-        // Arrange
-        var now = _clock.UtcNow;
-        var job = AtomizerJob.Create(
-            QueueKey.Default,
-            typeof(WriteLineMessage),
-            """{ "message": "Hello, World!" }""",
-            now,
-            now
-        );
-        await _storage.InsertAsync(job, CancellationToken.None);
-
-        _dbContext.ChangeTracker.Clear();
-
-        // Act
-        job.MarkAsCompleted(_clock.UtcNow);
-        await _storage.UpdateJobAsync(job, CancellationToken.None);
-        var updatedJobEntity = await _dbContext
-            .Set<AtomizerJobEntity>()
-            .FirstOrDefaultAsync(j => j.Id == job.Id, TestContext.Current.CancellationToken);
-
-        // Assert
-        updatedJobEntity.Should().NotBeNull();
-        updatedJobEntity.Status.Should().Be(AtomizerEntityJobStatus.Completed);
-
-        var map = () => updatedJobEntity.ToAtomizerJob();
-        map.Should().NotThrow();
-    }
-
-    [Fact]
-    public async Task UpdateJobAsync_WhenJobDoesNotExist_ShouldLogErrorAndContinue()
-    {
-        // Arrange
-        var now = _clock.UtcNow;
-        var job = AtomizerJob.Create(
-            QueueKey.Default,
-            typeof(WriteLineMessage),
-            """{ "message": "Hello, World!" }""",
-            now,
-            now
-        );
-
-        // Act
-        await _storage.UpdateJobAsync(job, CancellationToken.None);
-
-        // Assert
-        _logger.Received(1).LogError(Arg.Any<DbUpdateException>(), $"Failed to update job {job.Id}");
-    }
-
-    [Fact]
     public async Task UpdateJobsAsync_WhenJobsExist_ShouldUpdateJobs()
     {
         // Arrange
@@ -287,7 +236,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
 
         // Simulate leasing the job
         job.Lease(leaseToken, _clock.UtcNow, TimeSpan.FromMinutes(2));
-        await _storage.UpdateJobAsync(job, CancellationToken.None);
+        await _storage.UpdateJobsAsync([job], CancellationToken.None);
 
         _dbContext.ChangeTracker.Clear();
 

@@ -45,7 +45,7 @@ public class JobProcessorTests
         _job.VisibleAt.Should().BeNull();
         _job.Errors.Should().BeEmpty();
 
-        await _storage.Received(1).UpdateJobAsync(_job, Arg.Any<CancellationToken>());
+        await _storage.Received(1).UpdateJobsAsync(Arg.Any<AtomizerJob[]>(), Arg.Any<CancellationToken>());
 
         _logger.Received().LogDebug($"Executing job {_job.Id} (attempt {_job.Attempts}) on '{_job.QueueKey}'");
         _logger.Received().LogInformation(Arg.Is<string>(s => s.StartsWith($"Job {_job.Id} succeeded in")));
@@ -85,7 +85,7 @@ public class JobProcessorTests
         _job.VisibleAt.Should().NotBeNull();
 
         _job.Errors.Should().ContainSingle();
-        await _storage.Received(1).UpdateJobAsync(_job, Arg.Any<CancellationToken>());
+        await _storage.Received(1).UpdateJobsAsync(Arg.Any<AtomizerJob[]>(), Arg.Any<CancellationToken>());
         _logger
             .Received()
             .LogWarning(
@@ -125,7 +125,7 @@ public class JobProcessorTests
     {
         // Arrange
         _storage
-            .UpdateJobAsync(Arg.Any<AtomizerJob>(), Arg.Any<CancellationToken>())
+            .UpdateJobsAsync(Arg.Any<IEnumerable<AtomizerJob>>(), Arg.Any<CancellationToken>())
             .Returns(_ => throw new Exception("storage fail"));
 
         // Act

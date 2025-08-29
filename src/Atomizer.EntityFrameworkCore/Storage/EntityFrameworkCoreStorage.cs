@@ -59,21 +59,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         return entity.Id;
     }
 
-    public async Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken)
-    {
-        var updated = job.ToEntity();
-
-        try
-        {
-            JobEntities.Update(updated);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex)
-        {
-            _logger.LogError(ex, "Failed to update job {JobId}", job.Id);
-        }
-    }
-
     public async Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
     {
         try

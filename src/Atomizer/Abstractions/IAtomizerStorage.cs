@@ -11,14 +11,6 @@ public interface IAtomizerStorage
     Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Updates an existing Atomizer job in the storage.
-    /// </summary>
-    /// <param name="job">The Atomizer job to be updated.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken);
-
-    /// <summary>
     /// Updates a range of existing Atomizer jobs in the storage.
     /// </summary>
     /// <param name="jobs">The collection of Atomizer jobs to be updated.</param>
