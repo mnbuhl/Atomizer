@@ -34,7 +34,7 @@ public class SqlServerProvider : IDatabaseProviderSql
                           AND {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{sqlServerNow}'
                         )
                       )
-                ORDER BY {c[nameof(AtomizerJobEntity.ScheduledAt)]}, {c[nameof(AtomizerJobEntity.Id)]}
+                ORDER BY {c[nameof(AtomizerJobEntity.ScheduledAt)]}, {c[nameof(AtomizerJobEntity.Id)]};
             """
         );
     }
@@ -65,7 +65,7 @@ public class SqlServerProvider : IDatabaseProviderSql
                 FROM {_schedules.Table} AS t WITH (UPDLOCK, READPAST, ROWLOCK)
                 WHERE {c[nameof(AtomizerScheduleEntity.NextRunAt)]} <= '{sqlServerNow}'
                   AND {c[nameof(AtomizerScheduleEntity.Enabled)]} = 1
-                ORDER BY {c[nameof(AtomizerScheduleEntity.NextRunAt)]}, {c[nameof(AtomizerScheduleEntity.Id)]}
+                ORDER BY {c[nameof(AtomizerScheduleEntity.NextRunAt)]}, {c[nameof(AtomizerScheduleEntity.Id)]};
             """
         );
     }

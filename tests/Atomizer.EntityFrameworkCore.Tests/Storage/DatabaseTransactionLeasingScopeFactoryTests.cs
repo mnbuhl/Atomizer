@@ -110,7 +110,3 @@ public sealed class DatabaseTransactionLeasingScopeFactorySqlServerExecutor(SqlS
 [Collection(nameof(SqliteDatabaseFixture))]
 public sealed class DatabaseTransactionLeasingScopeFactorySqliteExecutor(SqliteDatabaseFixture fixture)
     : DatabaseTransactionLeasingScopeFactoryTests(fixture.CreateNewDbContext);
-
-// [Collection(nameof(OracleDatabaseFixture))]
-// public sealed class DatabaseTransactionLeasingScopeFactoryOracleExecutor(OracleDatabaseFixture fixture)
-//     : DatabaseTransactionLeasingScopeFactoryTests(fixture.CreateNewDbContext);

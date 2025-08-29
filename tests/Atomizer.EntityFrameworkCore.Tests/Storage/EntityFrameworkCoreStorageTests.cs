@@ -656,7 +656,3 @@ public class SqliteStorageTestsExecutor(SqliteDatabaseFixture fixture)
         fixture.CreateNewDbContext,
         new EntityFrameworkCoreJobStorageOptions { AllowUnsafeProviderFallback = true }
     );
-
-// [Collection(nameof(OracleDatabaseFixture))]
-// public class OracleStorageTestsExecutor(OracleDatabaseFixture fixture)
-//     : EntityFrameworkCoreStorageTests(fixture.CreateNewDbContext);
