@@ -16,13 +16,13 @@ internal sealed class ServiceProviderServiceScope : IAtomizerServiceScope
 {
     private readonly IServiceScope _scope;
     public IAtomizerStorage Storage { get; }
-    public IAtomizerLockProvider LockProvider { get; }
+    public IAtomizerLeasingScopeFactory LeasingScopeFactory { get; }
 
     public ServiceProviderServiceScope(IServiceScope scope)
     {
         _scope = scope;
         Storage = scope.ServiceProvider.GetRequiredService<IAtomizerStorage>();
-        LockProvider = scope.ServiceProvider.GetRequiredService<IAtomizerLockProvider>();
+        LeasingScopeFactory = scope.ServiceProvider.GetRequiredService<IAtomizerLeasingScopeFactory>();
     }
 
     public void Dispose() => _scope.Dispose();

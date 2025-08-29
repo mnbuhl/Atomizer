@@ -1,8 +1,6 @@
 ﻿using Atomizer.Abstractions;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
-using Atomizer.Locking;
-using Atomizer.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -253,22 +251,5 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
                 + "Note that this may lead to unexpected behavior."
         );
-    }
-
-    public async Task<IAtomizerLock> AcquireLockAsync(
-        QueueKey queueKey,
-        TimeSpan lockTimeout,
-        CancellationToken cancellationToken
-    )
-    {
-        if (_providerCache.DatabaseProvider == DatabaseProvider.Unknown)
-        {
-            return new NoopLock();
-        }
-
-        var transaction = new DatabaseTransactionLock<TDbContext>(_dbContext, lockTimeout);
-        await transaction.AcquireAsync(cancellationToken);
-
-        return transaction;
     }
 }

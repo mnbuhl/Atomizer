@@ -9,7 +9,7 @@ namespace Atomizer.EntityFrameworkCore.Storage;
 /// Wraps a database transaction as a lock mechanism to fit into Atomizer's locking abstraction.
 /// </summary>
 /// <typeparam name="TDbContext">The type of the DbContext.</typeparam>
-public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
+public class DatabaseTransactionLeasingScope<TDbContext> : IAtomizerLeasingScope
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
@@ -17,7 +17,7 @@ public class DatabaseTransactionLock<TDbContext> : IAtomizerLock
 
     private IDbContextTransaction? _dbTransaction;
 
-    public DatabaseTransactionLock(TDbContext dbContext, TimeSpan timeout)
+    public DatabaseTransactionLeasingScope(TDbContext dbContext, TimeSpan timeout)
     {
         _dbContext = dbContext;
         _timeout = timeout;

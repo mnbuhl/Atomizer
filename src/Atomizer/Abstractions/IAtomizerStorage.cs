@@ -74,13 +74,4 @@ public interface IAtomizerStorage
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of due Atomizer schedules.</returns>
     Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(DateTimeOffset now, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Acquires a distributed lock for the specified queue key.
-    /// </summary>
-    /// <param name="queueKey">The key of the queue for which to acquire the lock.</param>
-    /// <param name="lockTimeout">The duration for which the lock will be held before it is automatically released.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <returns></returns>
-    Task<IAtomizerLock> AcquireLockAsync(QueueKey queueKey, TimeSpan lockTimeout, CancellationToken cancellationToken);
 }

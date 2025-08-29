@@ -8,7 +8,8 @@ namespace Atomizer;
 public sealed class AtomizerOptions
 {
     public JobStorageOptions? JobStorageOptions { get; set; }
-    public LockProviderOptions LockProviderOptions { get; set; } = new LockProviderOptions(_ => new NoopLockProvider());
+    public LockProviderOptions LockProviderOptions { get; set; } =
+        new LockProviderOptions(_ => new NoopLeasingScopeFactory());
 
     internal SchedulingOptions SchedulingOptions { get; set; } = new SchedulingOptions();
 

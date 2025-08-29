@@ -43,9 +43,6 @@ public class ScheduleProcessorTests
         var horizon = _clock.UtcNow.AddSeconds(2);
         var token = CancellationToken.None;
         var occurrences = schedule.GetOccurrences(horizon);
-        _storage
-            .AcquireLockAsync(QueueKey.Scheduler, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
-            .Returns(new NoopLock());
 
         // Act
         await _sut.ProcessAsync(schedule, horizon, token);
@@ -79,9 +76,6 @@ public class ScheduleProcessorTests
         var token = CancellationToken.None;
 
         _storage.InsertAsync(Arg.Any<AtomizerJob>(), token).Returns<Task>(_ => throw new Exception("Insert failed"));
-        _storage
-            .AcquireLockAsync(QueueKey.Scheduler, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
-            .Returns(new NoopLock());
 
         // Act
         await _sut.ProcessAsync(schedule, horizon, token);

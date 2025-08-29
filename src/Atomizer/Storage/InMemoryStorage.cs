@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using Atomizer.Abstractions;
 using Atomizer.Core;
-using Atomizer.Locking;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage;
@@ -262,15 +261,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
         );
 
         return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
-    }
-
-    public Task<IAtomizerLock> AcquireLockAsync(
-        QueueKey queueKey,
-        TimeSpan lockTimeout,
-        CancellationToken cancellationToken
-    )
-    {
-        return Task.FromResult<IAtomizerLock>(new NoopLock());
     }
 
     // ---- helpers ----

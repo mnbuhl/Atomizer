@@ -8,4 +8,5 @@ public interface IAtomizerServiceScopeFactory
 public interface IAtomizerServiceScope : IDisposable
 {
     IAtomizerStorage Storage { get; }
+    IAtomizerLeasingScopeFactory LeasingScopeFactory { get; }
 }

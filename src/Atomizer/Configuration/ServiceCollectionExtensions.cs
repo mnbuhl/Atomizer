@@ -49,7 +49,7 @@ public static class ServiceCollectionExtensions
 
         services.Add(
             ServiceDescriptor.Describe(
-                typeof(IAtomizerLockProvider),
+                typeof(IAtomizerLeasingScopeFactory),
                 options.LockProviderOptions.LockProviderFactory,
                 options.LockProviderOptions.LockProviderLifetime
             )

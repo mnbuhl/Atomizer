@@ -51,9 +51,6 @@ namespace Atomizer.Tests.Processing
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(jobs);
-            _storage
-                .AcquireLockAsync(_queueOptions.QueueKey, _queueOptions.VisibilityTimeout, Arg.Any<CancellationToken>())
-                .Returns(new NoopLock());
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100); // short run
@@ -78,9 +75,6 @@ namespace Atomizer.Tests.Processing
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob>());
-            _storage
-                .AcquireLockAsync(_queueOptions.QueueKey, _queueOptions.VisibilityTimeout, Arg.Any<CancellationToken>())
-                .Returns(new NoopLock());
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100);

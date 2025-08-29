@@ -515,23 +515,6 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         map.Should().NotThrow();
     }
 
-    [Fact]
-    public async Task AcquireLockAsync_ShouldAcquireAndReleaseLock()
-    {
-        // Arrange
-        var timeout = TimeSpan.FromSeconds(5);
-
-        // Act
-        await using var dbLock = await _storage.AcquireLockAsync(
-            QueueKey.Default,
-            timeout,
-            TestContext.Current.CancellationToken
-        );
-
-        // Assert
-        dbLock.Acquired.Should().BeTrue();
-    }
-
     public async ValueTask DisposeAsync()
     {
         _dbContext.ChangeTracker.Clear();
