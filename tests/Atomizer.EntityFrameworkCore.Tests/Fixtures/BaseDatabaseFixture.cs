@@ -19,12 +19,11 @@ public abstract class BaseDatabaseFixture<TDbContext> : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        RelationalProviderCache.ResetInstanceForTests();
         await DatabaseContainer.StartAsync();
         DbContext = ConfigureDbContext();
 
         await DbContext.Database.MigrateAsync();
-
-        RelationalProviderCache.ResetInstanceForTests();
     }
 
     protected abstract TDbContext ConfigureDbContext();

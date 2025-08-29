@@ -11,12 +11,11 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
 
     public async ValueTask InitializeAsync()
     {
+        RelationalProviderCache.ResetInstanceForTests();
         DeleteDatabaseFiles();
 
         DbContext = ConfigureDbContext();
         await DbContext.Database.MigrateAsync();
-
-        RelationalProviderCache.ResetInstanceForTests();
     }
 
     private SqliteDbContext ConfigureDbContext()

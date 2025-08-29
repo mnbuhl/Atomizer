@@ -4,6 +4,7 @@ using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup;
 using Atomizer.Tests.Utilities;
 using AwesomeAssertions;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Storage;
@@ -43,6 +44,13 @@ public abstract class DatabaseTransactionLeasingScopeFactoryTests
     {
         // Arrange
         await using var context1 = _dbContextFactory();
+
+        if (context1.Database.IsSqlite())
+        {
+            // SQLite databases do not support multiple concurrent writers through EF Core.
+            return;
+        }
+
         await using var context2 = _dbContextFactory();
         await using var context3 = _dbContextFactory();
         var sut1 = new DatabaseTransactionLeasingScopeFactory<TestDbContext>(context1, _logger);
