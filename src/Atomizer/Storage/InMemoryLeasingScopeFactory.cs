@@ -1,8 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using Atomizer.Abstractions;
+using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Core;
+namespace Atomizer.Storage;
 
 internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
 {

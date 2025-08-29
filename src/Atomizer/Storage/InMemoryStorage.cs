@@ -27,7 +27,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
     public Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Evict(); // opportunistic global pass; uses per-queue locks internally
 
         _jobs[job.Id] = job;
 
@@ -40,26 +39,9 @@ public sealed class InMemoryStorage : IAtomizerStorage
             job.ScheduledAt
         );
 
+        EvictCompletedAndFailed();
+
         return Task.FromResult(job.Id);
-    }
-
-    public Task UpdateJobAsync(AtomizerJob job, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (!_jobs.TryGetValue(job.Id, out _))
-        {
-            _logger.LogDebug("Update requested for missing job {JobId}", job.Id);
-            throw new KeyNotFoundException($"Job {job.Id} not found");
-        }
-
-        _jobs[job.Id] = job;
-
-        UpdateLease(job);
-
-        _logger.LogDebug("Updated job {JobId} status={Status} attempts={Attempts}", job.Id, job.Status, job.Attempts);
-
-        return Task.CompletedTask;
     }
 
     public Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
@@ -71,7 +53,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         {
             if (!_jobs.TryGetValue(job.Id, out _))
             {
-                _logger.LogDebug("Update requested for missing job {JobId}", job.Id);
+                _logger.LogError("Update requested for missing job {JobId}", job.Id);
                 continue;
             }
 
@@ -260,7 +242,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         }
     }
 
-    private void Evict()
+    private void EvictCompletedAndFailed()
     {
         var retain = Math.Max(0, _options.AmountOfJobsToRetainInMemory);
 

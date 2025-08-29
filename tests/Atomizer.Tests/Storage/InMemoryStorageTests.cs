@@ -1,7 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using Atomizer.Core;
 using Atomizer.Storage;
-using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Tests.Storage
 {
@@ -15,7 +14,7 @@ namespace Atomizer.Tests.Storage
             AmountOfJobsToRetainInMemory = 100,
         };
         private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
-        private readonly ILogger<InMemoryStorage> _logger = Substitute.For<ILogger<InMemoryStorage>>();
+        private readonly TestableLogger<InMemoryStorage> _logger = Substitute.For<TestableLogger<InMemoryStorage>>();
         private readonly InMemoryStorage _sut;
         private readonly DateTimeOffset _now = DateTimeOffset.UtcNow;
 
@@ -51,11 +50,48 @@ namespace Atomizer.Tests.Storage
             queues[QueueKey.Default].Should().Contain(job.Id);
         }
 
+        [Fact]
+        public async Task InsertAsync_WhenCalled_ShouldEvictOldJobs()
+        {
+            // Arrange
+            var jobs = new List<AtomizerJob>();
+            for (int i = 0; i < _options.AmountOfJobsToRetainInMemory + 10; i++)
+            {
+                var job = AtomizerJob.Create(
+                    QueueKey.Default,
+                    typeof(string),
+                    $"payload-{i}",
+                    _now.AddMinutes(i),
+                    _now
+                );
+                job.Status = AtomizerJobStatus.Completed;
+                jobs.Add(job);
+                await _sut.InsertAsync(job, CancellationToken.None);
+            }
+
+            // Act
+            var storedJobs = NonPublicSpy.GetFieldValue<InMemoryStorage, ConcurrentDictionary<Guid, AtomizerJob>>(
+                "_jobs",
+                _sut
+            );
+
+            // Assert
+            storedJobs.Count.Should().Be(_options.AmountOfJobsToRetainInMemory);
+            foreach (var job in jobs.Take(10))
+            {
+                storedJobs.ContainsKey(job.Id).Should().BeFalse();
+            }
+            foreach (var job in jobs.Skip(10))
+            {
+                storedJobs.ContainsKey(job.Id).Should().BeTrue();
+            }
+        }
+
         /// <summary>
         /// Verifies that UpdateAsync updates an existing job.
         /// </summary>
         [Fact]
-        public async Task UpdateAsync_WhenJobExists_ShouldUpdateJob()
+        public async Task UpdateJobsAsync_WhenJobExists_ShouldUpdateJob()
         {
             // Arrange
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
@@ -63,7 +99,7 @@ namespace Atomizer.Tests.Storage
             job.Status = AtomizerJobStatus.Processing;
 
             // Act
-            await _sut.UpdateJobAsync(job, CancellationToken.None);
+            await _sut.UpdateJobsAsync([job], CancellationToken.None);
 
             // Assert
             var jobs = NonPublicSpy.GetFieldValue<InMemoryStorage, ConcurrentDictionary<Guid, AtomizerJob>>(
@@ -77,16 +113,16 @@ namespace Atomizer.Tests.Storage
         /// Verifies that UpdateAsync throws when the job is missing.
         /// </summary>
         [Fact]
-        public async Task UpdateAsync_WhenJobMissing_ShouldThrow()
+        public async Task UpdateAsync_WhenJobMissing_ShouldLogError()
         {
             // Arrange
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
 
             // Act
-            Func<Task> act = async () => await _sut.UpdateJobAsync(job, CancellationToken.None);
+            await _sut.UpdateJobsAsync([job], CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<KeyNotFoundException>();
+            _logger.Received(1).LogError($"Update requested for missing job {job.Id}");
         }
 
         /// <summary>
