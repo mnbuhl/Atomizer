@@ -9,6 +9,8 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
 {
     public SqliteDbContext DbContext { get; private set; } = null!;
 
+    private string DatabaseName => $"atomizer_db_{Guid.NewGuid():N}.db";
+
     public async ValueTask InitializeAsync()
     {
         RelationalProviderCache.ResetInstanceForTests();
@@ -21,7 +23,7 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
     private SqliteDbContext ConfigureDbContext()
     {
         var options = new DbContextOptionsBuilder<SqliteDbContext>();
-        options.UseSqlite("Data Source=atomizer_test.db");
+        options.UseSqlite($"Data Source={DatabaseName}");
 
         return new SqliteDbContext(options.Options, "Atomizer");
     }
@@ -40,7 +42,7 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
 
     private void DeleteDatabaseFiles()
     {
-        var sqliteFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), "atomizer_test.db*");
+        var sqliteFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), $"{DatabaseName}*");
         foreach (var file in sqliteFiles)
         {
             File.Delete(file);
