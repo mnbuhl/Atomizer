@@ -8,14 +8,23 @@ namespace Atomizer.EntityFrameworkCore.Tests.Fixtures;
 public class OracleDatabaseFixture : BaseDatabaseFixture<OracleDbContext>, ICollectionFixture<OracleDatabaseFixture>
 {
     public OracleDatabaseFixture()
-        : base(new OracleBuilder().WithUsername("test_user").WithImage("gvenzl/oracle-free:23-slim-faststart").Build())
-    { }
+        : base(
+            new OracleBuilder()
+                .WithImage("gvenzl/oracle-free:slim-faststart")
+                .WithPassword("FREE")
+                .WithEnvironment("ORACLE_PDB", "FREEPDB1")
+                .Build()
+        ) { }
 
     protected override OracleDbContext ConfigureDbContext()
     {
+        var connectionString =
+            $"Data Source={DatabaseContainer.Hostname}:{DatabaseContainer.GetMappedPublicPort(1521)}/FREEPDB1;User Id=oracle;Password=FREE;Pooling=false;";
         var optionsBuilder = new DbContextOptionsBuilder<OracleDbContext>();
-        optionsBuilder.UseOracle(DatabaseContainer.GetConnectionString());
+        optionsBuilder.UseOracle(connectionString);
 
-        return new OracleDbContext(optionsBuilder.Options, "Atomizer");
+        var dbContext = new OracleDbContext(optionsBuilder.Options);
+
+        return dbContext;
     }
 }

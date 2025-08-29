@@ -12,7 +12,7 @@ using Oracle.EntityFrameworkCore.Metadata;
 namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
 {
     [DbContext(typeof(OracleDbContext))]
-    [Migration("20250827155957_Initial")]
+    [Migration("20250829190834_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -87,7 +87,7 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AtomizerJobs", "Atomizer");
+                    b.ToTable("AtomizerJobs", (string)null);
                 });
 
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobErrorEntity", b =>
@@ -125,7 +125,7 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
 
                     b.HasIndex("JobId");
 
-                    b.ToTable("AtomizerJobErrors", "Atomizer");
+                    b.ToTable("AtomizerJobErrors", (string)null);
                 });
 
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerScheduleEntity", b =>
@@ -191,7 +191,7 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AtomizerSchedules", "Atomizer");
+                    b.ToTable("AtomizerSchedules", (string)null);
                 });
 
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobErrorEntity", b =>

@@ -9,12 +9,8 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "Atomizer");
-
             migrationBuilder.CreateTable(
                 name: "AtomizerJobs",
-                schema: "Atomizer",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "RAW(16)", nullable: false),
@@ -41,7 +37,6 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AtomizerSchedules",
-                schema: "Atomizer",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "RAW(16)", nullable: false),
@@ -67,7 +62,6 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobErrors",
-                schema: "Atomizer",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "RAW(16)", nullable: false),
@@ -85,7 +79,6 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
                     table.ForeignKey(
                         name: "FK_AtomizerJobErrors_AtomizerJobs_JobId",
                         column: x => x.JobId,
-                        principalSchema: "Atomizer",
                         principalTable: "AtomizerJobs",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -93,7 +86,6 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobErrors_JobId",
-                schema: "Atomizer",
                 table: "AtomizerJobErrors",
                 column: "JobId");
         }
@@ -101,16 +93,13 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Oracle.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "AtomizerJobErrors",
-                schema: "Atomizer");
+                name: "AtomizerJobErrors");
 
             migrationBuilder.DropTable(
-                name: "AtomizerSchedules",
-                schema: "Atomizer");
+                name: "AtomizerSchedules");
 
             migrationBuilder.DropTable(
-                name: "AtomizerJobs",
-                schema: "Atomizer");
+                name: "AtomizerJobs");
         }
     }
 }
