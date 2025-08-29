@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
+using Atomizer.Core;
 using Atomizer.Exceptions;
-using Atomizer.Locking;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer;

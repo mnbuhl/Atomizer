@@ -1,5 +1,4 @@
 using Atomizer.Core;
-using Atomizer.Locking;
 using Atomizer.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,7 +20,8 @@ public static class AtomizerOptionsExtensions
             sp.GetRequiredService<ILogger<InMemoryStorage>>()
         ));
         options.LeasingScopeOptions = new LeasingScopeOptions(sp => new InMemoryLeasingScopeFactory(
-            sp.GetRequiredService<IAtomizerClock>()
+            sp.GetRequiredService<IAtomizerClock>(),
+            sp.GetRequiredService<ILogger<InMemoryLeasingScopeFactory>>()
         ));
         return options;
     }

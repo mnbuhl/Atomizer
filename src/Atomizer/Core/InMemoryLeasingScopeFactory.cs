@@ -1,18 +1,20 @@
 ﻿using System.Collections.Concurrent;
 using Atomizer.Abstractions;
-using Atomizer.Core;
+using Microsoft.Extensions.Logging;
 
-namespace Atomizer.Locking;
+namespace Atomizer.Core;
 
 internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
 {
     private static readonly ConcurrentDictionary<QueueKey, (SemaphoreSlim, DateTimeOffset)> Semaphores = new();
 
     private readonly IAtomizerClock _clock;
+    private readonly ILogger<InMemoryLeasingScopeFactory> _logger;
 
-    public InMemoryLeasingScopeFactory(IAtomizerClock clock)
+    public InMemoryLeasingScopeFactory(IAtomizerClock clock, ILogger<InMemoryLeasingScopeFactory> logger)
     {
         _clock = clock;
+        _logger = logger;
     }
 
     public Task<IAtomizerLeasingScope> CreateScopeAsync(
@@ -21,7 +23,16 @@ internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
         CancellationToken cancellationToken
     )
     {
-        return InMemoryLeasingScope.AcquireAsync(key, scopeTimeout, _clock.UtcNow, cancellationToken);
+        _logger.LogDebug("Acquiring in-memory leasing scope for queue {QueueKey}", key);
+        var scope = InMemoryLeasingScope.AcquireAsync(key, scopeTimeout, _clock.UtcNow, cancellationToken);
+
+        _logger.LogDebug(
+            "In memory leasing scope for queue {QueueKey} acquired: {Acquired}",
+            key,
+            scope.Result.Acquired
+        );
+
+        return scope;
     }
 
     private sealed class InMemoryLeasingScope : IAtomizerLeasingScope

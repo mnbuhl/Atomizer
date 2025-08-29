@@ -1,6 +1,5 @@
 ﻿using Atomizer.Abstractions;
 using Atomizer.Core;
-using Atomizer.Locking;
 using Atomizer.Scheduling;
 using Atomizer.Storage;
 using Atomizer.Tests.Utilities.TestJobs;

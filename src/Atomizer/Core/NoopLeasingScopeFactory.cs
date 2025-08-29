@@ -1,8 +1,8 @@
 ﻿using Atomizer.Abstractions;
 
-namespace Atomizer.Locking;
+namespace Atomizer.Core;
 
-public class NoopLeasingScopeFactory : IAtomizerLeasingScopeFactory
+public sealed class NoopLeasingScopeFactory : IAtomizerLeasingScopeFactory
 {
     public Task<IAtomizerLeasingScope> CreateScopeAsync(
         QueueKey key,

@@ -1,5 +1,5 @@
 ﻿using Atomizer.Abstractions;
-using Atomizer.Locking;
+using Atomizer.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -26,12 +26,13 @@ public class DatabaseTransactionLeasingScopeFactory<TDbContext> : IAtomizerLeasi
         CancellationToken cancellationToken
     )
     {
-        _logger.LogDebug("Starting database transaction leasing scope for queue {QueueKey}", key);
-
         if (_dbContext.Database.IsRelational())
         {
+            _logger.LogDebug("Starting database transaction leasing scope for queue {QueueKey}", key);
             return await DatabaseTransactionLeasingScope.StartTransaction(_dbContext, scopeTimeout, cancellationToken);
         }
+
+        _logger.LogDebug("Database is not relational, using NoopLeasingScopeFactory for queue {QueueKey}", key);
 
         var noopLeasingScopeFactory = new NoopLeasingScopeFactory();
         return await noopLeasingScopeFactory.CreateScopeAsync(key, scopeTimeout, cancellationToken);
