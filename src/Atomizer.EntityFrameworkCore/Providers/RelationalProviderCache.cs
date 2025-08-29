@@ -10,7 +10,7 @@ internal sealed class RelationalProviderCache
     public bool IsSupportedProvider => DetermineSupportedProvider(DatabaseProvider);
     public IDatabaseProviderSql? RawSqlProvider { get; }
 
-    public DatabaseProvider DatabaseProvider { get; }
+    private DatabaseProvider DatabaseProvider { get; }
     private readonly EntityMap? _jobs;
     private readonly EntityMap? _schedules;
 
@@ -66,7 +66,6 @@ internal sealed class RelationalProviderCache
             DatabaseProvider.PostgreSql => new PostgreSqlProvider(_jobs, _schedules),
             DatabaseProvider.MySql => new MySqlProvider(_jobs, _schedules),
             DatabaseProvider.SqlServer => new SqlServerProvider(_jobs, _schedules),
-            DatabaseProvider.Oracle => new OracleProvider(_jobs, _schedules),
             _ => throw new NotSupportedException($"Database provider {DatabaseProvider} is not supported."),
         };
     }
@@ -82,8 +81,10 @@ internal sealed class RelationalProviderCache
             _ => DatabaseProvider.Unknown,
         };
 
-    private static bool DetermineSupportedProvider(DatabaseProvider provider) =>
-        provider != DatabaseProvider.Unknown && provider != DatabaseProvider.Sqlite;
+    private static bool DetermineSupportedProvider(DatabaseProvider provider)
+    {
+        return provider is DatabaseProvider.PostgreSql or DatabaseProvider.MySql or DatabaseProvider.SqlServer;
+    }
 
     // Testing helpers
     internal static bool TryGet(DatabaseProvider provider, out RelationalProviderCache? cache) =>
