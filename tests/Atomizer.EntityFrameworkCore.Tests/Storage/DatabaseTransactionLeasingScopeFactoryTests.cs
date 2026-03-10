@@ -30,7 +30,7 @@ public abstract class DatabaseTransactionLeasingScopeFactoryTests
         var sut = new DatabaseTransactionLeasingScopeFactory<TestDbContext>(context, _logger);
 
         // Act
-        await using var scope = await sut.CreateScopeAsync(NewKey(), TimeSpan.FromSeconds(2), CancellationToken.None);
+        using var scope = await sut.CreateScopeAsync(NewKey(), TimeSpan.FromSeconds(2), CancellationToken.None);
 
         // Assert
         scope.Acquired.Should().BeTrue();
@@ -61,9 +61,9 @@ public abstract class DatabaseTransactionLeasingScopeFactoryTests
         // Act
         var scopes = new List<IAtomizerLeasingScope>();
 
-        await using var scope1 = await sut1.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);
-        await using var scope2 = await sut2.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);
-        await using var scope3 = await sut3.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);
+        using var scope1 = await sut1.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);
+        using var scope2 = await sut2.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);
+        using var scope3 = await sut3.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);
         scopes.AddRange([scope1, scope2, scope3]);
 
         // Assert
@@ -89,7 +89,7 @@ public abstract class DatabaseTransactionLeasingScopeFactoryTests
 
         // Assert
         scope.Acquired.Should().BeFalse("factory converts BeginTransactionAsync failures into a non-acquired scope");
-        await scope.DisposeAsync(); // no-op; should not throw
+        scope.Dispose(); // no-op; should not throw
     }
 }
 
