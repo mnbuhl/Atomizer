@@ -1,0 +1,155 @@
+@using System.Text.Json
+
+<span class="atomizer-payload-preview">
+    <span class="atomizer-payload-preview__text" title="@Payload">@_summary</span>
+    @if (_needsExpand)
+    {
+        <button
+            class="atomizer-btn atomizer-btn--xs atomizer-payload-preview__expand"
+            type="button"
+            aria-label="View full payload"
+            @onclick="OpenModal"
+        >
+            View
+        </button>
+    }
+</span>
+
+@if (_showModal)
+{
+    <div
+        class="atomizer-modal-backdrop"
+        role="presentation"
+        @onclick="CloseModal"
+    >
+        <div
+            class="atomizer-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="atomizer-modal-title"
+            @onclick:stopPropagation="true"
+        >
+            <div class="atomizer-modal-header">
+                <h3 class="atomizer-modal-title" id="atomizer-modal-title">Full Payload</h3>
+                <button
+                    class="atomizer-modal-close"
+                    type="button"
+                    aria-label="Close"
+                    @onclick="CloseModal"
+                >
+                    &times;
+                </button>
+            </div>
+            <div class="atomizer-modal-body">
+                <pre class="atomizer-payload-full"><code>@_formattedPayload</code></pre>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // Maximum characters shown in the truncated summary cell.
+    private const int TruncateLength = 80;
+
+    // ---------------------------------------------------------------------------
+    // Parameters
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// The raw serialised payload string to preview. If the value is valid JSON
+    /// it will be pretty-printed in the expanded modal view.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public string Payload { get; set; } = string.Empty;
+
+    // ---------------------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------------------
+
+    private string _summary = string.Empty;
+    private string _formattedPayload = string.Empty;
+    private bool _isJson;
+    private bool _needsExpand;
+    private bool _showModal;
+
+    // ---------------------------------------------------------------------------
+    // Lifecycle
+    // ---------------------------------------------------------------------------
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        (_isJson, _formattedPayload) = TryFormatJson(Payload);
+        _summary = BuildSummary(Payload, _isJson);
+        _needsExpand = _isJson || Payload.Length > TruncateLength;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Handlers
+    // ---------------------------------------------------------------------------
+
+    private void OpenModal() => _showModal = true;
+
+    private void CloseModal() => _showModal = false;
+
+    // ---------------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Builds a short one-line summary for the table cell. For JSON payloads a
+    /// compact (single-line) rendering is used so structural tokens are preserved;
+    /// plain strings are simply truncated.
+    /// </summary>
+    private static string BuildSummary(string raw, bool isJson)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return "(empty)";
+
+        var source = isJson ? ToCompactJson(raw) : raw;
+        return source.Length <= TruncateLength ? source : string.Concat(source.AsSpan(0, TruncateLength), "…");
+    }
+
+    /// <summary>
+    /// Attempts to parse <paramref name="raw"/> as JSON and returns a
+    /// pretty-printed representation. Returns <c>(false, raw)</c> if the string
+    /// is not valid JSON.
+    /// </summary>
+    private static (bool isJson, string formatted) TryFormatJson(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return (false, raw);
+
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            var pretty = JsonSerializer.Serialize(
+                doc.RootElement,
+                new JsonSerializerOptions { WriteIndented = true }
+            );
+            return (true, pretty);
+        }
+        catch (JsonException)
+        {
+            return (false, raw);
+        }
+    }
+
+    /// <summary>
+    /// Re-serialises already-valid JSON as a compact single-line string for use
+    /// in the summary cell. Falls back to the original string on any error.
+    /// </summary>
+    private static string ToCompactJson(string raw)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            return JsonSerializer.Serialize(doc.RootElement);
+        }
+        catch
+        {
+            return raw;
+        }
+    }
+}

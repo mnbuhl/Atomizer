@@ -1,0 +1,18 @@
+@inject DashboardOptions Options
+
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not Found — Atomizer</PageTitle>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <div class="atomizer-page">
+                <h1>Page Not Found</h1>
+                <p>The requested page does not exist.</p>
+                <a href="@Options.BasePath" class="atomizer-btn">Back to Overview</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

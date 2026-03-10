@@ -1,0 +1,433 @@
+@page "/atomizer/jobs"
+@implements IDisposable
+@inject IDashboardStorage Storage
+@inject ILogger<Jobs> Logger
+@inject DashboardOptions Options
+
+<PageTitle>Jobs — Atomizer</PageTitle>
+
+<div class="atomizer-page">
+    <header class="atomizer-page-header">
+        <h1>Jobs</h1>
+        <div class="atomizer-page-actions">
+            @if (_lastRefreshed is not null)
+            {
+                <span class="atomizer-refresh-info">
+                    Last updated: @_lastRefreshed.Value.ToString("HH:mm:ss")
+                </span>
+            }
+            <button
+                class="atomizer-btn"
+                type="button"
+                @onclick="RefreshAsync"
+                disabled="@_isLoading"
+            >
+                @(_isLoading ? "Refreshing…" : "Refresh")
+            </button>
+        </div>
+    </header>
+
+    @if (_errorMessage is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-error" role="alert">
+            <strong>Error:</strong> @_errorMessage
+        </div>
+    }
+
+    @if (_retryError is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-error" role="alert">
+            <strong>Retry failed:</strong> @_retryError
+        </div>
+    }
+
+    @if (_retrySuccessJobId is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-success" role="status">
+            Job re-enqueued successfully.
+            <a
+                href="@(Options.BasePath + "/jobs/" + _retrySuccessJobId)"
+                class="atomizer-alert-link"
+            >
+                View new job &#8594;
+            </a>
+        </div>
+    }
+
+    @if (_cancelError is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-error" role="alert">
+            <strong>Cancel failed:</strong> @_cancelError
+        </div>
+    }
+
+    @if (_cancelSuccessJobId is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-success" role="status">
+            Job cancelled successfully.
+        </div>
+    }
+
+    @if (_isLoading && _jobs is null)
+    {
+        <div class="atomizer-loading" role="status">
+            <span>Loading jobs…</span>
+        </div>
+    }
+    else if (_jobs is not null)
+    {
+        @if (_jobs.Count == 0)
+        {
+            <div class="atomizer-empty">
+                <p>No jobs found. Enqueue a job to get started.</p>
+            </div>
+        }
+        else
+        {
+            <div class="atomizer-table-wrapper">
+                <table class="atomizer-table" aria-label="Recent jobs">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="atomizer-col-id">ID</th>
+                            <th scope="col" class="atomizer-col-queue">Queue</th>
+                            <th scope="col" class="atomizer-col-status">Status</th>
+                            <th scope="col" class="atomizer-col-payload">Payload</th>
+                            <th scope="col" class="atomizer-col-number">Attempts</th>
+                            <th scope="col" class="atomizer-col-datetime">Created</th>
+                            <th scope="col" class="atomizer-col-datetime">Scheduled</th>
+                            <th scope="col" class="atomizer-col-error">Latest Error</th>
+                            <th scope="col" class="atomizer-col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var job in _jobs)
+                        {
+                            var latestError = job.Errors.Count > 0
+                                ? job.Errors[job.Errors.Count - 1]
+                                : null;
+
+                            <tr class="@StatusRowClass(job.Status)">
+                                <td class="atomizer-col-id">
+                                    <a
+                                        href="@(Options.BasePath + "/jobs/" + job.Id)"
+                                        class="atomizer-job-link"
+                                        title="@job.Id.ToString()"
+                                    >
+                                        <code>@ShortId(job.Id)</code>
+                                    </a>
+                                </td>
+                                <td class="atomizer-col-queue">
+                                    <code>@job.QueueKey.Key</code>
+                                </td>
+                                <td class="atomizer-col-status">
+                                    <span
+                                        class="atomizer-badge atomizer-badge-@job.Status.ToString().ToLowerInvariant()"
+                                    >
+                                        @job.Status
+                                    </span>
+                                </td>
+                                <td class="atomizer-col-payload">
+                                    <PayloadPreview Payload="@job.Payload" />
+                                </td>
+                                <td class="atomizer-col-number">@job.Attempts</td>
+                                <td class="atomizer-col-datetime">
+                                    @job.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                                </td>
+                                <td class="atomizer-col-datetime">
+                                    @job.ScheduledAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                                </td>
+                                <td class="atomizer-col-error">
+                                    @if (latestError is not null)
+                                    {
+                                        <span
+                                            class="atomizer-error-inline"
+                                            title="@latestError.ErrorMessage"
+                                        >
+                                            @TruncateError(latestError.ErrorMessage, 80)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="atomizer-text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="atomizer-col-actions">
+                                    @if (job.Status == AtomizerJobStatus.Failed)
+                                    {
+                                        <button
+                                            class="atomizer-btn atomizer-btn--xs atomizer-btn--retry"
+                                            type="button"
+                                            @onclick="() => RetryJobAsync(job.Id)"
+                                            disabled="@(_retryingJobId == job.Id)"
+                                            title="Re-enqueue this failed job as a new pending job"
+                                        >
+                                            @(_retryingJobId == job.Id ? "…" : "Retry")
+                                        </button>
+                                    }
+                                    @if (job.Status == AtomizerJobStatus.Pending)
+                                    {
+                                        <button
+                                            class="atomizer-btn atomizer-btn--xs atomizer-btn--danger"
+                                            type="button"
+                                            @onclick="() => HandleCancelJobAsync(job.Id)"
+                                            disabled="@(_cancellingJobId == job.Id)"
+                                            title="Cancel this pending job so it will not be processed"
+                                        >
+                                            @(_cancellingJobId == job.Id ? "…" : "Cancel")
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="atomizer-table-footer">
+                <span>
+                    Showing @_jobs.Count job@(_jobs.Count == 1 ? "" : "s")
+                    (most recent first)
+                </span>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    // How many recent jobs to fetch per refresh.
+    private const int PageSize = 50;
+
+    // How often the component re-polls for new jobs (seconds).
+    private const int RefreshIntervalSeconds = 10;
+
+    // ---------------------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------------------
+
+    private IReadOnlyList<AtomizerJob>? _jobs;
+    private bool _isLoading;
+    private string? _errorMessage;
+    private DateTime? _lastRefreshed;
+
+    /// <summary>ID of the job whose retry button is currently in the loading state.</summary>
+    private Guid? _retryingJobId;
+
+    private string? _retryError;
+    private Guid? _retrySuccessJobId;
+
+    /// <summary>ID of the pending job whose cancel button is currently in the loading state.</summary>
+    private Guid? _cancellingJobId;
+
+    private string? _cancelError;
+    private Guid? _cancelSuccessJobId;
+
+    private PeriodicTimer? _timer;
+    private readonly CancellationTokenSource _cts = new();
+
+    // ---------------------------------------------------------------------------
+    // Blazor lifecycle
+    // ---------------------------------------------------------------------------
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        StartPolling();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        _timer?.Dispose();
+    }
+
+    // ---------------------------------------------------------------------------
+    // Data loading
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Fetches the most recent jobs from storage and triggers a UI re-render.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            _jobs = await Storage.GetRecentJobsAsync(0, PageSize, _cts.Token);
+            _lastRefreshed = DateTime.Now;
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is being disposed — swallow silently.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load jobs from dashboard storage");
+            _errorMessage = "Could not load jobs. Check server logs for details.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Retry action
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Re-enqueues the specified failed job as a new pending job and refreshes the list.
+    /// Shows a success banner with a link to the new job on completion.
+    /// </summary>
+    /// <param name="jobId">The identifier of the failed job to retry.</param>
+    private async Task RetryJobAsync(Guid jobId)
+    {
+        _retryingJobId = jobId;
+        _retryError = null;
+        _retrySuccessJobId = null;
+        StateHasChanged();
+
+        try
+        {
+            var newJobId = await Storage.RetryJobAsync(jobId, _cts.Token);
+            _retrySuccessJobId = newJobId;
+            await RefreshAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed — swallow silently.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to retry job {JobId}", jobId);
+            _retryError = ex.Message;
+        }
+        finally
+        {
+            _retryingJobId = null;
+            StateHasChanged();
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cancel action
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Cancels the specified pending job so it will not be processed,
+    /// then refreshes the job list to reflect the updated status.
+    /// Shows a success banner on completion and an error banner on failure.
+    /// </summary>
+    /// <param name="jobId">The identifier of the pending job to cancel.</param>
+    private async Task HandleCancelJobAsync(Guid jobId)
+    {
+        _cancellingJobId = jobId;
+        _cancelError = null;
+        _cancelSuccessJobId = null;
+        StateHasChanged();
+
+        try
+        {
+            var cancelled = await Storage.CancelJobAsync(jobId, _cts.Token);
+
+            if (cancelled)
+            {
+                _cancelSuccessJobId = jobId;
+            }
+            else
+            {
+                _cancelError =
+                    $"Job {jobId.ToString()[..8]}… could not be cancelled. "
+                    + "It may no longer be in the Pending state.";
+            }
+
+            await RefreshAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed — swallow silently.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to cancel job {JobId}", jobId);
+            _cancelError = ex.Message;
+        }
+        finally
+        {
+            _cancellingJobId = null;
+            StateHasChanged();
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Real-time polling
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Starts a background <see cref="PeriodicTimer"/> that refreshes job data
+    /// every <see cref="RefreshIntervalSeconds"/> seconds.
+    /// </summary>
+    private void StartPolling()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(RefreshIntervalSeconds));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _timer.WaitForNextTickAsync(_cts.Token))
+                {
+                    await InvokeAsync(RefreshAsync);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Disposed — ignore.
+            }
+        });
+    }
+
+    // ---------------------------------------------------------------------------
+    // Formatting helpers
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Returns the first 8 characters of a job ID followed by an ellipsis,
+    /// for use in the table cell where space is limited.
+    /// </summary>
+    private static string ShortId(Guid id) => id.ToString()[..8] + "…";
+
+    /// <summary>
+    /// Truncates an error message to at most <paramref name="maxLength"/> characters,
+    /// appending an ellipsis when the text is shortened.
+    /// Returns an em dash when <paramref name="message"/> is null or empty.
+    /// </summary>
+    private static string TruncateError(string? message, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "—";
+
+        return message.Length <= maxLength
+            ? message
+            : string.Concat(message.AsSpan(0, maxLength), "…");
+    }
+
+    /// <summary>
+    /// Returns a CSS row modifier class corresponding to the job's current status,
+    /// allowing the host stylesheet to highlight rows by status.
+    /// </summary>
+    private static string StatusRowClass(AtomizerJobStatus status) =>
+        status switch
+        {
+            AtomizerJobStatus.Failed => "atomizer-row-failed",
+            AtomizerJobStatus.Processing => "atomizer-row-processing",
+            AtomizerJobStatus.Cancelled => "atomizer-row-cancelled",
+            _ => string.Empty,
+        };
+}

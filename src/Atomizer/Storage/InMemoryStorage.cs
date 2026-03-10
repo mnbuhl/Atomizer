@@ -5,7 +5,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage;
 
-public sealed class InMemoryStorage : IAtomizerStorage
+/// <summary>
+/// An in-memory implementation of <see cref="IAtomizerDashboardStorage"/> backed by concurrent
+/// dictionaries. Suitable for development, testing, and single-instance deployments.
+/// </summary>
+public sealed class InMemoryStorage : IAtomizerDashboardStorage
 {
     private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new();
     private readonly Dictionary<QueueKey, HashSet<Guid>> _queues = new(); // guarded per-queue
@@ -218,7 +222,163 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
+    /// <inheritdoc />
+    public Task<IReadOnlyList<QueueStats>> GetQueueStatsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var stats = _jobs
+            .Values.GroupBy(j => j.QueueKey)
+            .Select(g => new QueueStats(
+                g.Key,
+                g.Count(j => j.Status == AtomizerJobStatus.Pending),
+                g.Count(j => j.Status == AtomizerJobStatus.Processing),
+                g.Count(j => j.Status == AtomizerJobStatus.Completed),
+                g.Count(j => j.Status == AtomizerJobStatus.Failed)
+            ))
+            .OrderBy(s => s.QueueKey.Key)
+            .ToList();
+
+        return Task.FromResult((IReadOnlyList<QueueStats>)stats);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<AtomizerJob>> GetRecentJobsAsync(int skip, int take, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var jobs = _jobs.Values.OrderByDescending(j => j.CreatedAt).Skip(skip).Take(take).ToList();
+
+        return Task.FromResult((IReadOnlyList<AtomizerJob>)jobs);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<AtomizerSchedule>> GetAllSchedulesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var schedules = _schedules.Values.OrderBy(s => s.JobKey.Key).ToList();
+
+        return Task.FromResult((IReadOnlyList<AtomizerSchedule>)schedules);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<AtomizerJob>> GetJobsAsync(
+        JobFilter filter,
+        int skip,
+        int take,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var query = _jobs.Values.AsEnumerable();
+
+        if (filter.QueueName is not null)
+        {
+            query = query.Where(j => j.QueueKey.Key.Contains(filter.QueueName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (filter.Status is not null)
+        {
+            query = query.Where(j => j.Status == filter.Status);
+        }
+
+        var result = query.OrderByDescending(j => j.CreatedAt).Skip(skip).Take(take).ToList();
+
+        return Task.FromResult<IReadOnlyList<AtomizerJob>>(result);
+    }
+
+    /// <inheritdoc />
+    public Task<AtomizerJob?> GetJobAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _jobs.TryGetValue(jobId, out var job);
+        return Task.FromResult<AtomizerJob?>(job);
+    }
+
+    /// <inheritdoc />
+    public Task<AtomizerJob?> GetJobByIdAsync(Guid jobId, CancellationToken cancellationToken) =>
+        GetJobAsync(jobId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<AtomizerJob?> GetLastJobForScheduleAsync(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var job = _jobs
+            .Values.Where(j => j.ScheduleJobKey != null && j.ScheduleJobKey.Equals(jobKey))
+            .OrderByDescending(j => j.UpdatedAt)
+            .FirstOrDefault();
+
+        return Task.FromResult<AtomizerJob?>(job);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ScheduleRecord>> GetSchedulesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var records = _schedules.Values.Select(ToScheduleRecord).OrderBy(r => r.JobKey).ToList();
+
+        return Task.FromResult((IReadOnlyList<ScheduleRecord>)records);
+    }
+
+    /// <inheritdoc />
+    public Task<AtomizerStats> GetStatsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var jobs = _jobs.Values.ToList();
+
+        var queues = jobs.GroupBy(j => j.QueueKey)
+            .Select(g => new QueueStats(
+                g.Key,
+                g.Count(j => j.Status == AtomizerJobStatus.Pending),
+                g.Count(j => j.Status == AtomizerJobStatus.Processing),
+                g.Count(j => j.Status == AtomizerJobStatus.Completed),
+                g.Count(j => j.Status == AtomizerJobStatus.Failed)
+            ))
+            .OrderBy(s => s.QueueKey.Key)
+            .ToList();
+
+        var totalErrors = jobs.Sum(j => j.Errors.Count);
+        var totalSchedules = _schedules.Count;
+        var enabledSchedules = _schedules.Values.Count(s => s.Enabled);
+
+        var stats = new AtomizerStats(
+            Queues: queues,
+            TotalPending: jobs.Count(j => j.Status == AtomizerJobStatus.Pending),
+            TotalProcessing: jobs.Count(j => j.Status == AtomizerJobStatus.Processing),
+            TotalCompleted: jobs.Count(j => j.Status == AtomizerJobStatus.Completed),
+            TotalFailed: jobs.Count(j => j.Status == AtomizerJobStatus.Failed),
+            TotalCancelled: jobs.Count(j => j.Status == AtomizerJobStatus.Cancelled),
+            TotalErrors: totalErrors,
+            TotalSchedules: totalSchedules,
+            EnabledSchedules: enabledSchedules,
+            GeneratedAt: _clock.UtcNow
+        );
+
+        return Task.FromResult(stats);
+    }
+
     // ---- helpers ----
+
+    private static ScheduleRecord ToScheduleRecord(AtomizerSchedule schedule) =>
+        new ScheduleRecord(
+            Id: schedule.Id,
+            JobKey: schedule.JobKey.Key,
+            QueueKey: schedule.QueueKey.Key,
+            CronExpression: schedule.Schedule.ToString(),
+            Enabled: schedule.Enabled,
+            MisfirePolicy: schedule.MisfirePolicy,
+            NextRunAt: schedule.NextRunAt,
+            LastEnqueueAt: schedule.LastEnqueueAt,
+            CreatedAt: schedule.CreatedAt,
+            UpdatedAt: schedule.UpdatedAt,
+            PayloadTypeName: schedule.PayloadType?.FullName,
+            TimeZoneId: schedule.TimeZone.Id
+        );
 
     private void IndexIntoQueue(AtomizerJob job)
     {
@@ -248,7 +408,11 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         // Snapshot enumeration is safe on ConcurrentDictionary
         var terminal = _jobs
-            .Values.Where(j => j.Status == AtomizerJobStatus.Completed || j.Status == AtomizerJobStatus.Failed)
+            .Values.Where(j =>
+                j.Status == AtomizerJobStatus.Completed
+                || j.Status == AtomizerJobStatus.Failed
+                || j.Status == AtomizerJobStatus.Cancelled
+            )
             .OrderByDescending(j => j.UpdatedAt)
             .ToList();
 

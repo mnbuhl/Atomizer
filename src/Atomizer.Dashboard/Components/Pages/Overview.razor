@@ -1,0 +1,244 @@
+@page "/atomizer"
+@implements IDisposable
+@inject QueueStatsService StatsService
+@inject IDashboardStorage Storage
+@inject DashboardOptions Options
+@inject ILogger<Overview> Logger
+
+<PageTitle>Overview — Atomizer</PageTitle>
+
+<div class="atomizer-page">
+    <header class="atomizer-page-header">
+        <h1>Overview</h1>
+        <div class="atomizer-page-actions">
+            @if (_lastRefreshed is not null)
+            {
+                <span class="atomizer-refresh-info">
+                    Last updated: @_lastRefreshed.Value.ToString("HH:mm:ss")
+                </span>
+            }
+            <button
+                class="atomizer-btn"
+                type="button"
+                @onclick="RefreshAsync"
+                disabled="@_isLoading"
+            >
+                @(_isLoading ? "Refreshing…" : "Refresh")
+            </button>
+        </div>
+    </header>
+
+    @if (_errorMessage is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-error" role="alert">
+            <strong>Error:</strong> @_errorMessage
+        </div>
+    }
+
+    @if (_isLoading && _stats is null)
+    {
+        <div class="atomizer-loading" role="status">
+            <span>Loading overview…</span>
+        </div>
+    }
+    else
+    {
+        @* ── Aggregate job counters ─────────────────────────────────────────── *@
+        <section class="atomizer-overview-section" aria-label="Job status summary">
+            <h2 class="atomizer-section-title">Jobs</h2>
+            <div class="atomizer-overview-cards">
+                <a
+                    href="@(Options.BasePath + "/jobs")"
+                    class="atomizer-overview-card atomizer-overview-card--pending"
+                    aria-label="Pending jobs: @_totalPending"
+                >
+                    <span class="atomizer-overview-card-count">@_totalPending</span>
+                    <span class="atomizer-overview-card-label">Pending</span>
+                </a>
+                <a
+                    href="@(Options.BasePath + "/jobs")"
+                    class="atomizer-overview-card atomizer-overview-card--processing"
+                    aria-label="Processing jobs: @_totalProcessing"
+                >
+                    <span class="atomizer-overview-card-count">@_totalProcessing</span>
+                    <span class="atomizer-overview-card-label">Processing</span>
+                </a>
+                <a
+                    href="@(Options.BasePath + "/jobs")"
+                    class="atomizer-overview-card atomizer-overview-card--completed"
+                    aria-label="Completed jobs: @_totalCompleted"
+                >
+                    <span class="atomizer-overview-card-count">@_totalCompleted</span>
+                    <span class="atomizer-overview-card-label">Completed</span>
+                </a>
+                <a
+                    href="@(Options.BasePath + "/jobs")"
+                    class="atomizer-overview-card atomizer-overview-card--failed"
+                    aria-label="Failed jobs: @_totalFailed"
+                >
+                    <span class="atomizer-overview-card-count">@_totalFailed</span>
+                    <span class="atomizer-overview-card-label">Failed</span>
+                </a>
+            </div>
+        </section>
+
+        @* ── Quick-links ────────────────────────────────────────────────────── *@
+        <section class="atomizer-overview-section" aria-label="Quick navigation">
+            <h2 class="atomizer-section-title">Explore</h2>
+            <div class="atomizer-overview-links">
+                <a href="@(Options.BasePath + "/queues")" class="atomizer-overview-link">
+                    <span class="atomizer-overview-link-icon" aria-hidden="true">&#x1F4E5;</span>
+                    <span class="atomizer-overview-link-label">
+                        Queues
+                        @if (_stats is not null && _stats.Count > 0)
+                        {
+                            <span class="atomizer-overview-link-badge">@_stats.Count</span>
+                        }
+                    </span>
+                    <span class="atomizer-overview-link-desc">
+                        Per-queue pending, processing, completed, and failed counts
+                    </span>
+                </a>
+                <a href="@(Options.BasePath + "/jobs")" class="atomizer-overview-link">
+                    <span class="atomizer-overview-link-icon" aria-hidden="true">&#x1F4CB;</span>
+                    <span class="atomizer-overview-link-label">Jobs</span>
+                    <span class="atomizer-overview-link-desc">
+                        Browse, retry, and cancel individual jobs
+                    </span>
+                </a>
+                <a href="@(Options.BasePath + "/schedules")" class="atomizer-overview-link">
+                    <span class="atomizer-overview-link-icon" aria-hidden="true">&#x1F551;</span>
+                    <span class="atomizer-overview-link-label">
+                        Recurring Schedules
+                        @if (_scheduleCount > 0)
+                        {
+                            <span class="atomizer-overview-link-badge">@_scheduleCount</span>
+                        }
+                    </span>
+                    <span class="atomizer-overview-link-desc">
+                        View, trigger, and monitor cron-based recurring jobs
+                    </span>
+                </a>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    // How often (in seconds) the overview re-polls for updated data.
+    private const int RefreshIntervalSeconds = 10;
+
+    // ── State ────────────────────────────────────────────────────────────────
+
+    private IReadOnlyList<QueueStats>? _stats;
+    private bool _isLoading;
+    private string? _errorMessage;
+    private DateTime? _lastRefreshed;
+
+    private int _scheduleCount;
+
+    private int _totalPending;
+    private int _totalProcessing;
+    private int _totalCompleted;
+    private int _totalFailed;
+
+    private PeriodicTimer? _timer;
+    private readonly CancellationTokenSource _cts = new();
+
+    // ── Blazor lifecycle ─────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        StartPolling();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        _timer?.Dispose();
+    }
+
+    // ── Data loading ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Loads aggregated queue statistics and the total schedule count from
+    /// storage, then computes cross-queue totals for each job status.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var statsTask = StatsService.GetStatsAsync(_cts.Token);
+            var schedulesTask = Storage.GetAllSchedulesAsync(_cts.Token);
+
+            await Task.WhenAll(statsTask, schedulesTask);
+
+            _stats = statsTask.Result;
+            _scheduleCount = schedulesTask.Result.Count;
+
+            // Compute cross-queue aggregate totals.
+            _totalPending = 0;
+            _totalProcessing = 0;
+            _totalCompleted = 0;
+            _totalFailed = 0;
+
+            foreach (var q in _stats)
+            {
+                _totalPending += q.Pending;
+                _totalProcessing += q.Processing;
+                _totalCompleted += q.Completed;
+                _totalFailed += q.Failed;
+            }
+
+            _lastRefreshed = DateTime.Now;
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is being disposed — swallow silently.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load overview data from dashboard storage");
+            _errorMessage = "Could not load overview data. Check server logs for details.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ── Real-time polling ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Starts a background <see cref="PeriodicTimer"/> that refreshes the
+    /// overview data every <see cref="RefreshIntervalSeconds"/> seconds.
+    /// </summary>
+    private void StartPolling()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(RefreshIntervalSeconds));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _timer.WaitForNextTickAsync(_cts.Token))
+                {
+                    await InvokeAsync(RefreshAsync);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Disposed — ignore.
+            }
+        });
+    }
+}

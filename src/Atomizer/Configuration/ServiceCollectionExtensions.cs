@@ -47,6 +47,26 @@ public static class ServiceCollectionExtensions
             )
         );
 
+        // Register IAtomizerDashboardStorage as a forwarding entry so that the
+        // Atomizer Dashboard (and any custom monitoring code) can inject the
+        // dashboard-query interface without coupling to the concrete storage type.
+        // Both built-in backends (InMemoryStorage and EntityFrameworkCoreStorage)
+        // implement IAtomizerDashboardStorage. A third-party backend that does not
+        // implement the interface will cause an InvalidOperationException at startup.
+        services.Add(
+            ServiceDescriptor.Describe(
+                typeof(IAtomizerDashboardStorage),
+                sp =>
+                    sp.GetRequiredService<IAtomizerStorage>() as IAtomizerDashboardStorage
+                    ?? throw new InvalidOperationException(
+                        "The registered IAtomizerStorage implementation does not implement "
+                            + "IAtomizerDashboardStorage. Use UseInMemoryStorage() or "
+                            + "UseEntityFrameworkCoreStorage() to enable dashboard support."
+                    ),
+                options.JobStorageOptions.JobStorageLifetime
+            )
+        );
+
         services.Add(
             ServiceDescriptor.Describe(
                 typeof(IAtomizerLeasingScopeFactory),

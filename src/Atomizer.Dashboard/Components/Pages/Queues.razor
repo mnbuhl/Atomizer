@@ -1,0 +1,167 @@
+@page "/atomizer/queues"
+@implements IDisposable
+@inject QueueStatsService StatsService
+@inject DashboardOptions Options
+
+<PageTitle>Queue Statistics — Atomizer</PageTitle>
+
+<div class="atomizer-section">
+    <div class="atomizer-section-header">
+        <h2 class="atomizer-section-title">Queue Statistics</h2>
+        <span class="atomizer-refresh-badge">
+            Updated @_lastRefreshed.ToString("HH:mm:ss") &middot; auto-refresh @((int)Options.StatsRefreshInterval.TotalSeconds)&thinsp;s
+        </span>
+    </div>
+
+    @if (_isLoading)
+    {
+        <p class="atomizer-state atomizer-state--loading" role="status">
+            Loading queue statistics&hellip;
+        </p>
+    }
+    else if (_errorMessage is not null)
+    {
+        <div class="atomizer-state atomizer-state--error" role="alert">
+            <strong>Error:</strong> @_errorMessage
+        </div>
+    }
+    else if (_stats.Count == 0)
+    {
+        <p class="atomizer-state atomizer-state--empty">
+            No queues found. Enqueue a job to get started.
+        </p>
+    }
+    else
+    {
+        <div class="atomizer-table-wrapper">
+            <table class="atomizer-table" aria-label="Queue statistics">
+                <thead>
+                    <tr>
+                        <th scope="col">Queue</th>
+                        <th scope="col" class="atomizer-col-number">Pending</th>
+                        <th scope="col" class="atomizer-col-number">Processing</th>
+                        <th scope="col" class="atomizer-col-number">Completed</th>
+                        <th scope="col" class="atomizer-col-number">Failed</th>
+                        <th scope="col" class="atomizer-col-number">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _stats)
+                    {
+                        <tr>
+                            <td class="atomizer-col-queue">@row.QueueKey</td>
+                            <td class="atomizer-col-number atomizer-status-pending">@row.Pending</td>
+                            <td class="atomizer-col-number atomizer-status-processing">@row.Processing</td>
+                            <td class="atomizer-col-number atomizer-status-completed">@row.Completed</td>
+                            <td class="atomizer-col-number atomizer-status-failed">@row.Failed</td>
+                            <td class="atomizer-col-number atomizer-col-total">@row.Total</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    // ---------------------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------------------
+
+    private IReadOnlyList<QueueStats> _stats = Array.Empty<QueueStats>();
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private DateTimeOffset _lastRefreshed = DateTimeOffset.UtcNow;
+
+    // Lifecycle / refresh plumbing
+    private readonly CancellationTokenSource _cts = new();
+    private PeriodicTimer? _timer;
+
+    // ---------------------------------------------------------------------------
+    // Blazor lifecycle
+    // ---------------------------------------------------------------------------
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatsAsync();
+
+        // Fire-and-forget the refresh loop; exceptions are caught inside the loop
+        // so they never propagate to the Blazor circuit as unhandled faults.
+        _ = RunRefreshLoopAsync();
+    }
+
+    // ---------------------------------------------------------------------------
+    // Data loading
+    // ---------------------------------------------------------------------------
+
+    private async Task LoadStatsAsync()
+    {
+        // Only show the full-page spinner on the very first load (empty list).
+        // Subsequent refreshes update in the background without a loading flash.
+        _isLoading = _stats.Count == 0;
+        _errorMessage = null;
+
+        try
+        {
+            _stats = await StatsService.GetStatsAsync(_cts.Token);
+            _lastRefreshed = DateTimeOffset.UtcNow;
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is disposing — nothing to do.
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Could not load queue statistics: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Real-time refresh loop (runs on the Blazor Server / SignalR circuit)
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Runs a <see cref="PeriodicTimer"/> loop that re-fetches queue statistics from
+    /// storage at the interval configured in <see cref="DashboardOptions.StatsRefreshInterval"/>
+    /// and calls <see cref="ComponentBase.StateHasChanged"/> to push the updated data
+    /// to the browser over the active Blazor Server / SignalR circuit.
+    /// The loop exits cleanly when the component is disposed (<see cref="_cts"/> cancelled).
+    /// </summary>
+    private async Task RunRefreshLoopAsync()
+    {
+        _timer = new PeriodicTimer(Options.StatsRefreshInterval);
+
+        try
+        {
+            while (await _timer.WaitForNextTickAsync(_cts.Token))
+            {
+                await LoadStatsAsync();
+
+                // InvokeAsync marshals the state-change notification back onto the
+                // Blazor Server dispatcher thread so the DOM diff is applied safely.
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown path when Dispose cancels the CTS — swallow silently.
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cleanup
+    // ---------------------------------------------------------------------------
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        _timer?.Dispose();
+    }
+}

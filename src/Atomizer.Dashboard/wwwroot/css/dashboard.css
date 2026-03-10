@@ -1,0 +1,600 @@
+/* ============================================================
+   Atomizer Dashboard — base stylesheet
+   ============================================================ */
+
+/* ---- Reset / box-sizing ---- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* ---- CSS custom properties ---- */
+:root {
+    --atomizer-primary: #5b5ef4;
+    --atomizer-primary-dark: #4244d4;
+    --atomizer-bg: #f8f9fc;
+    --atomizer-surface: #ffffff;
+    --atomizer-border: #e2e5ee;
+    --atomizer-text: #1a1d2e;
+    --atomizer-text-muted: #6b7280;
+    --atomizer-nav-bg: #1a1d2e;
+    --atomizer-nav-text: #c9ccd8;
+    --atomizer-nav-link-hover: #ffffff;
+    --atomizer-nav-active: var(--atomizer-primary);
+    --atomizer-nav-width: 220px;
+    --atomizer-status-pending: #f59e0b;
+    --atomizer-status-processing: #3b82f6;
+    --atomizer-status-completed: #10b981;
+    --atomizer-status-failed: #ef4444;
+    --atomizer-radius: 6px;
+    --atomizer-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+
+/* ---- Layout ---- */
+.atomizer-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--atomizer-bg);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    color: var(--atomizer-text);
+}
+
+.atomizer-layout-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.atomizer-main {
+    flex: 1;
+    padding: 24px 32px;
+    overflow-y: auto;
+}
+
+/* ---- Navigation ---- */
+.atomizer-nav {
+    width: var(--atomizer-nav-width);
+    background: var(--atomizer-nav-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.atomizer-nav-brand {
+    padding: 20px 16px;
+    border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.atomizer-nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.atomizer-nav-logo:hover {
+    color: var(--atomizer-primary);
+}
+
+.atomizer-nav-logo-icon {
+    font-size: 18px;
+}
+
+.atomizer-nav-links {
+    list-style: none;
+    margin: 0;
+    padding: 12px 0;
+}
+
+.atomizer-nav-links li {
+    margin: 0;
+}
+
+.atomizer-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: var(--atomizer-nav-text);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: color 0.15s, background 0.15s;
+}
+
+.atomizer-nav-link:hover {
+    color: var(--atomizer-nav-link-hover);
+    background: rgb(255 255 255 / 5%);
+}
+
+.atomizer-nav-link--active {
+    color: #ffffff;
+    border-left-color: var(--atomizer-primary);
+    background: rgb(91 94 244 / 15%);
+}
+
+/* ---- Page containers ---- */
+.atomizer-page {
+    max-width: 1100px;
+}
+
+.atomizer-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.atomizer-page-header h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.atomizer-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* ---- Section containers ---- */
+.atomizer-section {
+    background: var(--atomizer-surface);
+    border: 1px solid var(--atomizer-border);
+    border-radius: var(--atomizer-radius);
+    padding: 20px 24px;
+    box-shadow: var(--atomizer-shadow);
+    max-width: 1100px;
+    margin-bottom: 24px;
+}
+
+.atomizer-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.atomizer-section-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* ---- Tables ---- */
+.atomizer-table-wrapper {
+    overflow-x: auto;
+}
+
+.atomizer-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.atomizer-table th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--atomizer-border);
+    font-weight: 600;
+    color: var(--atomizer-text-muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.atomizer-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--atomizer-border);
+    vertical-align: middle;
+}
+
+.atomizer-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.atomizer-table tbody tr:hover td {
+    background: #f5f6fa;
+}
+
+.atomizer-row-disabled td {
+    opacity: 0.55;
+}
+
+.atomizer-col-number {
+    text-align: right;
+}
+
+.atomizer-col-total {
+    font-weight: 600;
+}
+
+.atomizer-table-footer {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--atomizer-text-muted);
+}
+
+/* ---- Badges ---- */
+.atomizer-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.atomizer-badge-enabled {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.atomizer-badge-disabled {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* ---- Status colours ---- */
+.atomizer-status-pending {
+    color: var(--atomizer-status-pending);
+}
+
+.atomizer-status-processing {
+    color: var(--atomizer-status-processing);
+}
+
+.atomizer-status-completed {
+    color: var(--atomizer-status-completed);
+}
+
+.atomizer-status-failed {
+    color: var(--atomizer-status-failed);
+}
+
+/* ---- Buttons ---- */
+.atomizer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--atomizer-border);
+    border-radius: var(--atomizer-radius);
+    background: var(--atomizer-surface);
+    color: var(--atomizer-text);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.atomizer-btn:hover {
+    background: #f0f1f5;
+    border-color: #c5c9d8;
+}
+
+.atomizer-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---- State messages ---- */
+.atomizer-loading,
+.atomizer-empty,
+.atomizer-state {
+    padding: 24px 0;
+    color: var(--atomizer-text-muted);
+    text-align: center;
+}
+
+.atomizer-state--error {
+    color: var(--atomizer-status-failed);
+}
+
+/* ---- Alert ---- */
+.atomizer-alert {
+    padding: 10px 16px;
+    border-radius: var(--atomizer-radius);
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+.atomizer-alert-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+/* ---- Refresh info ---- */
+.atomizer-refresh-info,
+.atomizer-refresh-badge {
+    font-size: 12px;
+    color: var(--atomizer-text-muted);
+}
+
+/* ---- Footer ---- */
+.atomizer-footer {
+    padding: 12px 32px;
+    border-top: 1px solid var(--atomizer-border);
+    font-size: 12px;
+    color: var(--atomizer-text-muted);
+}
+
+/* ---- Modals ---- */
+.atomizer-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 40%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.atomizer-modal {
+    background: var(--atomizer-surface);
+    border-radius: var(--atomizer-radius);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.atomizer-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--atomizer-border);
+}
+
+.atomizer-modal-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.atomizer-modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--atomizer-text-muted);
+    padding: 0 4px;
+}
+
+.atomizer-modal-close:hover {
+    color: var(--atomizer-text);
+}
+
+.atomizer-modal-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+}
+
+.atomizer-payload-full {
+    margin: 0;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ---- Payload preview ---- */
+.atomizer-payload-preview {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.atomizer-payload-preview__text {
+    font-family: monospace;
+    font-size: 12px;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.atomizer-btn--xs {
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+/* ---- Retry button (amber/warning tone) ---- */
+.atomizer-btn--retry {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+.atomizer-btn--retry:hover {
+    background: #fde68a;
+    border-color: #d97706;
+}
+
+.atomizer-btn--retry:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---- Danger button (red tone, used for cancel) ---- */
+.atomizer-btn--danger {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+.atomizer-btn--danger:hover {
+    background: #fecaca;
+    border-color: #dc2626;
+}
+
+.atomizer-btn--danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---- Success alert ---- */
+.atomizer-alert-success {
+    background: #d1fae5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+.atomizer-alert-link {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    margin-left: 6px;
+}
+
+.atomizer-alert-link:hover {
+    opacity: 0.8;
+}
+
+/* ---- Cancelled status badge ---- */
+.atomizer-badge-cancelled {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* ---- Cancelled row toning ---- */
+.atomizer-row-cancelled td {
+    opacity: 0.65;
+}
+
+/* ---- Actions column ---- */
+.atomizer-col-actions {
+    white-space: nowrap;
+    width: 80px;
+}
+
+/* ---- Overview page — status cards ---- */
+.atomizer-overview-section {
+    margin-bottom: 28px;
+}
+
+.atomizer-overview-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.atomizer-overview-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 12px;
+    border-radius: var(--atomizer-radius);
+    border: 1px solid var(--atomizer-border);
+    background: var(--atomizer-surface);
+    text-decoration: none;
+    color: var(--atomizer-text);
+    box-shadow: var(--atomizer-shadow);
+    transition: box-shadow 0.15s, transform 0.1s;
+    gap: 6px;
+}
+
+.atomizer-overview-card:hover {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+    transform: translateY(-1px);
+}
+
+.atomizer-overview-card-count {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.atomizer-overview-card-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--atomizer-text-muted);
+}
+
+.atomizer-overview-card--pending .atomizer-overview-card-count {
+    color: var(--atomizer-status-pending);
+}
+
+.atomizer-overview-card--processing .atomizer-overview-card-count {
+    color: var(--atomizer-status-processing);
+}
+
+.atomizer-overview-card--completed .atomizer-overview-card-count {
+    color: var(--atomizer-status-completed);
+}
+
+.atomizer-overview-card--failed .atomizer-overview-card-count {
+    color: var(--atomizer-status-failed);
+}
+
+/* ---- Overview page — quick-nav links ---- */
+.atomizer-overview-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.atomizer-overview-link {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 20px;
+    border-radius: var(--atomizer-radius);
+    border: 1px solid var(--atomizer-border);
+    background: var(--atomizer-surface);
+    text-decoration: none;
+    color: var(--atomizer-text);
+    box-shadow: var(--atomizer-shadow);
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.atomizer-overview-link:hover {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+    border-color: var(--atomizer-primary);
+}
+
+.atomizer-overview-link-icon {
+    font-size: 22px;
+}
+
+.atomizer-overview-link-label {
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.atomizer-overview-link-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #e0e2f8;
+    color: var(--atomizer-primary-dark);
+}
+
+.atomizer-overview-link-desc {
+    font-size: 12px;
+    color: var(--atomizer-text-muted);
+    line-height: 1.5;
+}

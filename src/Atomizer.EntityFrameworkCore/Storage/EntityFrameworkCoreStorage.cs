@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.EntityFrameworkCore.Storage;
 
-internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
+internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerDashboardStorage
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
@@ -235,6 +235,200 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             "The current database provider is not supported. "
                 + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
                 + "Note that this may lead to unexpected behavior."
+        );
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<QueueStats>> GetQueueStatsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var groups = await JobEntities
+            .AsNoTracking()
+            .GroupBy(j => j.QueueKey)
+            .Select(g => new
+            {
+                QueueKey = g.Key,
+                Pending = g.Count(j => j.Status == AtomizerEntityJobStatus.Pending),
+                Processing = g.Count(j => j.Status == AtomizerEntityJobStatus.Processing),
+                Completed = g.Count(j => j.Status == AtomizerEntityJobStatus.Completed),
+                Failed = g.Count(j => j.Status == AtomizerEntityJobStatus.Failed),
+            })
+            .OrderBy(g => g.QueueKey)
+            .ToListAsync(cancellationToken);
+
+        return groups
+            .Select(g => new QueueStats(new QueueKey(g.QueueKey), g.Pending, g.Processing, g.Completed, g.Failed))
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AtomizerJob>> GetRecentJobsAsync(
+        int skip,
+        int take,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await JobEntities
+            .AsNoTracking()
+            .OrderByDescending(j => j.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .Select(j => j.ToAtomizerJob())
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AtomizerSchedule>> GetAllSchedulesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await ScheduleEntities
+            .AsNoTracking()
+            .OrderBy(s => s.JobKey)
+            .Select(s => s.ToAtomizerSchedule())
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AtomizerJob>> GetJobsAsync(
+        JobFilter filter,
+        int skip,
+        int take,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var query = JobEntities.AsNoTracking().AsQueryable();
+
+        if (filter.QueueName is not null)
+        {
+            var queueName = filter.QueueName;
+            query = query.Where(j => j.QueueKey.Contains(queueName));
+        }
+
+        if (filter.Status is not null)
+        {
+            var entityStatus = (AtomizerEntityJobStatus)(int)filter.Status;
+            query = query.Where(j => j.Status == entityStatus);
+        }
+
+        return await query
+            .OrderByDescending(j => j.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .Select(j => j.ToAtomizerJob())
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<AtomizerJob?> GetJobAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var entity = await JobEntities
+            .AsNoTracking()
+            .Include(j => j.Errors)
+            .FirstOrDefaultAsync(j => j.Id == jobId, cancellationToken);
+
+        return entity?.ToAtomizerJob();
+    }
+
+    /// <inheritdoc />
+    public Task<AtomizerJob?> GetJobByIdAsync(Guid jobId, CancellationToken cancellationToken) =>
+        GetJobAsync(jobId, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<AtomizerJob?> GetLastJobForScheduleAsync(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var entity = await JobEntities
+            .AsNoTracking()
+            .Where(j => j.ScheduleJobKey == jobKey.Key)
+            .OrderByDescending(j => j.UpdatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return entity?.ToAtomizerJob();
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ScheduleRecord>> GetSchedulesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var entities = await ScheduleEntities.AsNoTracking().OrderBy(s => s.JobKey).ToListAsync(cancellationToken);
+
+        return entities
+            .Select(e => new ScheduleRecord(
+                Id: e.Id,
+                JobKey: e.JobKey,
+                QueueKey: e.QueueKey,
+                CronExpression: e.Schedule,
+                Enabled: e.Enabled,
+                MisfirePolicy: (MisfirePolicy)(int)e.MisfirePolicy,
+                NextRunAt: e.NextRunAt,
+                LastEnqueueAt: e.LastEnqueueAt,
+                CreatedAt: e.CreatedAt,
+                UpdatedAt: e.UpdatedAt,
+                PayloadTypeName: string.IsNullOrEmpty(e.PayloadType) ? null : e.PayloadType,
+                TimeZoneId: e.TimeZone
+            ))
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<AtomizerStats> GetStatsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Per-queue stats (reuses existing projection)
+        var queueGroups = await JobEntities
+            .AsNoTracking()
+            .GroupBy(j => j.QueueKey)
+            .Select(g => new
+            {
+                QueueKey = g.Key,
+                Pending = g.Count(j => j.Status == AtomizerEntityJobStatus.Pending),
+                Processing = g.Count(j => j.Status == AtomizerEntityJobStatus.Processing),
+                Completed = g.Count(j => j.Status == AtomizerEntityJobStatus.Completed),
+                Failed = g.Count(j => j.Status == AtomizerEntityJobStatus.Failed),
+            })
+            .OrderBy(g => g.QueueKey)
+            .ToListAsync(cancellationToken);
+
+        var queues = queueGroups
+            .Select(g => new QueueStats(new QueueKey(g.QueueKey), g.Pending, g.Processing, g.Completed, g.Failed))
+            .ToList();
+
+        // Aggregate status counts (includes Cancelled which is not tracked per-queue)
+        var statusCounts = await JobEntities
+            .AsNoTracking()
+            .GroupBy(j => j.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        int Count(AtomizerEntityJobStatus status) => statusCounts.FirstOrDefault(s => s.Status == status)?.Count ?? 0;
+
+        var totalErrors = await JobErrorEntities.AsNoTracking().CountAsync(cancellationToken);
+
+        var totalSchedules = await ScheduleEntities.AsNoTracking().CountAsync(cancellationToken);
+        var enabledSchedules = await ScheduleEntities.AsNoTracking().CountAsync(s => s.Enabled, cancellationToken);
+
+        return new AtomizerStats(
+            Queues: queues,
+            TotalPending: Count(AtomizerEntityJobStatus.Pending),
+            TotalProcessing: Count(AtomizerEntityJobStatus.Processing),
+            TotalCompleted: Count(AtomizerEntityJobStatus.Completed),
+            TotalFailed: Count(AtomizerEntityJobStatus.Failed),
+            TotalCancelled: Count(AtomizerEntityJobStatus.Cancelled),
+            TotalErrors: totalErrors,
+            TotalSchedules: totalSchedules,
+            EnabledSchedules: enabledSchedules,
+            GeneratedAt: DateTimeOffset.UtcNow
         );
     }
 }

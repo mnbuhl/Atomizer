@@ -11,8 +11,7 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "Atomizer");
+            migrationBuilder.EnsureSchema(name: "Atomizer");
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobs",
@@ -21,25 +20,42 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     QueueKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    PayloadType = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    PayloadType = table.Column<string>(
+                        type: "character varying(1024)",
+                        maxLength: 1024,
+                        nullable: false
+                    ),
                     Payload = table.Column<string>(type: "text", nullable: false),
                     ScheduledAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     VisibleAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     Attempts = table.Column<int>(type: "integer", nullable: false),
-                    RetryIntervals = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
+                    RetryIntervals = table.Column<string>(
+                        type: "character varying(4096)",
+                        maxLength: 4096,
+                        nullable: false
+                    ),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     FailedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     LeaseToken = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    ScheduleJobKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    IdempotencyKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true)
+                    ScheduleJobKey = table.Column<string>(
+                        type: "character varying(512)",
+                        maxLength: 512,
+                        nullable: true
+                    ),
+                    IdempotencyKey = table.Column<string>(
+                        type: "character varying(512)",
+                        maxLength: 512,
+                        nullable: true
+                    ),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerJobs", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "AtomizerSchedules",
@@ -49,23 +65,32 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     JobKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
                     QueueKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    PayloadType = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    PayloadType = table.Column<string>(
+                        type: "character varying(1024)",
+                        maxLength: 1024,
+                        nullable: false
+                    ),
                     Payload = table.Column<string>(type: "text", nullable: false),
                     Schedule = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
                     TimeZone = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     MisfirePolicy = table.Column<int>(type: "integer", nullable: false),
                     MaxCatchUp = table.Column<int>(type: "integer", nullable: false),
                     Enabled = table.Column<bool>(type: "boolean", nullable: false),
-                    RetryIntervals = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
+                    RetryIntervals = table.Column<string>(
+                        type: "character varying(4096)",
+                        maxLength: 4096,
+                        nullable: false
+                    ),
                     NextRunAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerSchedules", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "Products",
@@ -75,12 +100,13 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     Name = table.Column<string>(type: "text", nullable: false),
                     Price = table.Column<decimal>(type: "numeric", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Quantity = table.Column<int>(type: "integer", nullable: false)
+                    Quantity = table.Column<int>(type: "integer", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Products", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobErrors",
@@ -89,12 +115,24 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     JobId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ErrorMessage = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
+                    ErrorMessage = table.Column<string>(
+                        type: "character varying(2048)",
+                        maxLength: 2048,
+                        nullable: true
+                    ),
                     StackTrace = table.Column<string>(type: "character varying(5120)", maxLength: 5120, nullable: true),
-                    ExceptionType = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    ExceptionType = table.Column<string>(
+                        type: "character varying(1024)",
+                        maxLength: 1024,
+                        nullable: true
+                    ),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     Attempt = table.Column<int>(type: "integer", nullable: false),
-                    RuntimeIdentity = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true)
+                    RuntimeIdentity = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
                 },
                 constraints: table =>
                 {
@@ -105,33 +143,29 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         principalSchema: "Atomizer",
                         principalTable: "AtomizerJobs",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobErrors_JobId",
                 schema: "Atomizer",
                 table: "AtomizerJobErrors",
-                column: "JobId");
+                column: "JobId"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "AtomizerJobErrors",
-                schema: "Atomizer");
+            migrationBuilder.DropTable(name: "AtomizerJobErrors", schema: "Atomizer");
 
-            migrationBuilder.DropTable(
-                name: "AtomizerSchedules",
-                schema: "Atomizer");
+            migrationBuilder.DropTable(name: "AtomizerSchedules", schema: "Atomizer");
 
-            migrationBuilder.DropTable(
-                name: "Products");
+            migrationBuilder.DropTable(name: "Products");
 
-            migrationBuilder.DropTable(
-                name: "AtomizerJobs",
-                schema: "Atomizer");
+            migrationBuilder.DropTable(name: "AtomizerJobs", schema: "Atomizer");
         }
     }
 }

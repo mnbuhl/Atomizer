@@ -1,0 +1,459 @@
+@page "/atomizer/jobs/{Id:guid}"
+@implements IDisposable
+@inject IDashboardStorage Storage
+@inject ILogger<JobDetail> Logger
+@inject DashboardOptions Options
+
+<PageTitle>Job Detail — Atomizer</PageTitle>
+
+<div class="atomizer-page">
+    <header class="atomizer-page-header">
+        <div class="atomizer-page-header-title">
+            <a href="@(Options.BasePath + "/jobs")" class="atomizer-back-link">
+                &#8592; Jobs
+            </a>
+            <h1>Job Detail</h1>
+        </div>
+        <div class="atomizer-page-actions">
+            @if (_lastRefreshed is not null)
+            {
+                <span class="atomizer-refresh-info">
+                    Last updated: @_lastRefreshed.Value.ToString("HH:mm:ss")
+                </span>
+            }
+            @if (_job?.Status == AtomizerJobStatus.Failed)
+            {
+                <button
+                    class="atomizer-btn atomizer-btn--retry"
+                    type="button"
+                    @onclick="RetryJobAsync"
+                    disabled="@(_isLoading || _isRetrying)"
+                    title="Re-enqueue this failed job as a new pending job"
+                >
+                    @(_isRetrying ? "Retrying…" : "Retry Job")
+                </button>
+            }
+            <button
+                class="atomizer-btn"
+                type="button"
+                @onclick="RefreshAsync"
+                disabled="@_isLoading"
+            >
+                @(_isLoading ? "Refreshing…" : "Refresh")
+            </button>
+        </div>
+    </header>
+
+    @if (_pageError is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-error" role="alert">
+            <strong>Error:</strong> @_pageError
+        </div>
+    }
+
+    @if (_retryError is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-error" role="alert">
+            <strong>Retry failed:</strong> @_retryError
+        </div>
+    }
+
+    @if (_retrySuccessJobId is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-success" role="status">
+            Job re-enqueued successfully.
+            <a
+                href="@(Options.BasePath + "/jobs/" + _retrySuccessJobId)"
+                class="atomizer-alert-link"
+            >
+                View new job &#8594;
+            </a>
+        </div>
+    }
+
+    @if (_isLoading && _job is null)
+    {
+        <div class="atomizer-loading" role="status">
+            <span>Loading job details…</span>
+        </div>
+    }
+    else if (_job is null && !_isLoading)
+    {
+        <div class="atomizer-empty">
+            <p>Job <code>@Id</code> was not found.</p>
+        </div>
+    }
+    else if (_job is not null)
+    {
+        @* ── Job details ──────────────────────────────────────────────────────── *@
+        <section class="atomizer-detail-section" aria-label="Job details">
+            <h2 class="atomizer-detail-section-title">Details</h2>
+            <dl class="atomizer-dl">
+                <div class="atomizer-dl-row">
+                    <dt>ID</dt>
+                    <dd><code>@_job.Id</code></dd>
+                </div>
+                <div class="atomizer-dl-row">
+                    <dt>Queue</dt>
+                    <dd><code>@_job.QueueKey.Key</code></dd>
+                </div>
+                <div class="atomizer-dl-row">
+                    <dt>Status</dt>
+                    <dd>
+                        <span
+                            class="atomizer-badge atomizer-badge-@_job.Status.ToString().ToLowerInvariant()"
+                        >
+                            @_job.Status
+                        </span>
+                    </dd>
+                </div>
+                <div class="atomizer-dl-row">
+                    <dt>Job Type</dt>
+                    <dd>
+                        <code>@(_job.PayloadType?.FullName ?? "(unknown)")</code>
+                    </dd>
+                </div>
+                <div class="atomizer-dl-row">
+                    <dt>Attempts</dt>
+                    <dd>@_job.Attempts / @_job.RetryStrategy.MaxAttempts</dd>
+                </div>
+                <div class="atomizer-dl-row">
+                    <dt>Created</dt>
+                    <dd>
+                        <time datetime="@_job.CreatedAt.ToString("o")">
+                            @_job.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz")
+                        </time>
+                    </dd>
+                </div>
+                <div class="atomizer-dl-row">
+                    <dt>Scheduled At</dt>
+                    <dd>
+                        <time datetime="@_job.ScheduledAt.ToString("o")">
+                            @_job.ScheduledAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz")
+                        </time>
+                    </dd>
+                </div>
+                @if (_job.CompletedAt.HasValue)
+                {
+                    <div class="atomizer-dl-row">
+                        <dt>Completed</dt>
+                        <dd>
+                            <time datetime="@_job.CompletedAt.Value.ToString("o")">
+                                @_job.CompletedAt.Value.ToLocalTime().ToString(
+                                    "yyyy-MM-dd HH:mm:ss zzz"
+                                )
+                            </time>
+                        </dd>
+                    </div>
+                }
+                @if (_job.FailedAt.HasValue)
+                {
+                    <div class="atomizer-dl-row">
+                        <dt>Failed</dt>
+                        <dd>
+                            <time datetime="@_job.FailedAt.Value.ToString("o")">
+                                @_job.FailedAt.Value.ToLocalTime().ToString(
+                                    "yyyy-MM-dd HH:mm:ss zzz"
+                                )
+                            </time>
+                        </dd>
+                    </div>
+                }
+                @if (_job.ScheduleJobKey is not null)
+                {
+                    <div class="atomizer-dl-row">
+                        <dt>Schedule</dt>
+                        <dd><code>@_job.ScheduleJobKey.Key</code></dd>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(_job.IdempotencyKey))
+                {
+                    <div class="atomizer-dl-row">
+                        <dt>Idempotency Key</dt>
+                        <dd><code>@_job.IdempotencyKey</code></dd>
+                    </div>
+                }
+                <div class="atomizer-dl-row">
+                    <dt>Payload</dt>
+                    <dd>
+                        <PayloadPreview Payload="@_job.Payload" />
+                    </dd>
+                </div>
+            </dl>
+        </section>
+
+        @* ── Latest error summary (Sub-AC 2c) ─────────────────────────────────── *@
+        @if (_job.Errors.Count > 0)
+        {
+            var latest = _job.Errors[_job.Errors.Count - 1];
+
+            <section
+                class="atomizer-detail-section atomizer-detail-section--error"
+                aria-label="Latest error"
+            >
+                <h2 class="atomizer-detail-section-title atomizer-detail-section-title--error">
+                    Latest Error
+                    <span class="atomizer-detail-attempt-badge">
+                        Attempt @latest.Attempt
+                    </span>
+                </h2>
+
+                <div class="atomizer-error-summary">
+                    @if (!string.IsNullOrEmpty(latest.ExceptionType))
+                    {
+                        <p class="atomizer-error-type">
+                            <strong>Exception:</strong>
+                            <code>@latest.ExceptionType</code>
+                        </p>
+                    }
+                    @if (!string.IsNullOrEmpty(latest.ErrorMessage))
+                    {
+                        <p class="atomizer-error-message">@latest.ErrorMessage</p>
+                    }
+                    <p class="atomizer-error-meta">
+                        <time datetime="@latest.CreatedAt.ToString("o")">
+                            @latest.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz")
+                        </time>
+                        @if (!string.IsNullOrEmpty(latest.RuntimeIdentity))
+                        {
+                            <span>
+                                &middot; Worker: <code>@latest.RuntimeIdentity</code>
+                            </span>
+                        }
+                    </p>
+                    @if (!string.IsNullOrEmpty(latest.StackTrace))
+                    {
+                        <details class="atomizer-stack-details">
+                            <summary class="atomizer-stack-summary">Stack trace</summary>
+                            <pre class="atomizer-stack-trace"><code>@latest.StackTrace</code></pre>
+                        </details>
+                    }
+                </div>
+            </section>
+
+            @* ── Retry history (Sub-AC 2c) ─────────────────────────────────────── *@
+            @if (_job.Errors.Count > 1)
+            {
+                <section class="atomizer-detail-section" aria-label="Retry history">
+                    <details class="atomizer-retry-history">
+                        <summary class="atomizer-retry-history-summary">
+                            <h2 class="atomizer-detail-section-title">
+                                Retry History
+                                <span class="atomizer-detail-attempt-badge">
+                                    @_job.Errors.Count attempt@(_job.Errors.Count == 1 ? "" : "s")
+                                </span>
+                            </h2>
+                        </summary>
+
+                        <div class="atomizer-retry-list">
+                            @foreach (var error in _job.Errors.OrderByDescending(e => e.Attempt))
+                            {
+                                <article
+                                    class="atomizer-retry-entry"
+                                    aria-label="Attempt @error.Attempt"
+                                >
+                                    <header class="atomizer-retry-entry-header">
+                                        <span class="atomizer-retry-entry-attempt">
+                                            Attempt @error.Attempt
+                                        </span>
+                                        <time
+                                            class="atomizer-retry-entry-time"
+                                            datetime="@error.CreatedAt.ToString("o")"
+                                        >
+                                            @error.CreatedAt.ToLocalTime().ToString(
+                                                "yyyy-MM-dd HH:mm:ss zzz"
+                                            )
+                                        </time>
+                                        @if (!string.IsNullOrEmpty(error.RuntimeIdentity))
+                                        {
+                                            <span class="atomizer-retry-entry-worker">
+                                                Worker:
+                                                <code>@error.RuntimeIdentity</code>
+                                            </span>
+                                        }
+                                    </header>
+
+                                    @if (!string.IsNullOrEmpty(error.ExceptionType))
+                                    {
+                                        <p class="atomizer-retry-entry-type">
+                                            <strong>Exception:</strong>
+                                            <code>@error.ExceptionType</code>
+                                        </p>
+                                    }
+                                    @if (!string.IsNullOrEmpty(error.ErrorMessage))
+                                    {
+                                        <p class="atomizer-retry-entry-message">
+                                            @error.ErrorMessage
+                                        </p>
+                                    }
+                                    @if (!string.IsNullOrEmpty(error.StackTrace))
+                                    {
+                                        <details class="atomizer-stack-details">
+                                            <summary class="atomizer-stack-summary">
+                                                Stack trace
+                                            </summary>
+                                            <pre class="atomizer-stack-trace"><code>@error.StackTrace</code></pre>
+                                        </details>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    </details>
+                </section>
+            }
+        }
+    }
+</div>
+
+@code {
+    // How often the component re-polls for updated job data (seconds).
+    private const int RefreshIntervalSeconds = 10;
+
+    // ---------------------------------------------------------------------------
+    // Parameters
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// The job identifier extracted from the route segment
+    /// <c>/atomizer/jobs/{Id}</c>.
+    /// </summary>
+    [Parameter]
+    public Guid Id { get; set; }
+
+    // ---------------------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------------------
+
+    private AtomizerJob? _job;
+    private bool _isLoading;
+    private string? _pageError;
+    private DateTime? _lastRefreshed;
+
+    private bool _isRetrying;
+    private string? _retryError;
+    private Guid? _retrySuccessJobId;
+
+    private PeriodicTimer? _timer;
+    private readonly CancellationTokenSource _cts = new();
+
+    // ---------------------------------------------------------------------------
+    // Blazor lifecycle
+    // ---------------------------------------------------------------------------
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        StartPolling();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        _timer?.Dispose();
+    }
+
+    // ---------------------------------------------------------------------------
+    // Data loading
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Loads (or re-loads) the job and its full error history from storage and
+    /// triggers a UI re-render.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        _isLoading = true;
+        _pageError = null;
+        StateHasChanged();
+
+        try
+        {
+            _job = await Storage.GetJobByIdAsync(Id, _cts.Token);
+            _lastRefreshed = DateTime.Now;
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is being disposed — swallow silently.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load job {JobId} from dashboard storage", Id);
+            _pageError = "Could not load job details. Check server logs for details.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Retry action
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Re-enqueues the current job (which must be in <see cref="AtomizerJobStatus.Failed"/>
+    /// status) as a new <see cref="AtomizerJobStatus.Pending"/> job and refreshes the view.
+    /// A success banner with a link to the newly created job is shown on completion.
+    /// </summary>
+    private async Task RetryJobAsync()
+    {
+        _isRetrying = true;
+        _retryError = null;
+        _retrySuccessJobId = null;
+        StateHasChanged();
+
+        try
+        {
+            var newJobId = await Storage.RetryJobAsync(Id, _cts.Token);
+            _retrySuccessJobId = newJobId;
+            await RefreshAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed — swallow silently.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to retry job {JobId}", Id);
+            _retryError = ex.Message;
+        }
+        finally
+        {
+            _isRetrying = false;
+            StateHasChanged();
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Real-time polling
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Starts a background <see cref="PeriodicTimer"/> that refreshes the job
+    /// every <see cref="RefreshIntervalSeconds"/> seconds so that live status
+    /// changes (e.g. completion, new retry errors) are reflected automatically.
+    /// </summary>
+    private void StartPolling()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(RefreshIntervalSeconds));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _timer.WaitForNextTickAsync(_cts.Token))
+                {
+                    await InvokeAsync(RefreshAsync);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Disposed — ignore.
+            }
+        });
+    }
+}

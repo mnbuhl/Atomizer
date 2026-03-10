@@ -103,6 +103,27 @@ public class AtomizerJob : Model
         VisibleAt = null;
     }
 
+    /// <summary>
+    /// Marks the job as cancelled, preventing it from being processed.
+    /// Only jobs in the <see cref="AtomizerJobStatus.Pending"/> state can be cancelled.
+    /// </summary>
+    /// <param name="now">The current UTC time, recorded as the updated-at timestamp.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the job is not in the <see cref="AtomizerJobStatus.Pending"/> state.
+    /// </exception>
+    public void Cancel(DateTimeOffset now)
+    {
+        if (Status != AtomizerJobStatus.Pending)
+        {
+            throw new InvalidOperationException("Job must be in Pending status to cancel.");
+        }
+
+        Status = AtomizerJobStatus.Cancelled;
+        UpdatedAt = now;
+        LeaseToken = null;
+        VisibleAt = null;
+    }
+
     public void Reschedule(DateTimeOffset nextVisibleAt, DateTimeOffset now)
     {
         VisibleAt = nextVisibleAt;
@@ -118,4 +139,9 @@ public enum AtomizerJobStatus
     Processing = 2,
     Completed = 3,
     Failed = 4,
+
+    /// <summary>
+    /// The job was explicitly cancelled via the dashboard and will not be processed.
+    /// </summary>
+    Cancelled = 5,
 }

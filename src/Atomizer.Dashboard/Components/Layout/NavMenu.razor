@@ -1,0 +1,54 @@
+@inject DashboardOptions Options
+
+<nav class="atomizer-nav" aria-label="Atomizer Dashboard navigation">
+    <div class="atomizer-nav-brand">
+        <a href="@Options.BasePath" class="atomizer-nav-logo">
+            <span class="atomizer-nav-logo-icon" aria-hidden="true">&#x26A1;</span>
+            <span class="atomizer-nav-logo-text">Atomizer</span>
+        </a>
+    </div>
+
+    <ul class="atomizer-nav-links" role="list">
+        <li>
+            <NavLink
+                class="atomizer-nav-link"
+                href="@Options.BasePath"
+                Match="NavLinkMatch.All"
+                ActiveClass="atomizer-nav-link--active"
+            >
+                <span class="atomizer-nav-icon" aria-hidden="true">&#x1F4CA;</span>
+                Overview
+            </NavLink>
+        </li>
+        <li>
+            <NavLink
+                class="atomizer-nav-link"
+                href="@(Options.BasePath + "/jobs")"
+                ActiveClass="atomizer-nav-link--active"
+            >
+                <span class="atomizer-nav-icon" aria-hidden="true">&#x1F4CB;</span>
+                Jobs
+            </NavLink>
+        </li>
+        <li>
+            <NavLink
+                class="atomizer-nav-link"
+                href="@(Options.BasePath + "/queues")"
+                ActiveClass="atomizer-nav-link--active"
+            >
+                <span class="atomizer-nav-icon" aria-hidden="true">&#x1F4E5;</span>
+                Queues
+            </NavLink>
+        </li>
+        <li>
+            <NavLink
+                class="atomizer-nav-link"
+                href="@(Options.BasePath + "/schedules")"
+                ActiveClass="atomizer-nav-link--active"
+            >
+                <span class="atomizer-nav-icon" aria-hidden="true">&#x1F551;</span>
+                Recurring Schedules
+            </NavLink>
+        </li>
+    </ul>
+</nav>

@@ -28,12 +28,13 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     FailedAt = table.Column<long>(type: "INTEGER", nullable: true),
                     LeaseToken = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
                     ScheduleJobKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
-                    IdempotencyKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true)
+                    IdempotencyKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerJobs", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "AtomizerSchedules",
@@ -53,12 +54,13 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     NextRunAt = table.Column<long>(type: "INTEGER", nullable: false),
                     LastEnqueueAt = table.Column<long>(type: "INTEGER", nullable: true),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
-                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerSchedules", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobErrors",
@@ -71,7 +73,7 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                     ExceptionType = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
                     Attempt = table.Column<int>(type: "INTEGER", nullable: false),
-                    RuntimeIdentity = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true)
+                    RuntimeIdentity = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
                 },
                 constraints: table =>
                 {
@@ -81,25 +83,25 @@ namespace Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite.Migrations
                         column: x => x.JobId,
                         principalTable: "AtomizerJobs",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobErrors_JobId",
                 table: "AtomizerJobErrors",
-                column: "JobId");
+                column: "JobId"
+            );
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "AtomizerJobErrors");
+            migrationBuilder.DropTable(name: "AtomizerJobErrors");
 
-            migrationBuilder.DropTable(
-                name: "AtomizerSchedules");
+            migrationBuilder.DropTable(name: "AtomizerSchedules");
 
-            migrationBuilder.DropTable(
-                name: "AtomizerJobs");
+            migrationBuilder.DropTable(name: "AtomizerJobs");
         }
     }
 }

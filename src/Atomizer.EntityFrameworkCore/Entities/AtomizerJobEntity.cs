@@ -27,6 +27,11 @@ public enum AtomizerEntityJobStatus
     Processing = 2,
     Completed = 3,
     Failed = 4,
+
+    /// <summary>
+    /// The job was explicitly cancelled via the dashboard and will not be processed.
+    /// </summary>
+    Cancelled = 5,
 }
 
 public static class AtomizerJobEntityMapper

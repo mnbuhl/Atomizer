@@ -1,4 +1,5 @@
 using Atomizer;
+using Atomizer.Dashboard;
 using Atomizer.Example.Handlers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
@@ -42,6 +43,7 @@ builder.Services.AddAtomizer(options =>
     options.UseInMemoryStorage();
 });
 builder.Services.AddAtomizerProcessing();
+builder.Services.AddAtomizerDashboard();
 
 var app = builder.Build();
 
@@ -121,5 +123,8 @@ app.MapPost(
         await atomizerClient.EnqueueAsync(new LongRunningJobPayload(durationInSeconds));
     }
 );
+
+app.UseAntiforgery();
+app.MapAtomizerDashboard();
 
 app.Run();

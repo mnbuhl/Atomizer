@@ -1,0 +1,401 @@
+@page "/atomizer/schedules"
+@implements IDisposable
+@inject IDashboardStorage Storage
+@inject ScheduleTriggerService TriggerService
+@inject ILogger<RecurringSchedules> Logger
+
+<PageTitle>Recurring Schedules — Atomizer</PageTitle>
+
+<div class="atomizer-page">
+    <header class="atomizer-page-header">
+        <h1>Recurring Schedules</h1>
+        <div class="atomizer-page-actions">
+            <span class="atomizer-refresh-info">
+                @if (_lastRefreshed is not null)
+                {
+                    <span>Last updated: @_lastRefreshed.Value.ToString("HH:mm:ss")</span>
+                }
+            </span>
+            <button class="atomizer-btn" @onclick="RefreshAsync" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span>Refreshing…</span>
+                }
+                else
+                {
+                    <span>Refresh</span>
+                }
+            </button>
+        </div>
+    </header>
+
+    @if (_errorMessage is not null)
+    {
+        <div class="atomizer-alert atomizer-alert-error" role="alert">
+            <strong>Error:</strong> @_errorMessage
+        </div>
+    }
+
+    @if (_isLoading && _schedules is null)
+    {
+        <div class="atomizer-loading" role="status">
+            <span>Loading schedules…</span>
+        </div>
+    }
+    else if (_schedules is not null)
+    {
+        @if (_schedules.Count == 0)
+        {
+            <div class="atomizer-empty">
+                <p>No recurring schedules have been registered yet.</p>
+            </div>
+        }
+        else
+        {
+            <table class="atomizer-table" aria-label="Recurring schedules">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Cron Expression</th>
+                        <th scope="col">Next Run</th>
+                        <th scope="col">Last Enqueued</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Queue</th>
+                        <th scope="col">Misfire Policy</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var schedule in _schedules)
+                    {
+                        var state = GetTriggerState(schedule.Id);
+
+                        <tr class="@(schedule.Enabled ? "" : "atomizer-row-disabled")">
+                            <td class="atomizer-cell-name">
+                                <code>@schedule.JobKey.Key</code>
+                            </td>
+                            <td class="atomizer-cell-cron">
+                                <code>@schedule.Schedule.ToString()</code>
+                            </td>
+                            <td class="atomizer-cell-next-run">
+                                @FormatNextRun(schedule)
+                            </td>
+                            <td class="atomizer-cell-last-enqueued">
+                                @FormatLastEnqueued(schedule)
+                            </td>
+                            <td class="atomizer-cell-status">
+                                @if (schedule.Enabled)
+                                {
+                                    <span class="atomizer-badge atomizer-badge-enabled">Enabled</span>
+                                }
+                                else
+                                {
+                                    <span class="atomizer-badge atomizer-badge-disabled">Disabled</span>
+                                }
+                            </td>
+                            <td class="atomizer-cell-queue">
+                                <code>@schedule.QueueKey.Key</code>
+                            </td>
+                            <td class="atomizer-cell-misfire">
+                                @schedule.MisfirePolicy.ToString()
+                            </td>
+                            <td class="atomizer-cell-actions">
+                                <button
+                                    class="atomizer-btn atomizer-btn--xs atomizer-btn--primary"
+                                    type="button"
+                                    title="Enqueue this schedule's job immediately"
+                                    disabled="@(state.IsTriggering || _isLoading)"
+                                    @onclick="() => TriggerScheduleAsync(schedule.Id)"
+                                >
+                                    @if (state.IsTriggering)
+                                    {
+                                        <span>Running…</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Run Now</span>
+                                    }
+                                </button>
+                                @if (state.Feedback is not null)
+                                {
+                                    <span
+                                        class="atomizer-trigger-feedback @(state.IsSuccess ? "atomizer-trigger-feedback--success" : "atomizer-trigger-feedback--error")"
+                                        aria-live="polite"
+                                    >
+                                        @state.Feedback
+                                    </span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="atomizer-table-footer">
+                <span>@_schedules.Count schedule@(_schedules.Count == 1 ? "" : "s") total</span>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    // ── State ────────────────────────────────────────────────────────────────
+
+    private IReadOnlyList<AtomizerSchedule>? _schedules;
+    private bool _isLoading;
+    private string? _errorMessage;
+    private DateTime? _lastRefreshed;
+
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource _cts = new();
+
+    /// <summary>
+    /// Per-schedule trigger state, keyed by the unique identifier of each schedule.
+    /// Cleared automatically after a short feedback window.
+    /// </summary>
+    private readonly Dictionary<Guid, ScheduleTriggerState> _triggerStates = new();
+
+    // ── Lifecycle ────────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        StartPolling();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        _timer?.Dispose();
+    }
+
+    // ── Data loading ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fetches the current schedule list from storage and triggers a UI re-render.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            _schedules = await Storage.GetAllSchedulesAsync(_cts.Token);
+            _lastRefreshed = DateTime.Now;
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is being disposed — swallow silently.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load recurring schedules from dashboard storage");
+            _errorMessage = "Could not load schedules. Check server logs for details.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Starts a background <see cref="PeriodicTimer"/> that refreshes schedule data
+    /// every 15 seconds so the dashboard reflects storage changes in near-real-time.
+    /// </summary>
+    private void StartPolling()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _timer.WaitForNextTickAsync(_cts.Token))
+                {
+                    await InvokeAsync(RefreshAsync);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Disposed — ignore.
+            }
+        });
+    }
+
+    // ── Manual trigger ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Handles a "Run Now" button click for the schedule identified by
+    /// <paramref name="scheduleId"/>. Enqueues the job immediately via
+    /// <see cref="ScheduleTriggerService"/>, updates per-row feedback, and
+    /// refreshes the schedule list so the <em>Last Enqueued</em> column reflects
+    /// the trigger without waiting for the next polling cycle.
+    /// </summary>
+    /// <param name="scheduleId">
+    /// The unique identifier of the schedule to fire on-demand.
+    /// </param>
+    private async Task TriggerScheduleAsync(Guid scheduleId)
+    {
+        SetTriggerState(scheduleId, new ScheduleTriggerState(IsTriggering: true));
+        StateHasChanged();
+
+        try
+        {
+            var jobId = await TriggerService.TriggerAsync(scheduleId, _cts.Token);
+
+            SetTriggerState(
+                scheduleId,
+                new ScheduleTriggerState(
+                    IsTriggering: false,
+                    Feedback: $"✓ Enqueued ({jobId.ToString()[..8]}…)",
+                    IsSuccess: true
+                )
+            );
+
+            // Refresh immediately so the "Last Enqueued" timestamp updates in the UI.
+            await RefreshAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is being disposed — swallow silently.
+            SetTriggerState(scheduleId, default);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to manually trigger schedule {ScheduleId}", scheduleId);
+            SetTriggerState(
+                scheduleId,
+                new ScheduleTriggerState(
+                    IsTriggering: false,
+                    Feedback: "✗ Trigger failed",
+                    IsSuccess: false
+                )
+            );
+        }
+        finally
+        {
+            StateHasChanged();
+
+            // Auto-clear the feedback message after 4 seconds so the row stays clean.
+            _ = ClearFeedbackAfterDelayAsync(scheduleId, delay: TimeSpan.FromSeconds(4));
+        }
+    }
+
+    /// <summary>
+    /// Waits for <paramref name="delay"/> and then clears the per-row feedback message
+    /// for <paramref name="scheduleId"/>, unless the component has been disposed.
+    /// </summary>
+    private async Task ClearFeedbackAfterDelayAsync(Guid scheduleId, TimeSpan delay)
+    {
+        try
+        {
+            await Task.Delay(delay, _cts.Token);
+            SetTriggerState(scheduleId, default);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed — nothing to do.
+        }
+    }
+
+    // ── Trigger-state helpers ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the current <see cref="ScheduleTriggerState"/> for the given schedule,
+    /// or a default (idle) state when no entry exists.
+    /// </summary>
+    private ScheduleTriggerState GetTriggerState(Guid scheduleId) =>
+        _triggerStates.TryGetValue(scheduleId, out var state) ? state : default;
+
+    /// <summary>
+    /// Upserts the trigger state for the given schedule, or removes the entry when
+    /// <paramref name="state"/> is the default (idle) value.
+    /// </summary>
+    private void SetTriggerState(Guid scheduleId, ScheduleTriggerState state)
+    {
+        if (state == default)
+            _triggerStates.Remove(scheduleId);
+        else
+            _triggerStates[scheduleId] = state;
+    }
+
+    // ── Formatting helpers ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns a human-readable string for the schedule's next run time.
+    /// </summary>
+    private static string FormatNextRun(AtomizerSchedule schedule)
+    {
+        if (!schedule.Enabled)
+            return "—";
+
+        if (schedule.NextRunAt == DateTimeOffset.MaxValue)
+            return "No further occurrences";
+
+        var local = schedule.NextRunAt.ToLocalTime();
+        var diff = schedule.NextRunAt - DateTimeOffset.UtcNow;
+
+        if (diff <= TimeSpan.Zero)
+            return $"{local:yyyy-MM-dd HH:mm:ss} (overdue)";
+
+        return diff.TotalHours < 24
+            ? $"{local:HH:mm:ss} (in {FormatDuration(diff)})"
+            : $"{local:yyyy-MM-dd HH:mm:ss} (in {FormatDuration(diff)})";
+    }
+
+    /// <summary>
+    /// Returns a human-readable string for when the schedule was last enqueued.
+    /// </summary>
+    private static string FormatLastEnqueued(AtomizerSchedule schedule)
+    {
+        if (schedule.LastEnqueueAt is null)
+            return "Never";
+
+        var local = schedule.LastEnqueueAt.Value.ToLocalTime();
+        var diff = DateTimeOffset.UtcNow - schedule.LastEnqueueAt.Value;
+
+        return diff.TotalHours < 24
+            ? $"{local:HH:mm:ss} ({FormatDuration(diff)} ago)"
+            : $"{local:yyyy-MM-dd HH:mm:ss} ({FormatDuration(diff)} ago)";
+    }
+
+    /// <summary>
+    /// Formats a <see cref="TimeSpan"/> as a compact human-readable duration string.
+    /// </summary>
+    private static string FormatDuration(TimeSpan span)
+    {
+        if (span < TimeSpan.Zero)
+            span = span.Negate();
+
+        if (span.TotalSeconds < 60)
+            return $"{(int)span.TotalSeconds}s";
+
+        if (span.TotalMinutes < 60)
+            return $"{(int)span.TotalMinutes}m {span.Seconds}s";
+
+        if (span.TotalHours < 24)
+            return $"{(int)span.TotalHours}h {span.Minutes}m";
+
+        return $"{(int)span.TotalDays}d {span.Hours}h";
+    }
+
+    // ── Inner types ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Captures the transient UI state for a single "Run Now" trigger action on a
+    /// schedule row: whether a trigger is currently in-flight, the feedback text to
+    /// display, and whether the last outcome was a success or a failure.
+    /// </summary>
+    private readonly record struct ScheduleTriggerState(
+        bool IsTriggering = false,
+        string? Feedback = null,
+        bool IsSuccess = false
+    );
+}

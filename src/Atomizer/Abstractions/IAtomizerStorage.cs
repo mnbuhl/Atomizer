@@ -66,4 +66,51 @@ public interface IAtomizerStorage
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of due Atomizer schedules.</returns>
     Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns a filtered, paginated list of jobs ordered by creation time descending.
+    /// </summary>
+    /// <remarks>
+    /// Multiple non-null properties on <paramref name="filter"/> are combined with a
+    /// logical AND — a job must satisfy every active criterion to be included.
+    /// Passing a filter whose <see cref="JobFilter.IsEmpty"/> is <see langword="true"/>
+    /// is equivalent to returning all jobs subject only to the pagination parameters.
+    /// </remarks>
+    /// <param name="filter">
+    /// Filter criteria to apply. All properties default to <see langword="null"/> which
+    /// disables that dimension; construct a <see cref="JobFilter"/> with the desired
+    /// properties set to constrain the result.
+    /// </param>
+    /// <param name="skip">
+    /// Number of matching jobs to skip before returning results (zero-based offset for
+    /// pagination). Must be non-negative.
+    /// </param>
+    /// <param name="take">
+    /// Maximum number of matching jobs to return per page. Use <see cref="int.MaxValue"/>
+    /// to retrieve all matching jobs. Must be non-negative.
+    /// </param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>
+    /// A read-only list of <see cref="AtomizerJob"/> instances that satisfy
+    /// <paramref name="filter"/>, ordered by <see cref="AtomizerJob.CreatedAt"/> descending.
+    /// </returns>
+    Task<IReadOnlyList<AtomizerJob>> GetJobsAsync(
+        JobFilter filter,
+        int skip,
+        int take,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>
+    /// Retrieves a single job by its unique identifier, including the full error history
+    /// recorded against it.
+    /// </summary>
+    /// <param name="jobId">The unique identifier of the job to retrieve.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>
+    /// The <see cref="AtomizerJob"/> with the given <paramref name="jobId"/>, including
+    /// its populated <see cref="AtomizerJob.Errors"/> collection, or
+    /// <see langword="null"/> when no job with that identifier exists in the store.
+    /// </returns>
+    Task<AtomizerJob?> GetJobAsync(Guid jobId, CancellationToken cancellationToken);
 }

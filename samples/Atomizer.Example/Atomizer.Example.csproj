@@ -8,6 +8,6 @@
         <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Atomizer\Atomizer.csproj" />
+        <ProjectReference Include="..\..\src\Atomizer.Dashboard\Atomizer.Dashboard.csproj" />
     </ItemGroup>
 </Project>
