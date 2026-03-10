@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
         <LangVersion>12</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -24,5 +24,11 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\Atomizer\Atomizer.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <!-- Auto-imported by NuGet consumers. Sets UsingMicrosoftNETSdkRazor=true so that
+             _framework/blazor.server.js is included in the host's static web assets manifest.
+             Project-reference consumers get this automatically by referencing a Razor SDK project. -->
+        <None Include="build\Atomizer.Dashboard.props" Pack="true" PackagePath="build/" />
     </ItemGroup>
 </Project>

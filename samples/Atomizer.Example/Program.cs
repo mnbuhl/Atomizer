@@ -124,7 +124,6 @@ app.MapPost(
     }
 );
 
-app.UseAntiforgery();
 app.MapAtomizerDashboard();
 
 app.Run();

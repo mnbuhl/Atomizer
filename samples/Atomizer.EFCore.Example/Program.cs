@@ -1,4 +1,5 @@
 using Atomizer;
+using Atomizer.Dashboard;
 using Atomizer.EFCore.Example.Data.MySql;
 using Atomizer.EFCore.Example.Data.Postgres;
 using Atomizer.EFCore.Example.Data.Sqlite;
@@ -27,6 +28,7 @@ builder.Services.AddAtomizerProcessing(options =>
 {
     options.StartupDelay = TimeSpan.FromSeconds(5);
 });
+builder.Services.AddAtomizerDashboard();
 
 builder.Services.AddDbContext<ExamplePostgresContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("postgresql"))
@@ -154,5 +156,7 @@ app.MapPost(
         return Results.Accepted($"/jobs/{jobId}");
     }
 );
+
+app.MapAtomizerDashboard();
 
 app.Run();

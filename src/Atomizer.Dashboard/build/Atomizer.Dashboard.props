@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    Injects a Razor file into the consuming project to activate Blazor build tooling,
+    which ensures _framework/blazor.server.js is included in the static web assets
+    manifest. Without at least one .razor file in the host project, the Razor SDK
+    targets do not run and the Blazor framework JS is omitted from the manifest.
+  -->
+  <PropertyGroup>
+    <!--
+      Activates the Razor SDK build targets in the consuming project so that
+      _framework/blazor.server.js is included in the static web assets manifest.
+      Without this, host apps that have no .razor files of their own would not
+      get the Blazor framework JS served correctly.
+    -->
+    <UsingMicrosoftNETSdkRazor>true</UsingMicrosoftNETSdkRazor>
+  </PropertyGroup>
+</Project>

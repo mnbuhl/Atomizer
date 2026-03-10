@@ -235,14 +235,27 @@ public static class EndpointRouteBuilderExtensions
     }
 
     /// <summary>
-    /// Core mapping shared by all public overloads: registers Blazor Server
-    /// interactive components and applies any configured authorization policy.
+    /// Core mapping shared by all public overloads: registers static assets,
+    /// antiforgery middleware, Blazor Server interactive components, and any
+    /// configured authorization policy.
     /// </summary>
     private static RazorComponentsEndpointConventionBuilder MapAtomizerDashboardCore(
         IEndpointRouteBuilder endpoints,
         DashboardOptions options
     )
     {
+#if NET9_0_OR_GREATER
+        endpoints.MapStaticAssets();
+#endif
+
+        if (endpoints is IApplicationBuilder appBuilder)
+        {
+#if !NET9_0_OR_GREATER
+            appBuilder.UseStaticFiles();
+#endif
+            appBuilder.UseAntiforgery();
+        }
+
         var builder = endpoints
             .MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
