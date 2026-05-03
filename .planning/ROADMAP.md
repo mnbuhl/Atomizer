@@ -49,7 +49,10 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
+**Wave 1**
 - [ ] 02-01-PLAN.md — Implement ExecuteInLeaseAsync overloads, _semaphores field, _queues ConcurrentDictionary, atomic UpsertScheduleAsync, QueuePoller null-guard, delete InMemoryLeasingScopeFactory.cs (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-02-PLAN.md — Create InMemoryStorageLeaseTests.cs, update InMemoryStorageTests.cs _queues assertion, delete InMemoryLeasingScopeFactoryTests.cs (Wave 2)
 
 ### Phase 3: SQL Dialect Strategy
