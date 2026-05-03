@@ -113,16 +113,18 @@ namespace Atomizer.Tests.Storage
         /// Verifies that UpdateAsync throws when the job is missing.
         /// </summary>
         [Fact]
-        public async Task UpdateAsync_WhenJobMissing_ShouldLogError()
+        public async Task UpdateAsync_WhenJobMissing_ShouldThrowInvalidOperationException()
         {
             // Arrange
             var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "payload", _now, _now);
 
             // Act
-            await _sut.UpdateJobsAsync([job], CancellationToken.None);
+            var act = async () => await _sut.UpdateJobsAsync([job], CancellationToken.None);
 
             // Assert
-            _logger.Received(1).LogError($"Update requested for missing job {job.Id}");
+            await act.Should()
+                .ThrowAsync<InvalidOperationException>()
+                .WithMessage($"Update requested for job {job.Id} that no longer exists in storage.");
         }
 
         /// <summary>
