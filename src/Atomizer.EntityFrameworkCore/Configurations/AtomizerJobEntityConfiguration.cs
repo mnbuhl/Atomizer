@@ -1,19 +1,30 @@
-﻿using Atomizer.EntityFrameworkCore.Entities;
+using Atomizer.EntityFrameworkCore.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Atomizer.EntityFrameworkCore.Configurations;
 
+/// <summary>
+/// Entity Framework Core configuration for <see cref="AtomizerJobEntity"/>.
+/// </summary>
 public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJobEntity>
 {
     private readonly string? _schema;
 
+    /// <summary>
+    /// Initializes a new <see cref="AtomizerJobEntityConfiguration"/> with the specified database schema.
+    /// </summary>
+    /// <param name="schema">The database schema to use for the jobs table, or <see langword="null"/> for the default schema.</param>
     public AtomizerJobEntityConfiguration(string? schema)
     {
         _schema = schema;
     }
 
+    /// <summary>
+    /// Configures the <see cref="AtomizerJobEntity"/> type mapping.
+    /// </summary>
+    /// <param name="builder">The builder used to configure the entity type.</param>
     public void Configure(EntityTypeBuilder<AtomizerJobEntity> builder)
     {
         builder.ToTable("AtomizerJobs", _schema);

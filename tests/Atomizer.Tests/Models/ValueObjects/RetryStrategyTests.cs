@@ -23,14 +23,15 @@ public class RetryStrategyTests
     }
 
     [Fact]
-    public void None_ShouldReturnStrategyWithOneAttemptAndNoIntervals()
+    public void None_ShouldReturnStrategyWithOneAttemptAndZeroInterval()
     {
         // Arrange & Act
         var strategy = RetryStrategy.None;
 
         // Assert
         strategy.MaxAttempts.Should().Be(1);
-        strategy.RetryIntervals.Should().BeEmpty();
+        strategy.RetryIntervals.Should().ContainSingle().Which.Should().Be(TimeSpan.Zero);
+        strategy.GetRetryInterval(1).Should().Be(TimeSpan.Zero);
     }
 
     [Fact]

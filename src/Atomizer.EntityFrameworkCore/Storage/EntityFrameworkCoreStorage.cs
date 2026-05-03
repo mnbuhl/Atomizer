@@ -1,4 +1,5 @@
-﻿using Atomizer.Abstractions;
+using Atomizer.Abstractions;
+using Atomizer.Core;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     private readonly EntityFrameworkCoreJobStorageOptions _options;
     private readonly ILogger<EntityFrameworkCoreStorage<TDbContext>> _logger;
     private readonly RelationalProviderCache _providerCache;
+    private readonly IAtomizerClock _clock;
 
     private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
     private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
@@ -21,12 +23,14 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     public EntityFrameworkCoreStorage(
         TDbContext dbContext,
         EntityFrameworkCoreJobStorageOptions options,
-        ILogger<EntityFrameworkCoreStorage<TDbContext>> logger
+        ILogger<EntityFrameworkCoreStorage<TDbContext>> logger,
+        IAtomizerClock clock
     )
     {
         _dbContext = dbContext;
         _options = options;
         _logger = logger;
+        _clock = clock;
         _providerCache = RelationalProviderCache.Create(dbContext);
     }
 
@@ -69,6 +73,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Failed to update jobs");
+            throw;
         }
     }
 
@@ -81,9 +86,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            var sql = _providerCache.RawSqlProvider.GetDueJobsAsync(queueKey, now, batchSize);
+            var sql = _providerCache.Dialect.GetDueJobs(queueKey, now, batchSize);
 
             var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
 
@@ -92,6 +97,10 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
+            // WARNING: AsNoTracking() with no row lock means two concurrent QueuePumps
+            // on the same process (or any second node) will both receive the same jobs.
+            // AllowUnsafeProviderFallback is only safe with DegreeOfParallelism=1 and
+            // a single process instance. It is not safe for production use.
             return await JobEntities
                 .AsNoTracking()
                 .Where(j =>
@@ -122,9 +131,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         CancellationToken cancellationToken
     )
     {
-        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            var sql = _providerCache.RawSqlProvider.ReleaseLeasedJobsAsync(leaseToken, now);
+            var sql = _providerCache.Dialect.ReleaseLeasedJobs(leaseToken, now);
             var result = await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
             return result;
         }
@@ -156,37 +165,51 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         var entity = schedule.ToEntity();
 
-        var existing = await ScheduleEntities
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
-
-        if (existing is not null)
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            entity.Id = existing.Id;
-            ScheduleEntities.Update(entity);
-        }
-        else
-        {
-            ScheduleEntities.Add(entity);
+            var now = _clock.UtcNow;
+            var sql = _providerCache.Dialect.UpsertScheduleAsync(schedule, now);
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+            return await ScheduleEntities
+                .Where(s => s.JobKey == entity.JobKey)
+                .Select(s => s.Id)
+                .FirstAsync(cancellationToken);
         }
 
-        try
+        if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex)
-        {
-            // Might fail due to race conditions in a distributed setup
-            // Look into optimistic concurrency control later
-            _logger.LogError(
-                ex,
-                "Failed to upsert schedule {ScheduleKey} for job {JobKey}",
-                schedule.JobKey,
-                schedule.JobKey
-            );
+            // Not race-safe - use only with 1 service running
+            var existing = await ScheduleEntities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
+
+            if (existing is not null)
+            {
+                entity.Id = existing.Id;
+                ScheduleEntities.Update(entity);
+            }
+            else
+            {
+                ScheduleEntities.Add(entity);
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to upsert schedule for job {JobKey}", schedule.JobKey);
+            }
+
+            return entity.Id;
         }
 
-        return entity.Id;
+        throw new NotSupportedException(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
+        );
     }
 
     public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
@@ -199,6 +222,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Failed to update schedules");
+            throw;
         }
     }
 
@@ -209,9 +233,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            var sql = _providerCache.RawSqlProvider.GetDueSchedulesAsync(now);
+            var sql = _providerCache.Dialect.GetDueSchedules(now);
 
             var entities = await ScheduleEntities
                 .FromSqlInterpolated(sql)
@@ -236,5 +260,60 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
                 + "Note that this may lead to unexpected behavior."
         );
+    }
+
+    public async Task<TResult> ExecuteInLeaseAsync<TResult>(
+        QueueKey queue,
+        Func<CancellationToken, Task<TResult>> callback,
+        CancellationToken cancellationToken
+    )
+    {
+        await using var scope = await DatabaseTransactionLeasingScope.StartTransaction(
+            _dbContext,
+            _options.LockTimeout,
+            cancellationToken
+        );
+
+        if (!scope.Acquired)
+            return default!;
+
+        TResult result;
+        try
+        {
+            result = await callback(cancellationToken);
+        }
+        catch
+        {
+            scope.Abort();
+            throw;
+        }
+
+        return result;
+    }
+
+    public async Task ExecuteInLeaseAsync(
+        QueueKey queue,
+        Func<CancellationToken, Task> callback,
+        CancellationToken cancellationToken
+    )
+    {
+        await using var scope = await DatabaseTransactionLeasingScope.StartTransaction(
+            _dbContext,
+            _options.LockTimeout,
+            cancellationToken
+        );
+
+        if (!scope.Acquired)
+            return;
+
+        try
+        {
+            await callback(cancellationToken);
+        }
+        catch
+        {
+            scope.Abort();
+            throw;
+        }
     }
 }

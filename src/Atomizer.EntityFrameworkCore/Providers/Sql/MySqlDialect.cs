@@ -1,0 +1,176 @@
+using System.Runtime.CompilerServices;
+using Atomizer.EntityFrameworkCore.Entities;
+
+namespace Atomizer.EntityFrameworkCore.Providers.Sql;
+
+internal sealed class MySqlDialect : ISqlDialect
+{
+    private readonly EntityMap _jobs;
+    private readonly EntityMap _schedules;
+
+    public MySqlDialect(EntityMap jobs, EntityMap schedules)
+    {
+        _jobs = jobs;
+        _schedules = schedules;
+    }
+
+    public FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
+    {
+        var table = _jobs.Table;
+        var c = _jobs.Col;
+        var colStatus = c[nameof(AtomizerJobEntity.Status)];
+        var colQueueKey = c[nameof(AtomizerJobEntity.QueueKey)];
+        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
+        var colScheduledAt = c[nameof(AtomizerJobEntity.ScheduledAt)];
+        var colId = c[nameof(AtomizerJobEntity.Id)];
+        var statusPending = (int)AtomizerEntityJobStatus.Pending;
+        var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
+        var format =
+            $@"SELECT t.*
+FROM {table} AS t
+WHERE {colQueueKey} = {{0}}
+  AND (
+        ( {colStatus} = {statusPending}
+          AND ( {colVisibleAt} IS NULL
+                OR {colVisibleAt} <= {{1}})
+          AND {colScheduledAt} <= {{2}}
+        )
+        OR
+        ( {colStatus} = {statusProcessing}
+          AND {colVisibleAt} <= {{3}}
+        )
+      )
+ORDER BY {colScheduledAt}, {colId}
+LIMIT {{4}}
+FOR UPDATE SKIP LOCKED;";
+        return FormattableStringFactory.Create(format, queueKey.Key, now, now, now, batchSize);
+    }
+
+    public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
+    {
+        var table = _jobs.Table;
+        var c = _jobs.Col;
+        var colStatus = c[nameof(AtomizerJobEntity.Status)];
+        var colLeaseToken = c[nameof(AtomizerJobEntity.LeaseToken)];
+        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
+        var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
+        var statusPending = (int)AtomizerEntityJobStatus.Pending;
+        var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
+        var format =
+            $@"UPDATE {table}
+SET {colStatus} = {statusPending},
+    {colLeaseToken} = NULL,
+    {colVisibleAt} = NULL,
+    {colUpdatedAt} = {{0}}
+WHERE {colLeaseToken} = {{1}}
+  AND {colStatus} = {statusProcessing};";
+        return FormattableStringFactory.Create(format, now, leaseToken.Token);
+    }
+
+    public FormattableString GetDueSchedules(DateTimeOffset now)
+    {
+        var table = _schedules.Table;
+        var c = _schedules.Col;
+        var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
+        var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
+        var colId = c[nameof(AtomizerScheduleEntity.Id)];
+        var format =
+            $@"SELECT t.*
+FROM {table} AS t
+WHERE {colNextRunAt} <= {{0}}
+  AND {colEnabled} = TRUE
+ORDER BY {colNextRunAt}, {colId}
+FOR UPDATE SKIP LOCKED;";
+        return FormattableStringFactory.Create(format, now);
+    }
+
+    public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule, DateTimeOffset now)
+    {
+        var entity = schedule.ToEntity();
+        var table = _schedules.Table;
+        var c = _schedules.Col;
+        var colId = c[nameof(AtomizerScheduleEntity.Id)];
+        var colJobKey = c[nameof(AtomizerScheduleEntity.JobKey)];
+        var colQueueKey = c[nameof(AtomizerScheduleEntity.QueueKey)];
+        var colPayloadType = c[nameof(AtomizerScheduleEntity.PayloadType)];
+        var colPayload = c[nameof(AtomizerScheduleEntity.Payload)];
+        var colSchedule = c[nameof(AtomizerScheduleEntity.Schedule)];
+        var colTimeZone = c[nameof(AtomizerScheduleEntity.TimeZone)];
+        var colMisfirePolicy = c[nameof(AtomizerScheduleEntity.MisfirePolicy)];
+        var colMaxCatchUp = c[nameof(AtomizerScheduleEntity.MaxCatchUp)];
+        var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
+        var colRetryIntervals = c[nameof(AtomizerScheduleEntity.RetryIntervals)];
+        var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
+        var colLastEnqueueAt = c[nameof(AtomizerScheduleEntity.LastEnqueueAt)];
+        var colCreatedAt = c[nameof(AtomizerScheduleEntity.CreatedAt)];
+        var colUpdatedAt = c[nameof(AtomizerScheduleEntity.UpdatedAt)];
+        var retryIntervals = string.Join(
+            ";",
+            Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds)
+        );
+        var format =
+            $@"INSERT INTO {table} (
+    {colId},
+    {colJobKey},
+    {colQueueKey},
+    {colPayloadType},
+    {colPayload},
+    {colSchedule},
+    {colTimeZone},
+    {colMisfirePolicy},
+    {colMaxCatchUp},
+    {colEnabled},
+    {colRetryIntervals},
+    {colNextRunAt},
+    {colLastEnqueueAt},
+    {colCreatedAt},
+    {colUpdatedAt}
+) VALUES (
+    {{0}},
+    {{1}},
+    {{2}},
+    {{3}},
+    {{4}},
+    {{5}},
+    {{6}},
+    {{7}},
+    {{8}},
+    {{9}},
+    {{10}},
+    {{11}},
+    {{12}},
+    {{13}},
+    {{14}}
+)
+ON DUPLICATE KEY UPDATE
+    {colQueueKey} = VALUES({colQueueKey}),
+    {colPayloadType} = VALUES({colPayloadType}),
+    {colPayload} = VALUES({colPayload}),
+    {colSchedule} = VALUES({colSchedule}),
+    {colTimeZone} = VALUES({colTimeZone}),
+    {colMisfirePolicy} = VALUES({colMisfirePolicy}),
+    {colMaxCatchUp} = VALUES({colMaxCatchUp}),
+    {colEnabled} = VALUES({colEnabled}),
+    {colRetryIntervals} = VALUES({colRetryIntervals}),
+    {colNextRunAt} = VALUES({colNextRunAt}),
+    {colUpdatedAt} = {{14}};";
+        return FormattableStringFactory.Create(
+            format,
+            entity.Id,
+            entity.JobKey,
+            entity.QueueKey,
+            entity.PayloadType,
+            entity.Payload,
+            entity.Schedule,
+            entity.TimeZone,
+            (int)entity.MisfirePolicy,
+            entity.MaxCatchUp,
+            entity.Enabled,
+            retryIntervals,
+            entity.NextRunAt,
+            entity.LastEnqueueAt,
+            entity.CreatedAt,
+            now
+        );
+    }
+}

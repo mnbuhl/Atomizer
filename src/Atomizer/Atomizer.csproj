@@ -9,13 +9,14 @@
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <AnalysisLevel>latest</AnalysisLevel>
         <EnablePackageValidation>true</EnablePackageValidation>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
     <PropertyGroup>
         <PackageId>Atomizer</PackageId>
         <Description>Atomizer provides background job queue and scheduler for .NET applications</Description>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Cronos" Version="0.11.1" />
+        <PackageReference Include="Cronos" Version="0.13.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[6.0.0, )" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="[6.0.0, )" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="[6.0.0, )" />

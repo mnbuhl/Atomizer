@@ -1,5 +1,8 @@
 ﻿namespace Atomizer.Abstractions;
 
+/// <summary>
+/// Defines the storage contract for persisting and querying Atomizer jobs and schedules.
+/// </summary>
 public interface IAtomizerStorage
 {
     /// <summary>
@@ -66,4 +69,43 @@ public interface IAtomizerStorage
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of due Atomizer schedules.</returns>
     Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Executes the specified callback within an exclusive lease for the given queue.
+    /// The backend acquires its lock or transaction before invoking the callback and
+    /// releases or commits it after the callback completes. If the callback throws,
+    /// the lease is rolled back or released and the exception is rethrown.
+    /// </summary>
+    /// <typeparam name="TResult">The type of value returned by the callback.</typeparam>
+    /// <param name="queue">The queue key identifying the lease boundary.</param>
+    /// <param name="callback">
+    /// The work to execute inside the lease. Receives a <see cref="CancellationToken"/>
+    /// that is cancelled if the lease expires or the host shuts down.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token to cancel the lease acquisition.</param>
+    /// <returns>The value returned by <paramref name="callback"/>.</returns>
+    Task<TResult> ExecuteInLeaseAsync<TResult>(
+        QueueKey queue,
+        Func<CancellationToken, Task<TResult>> callback,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>
+    /// Executes the specified callback within an exclusive lease for the given queue.
+    /// The backend acquires its lock or transaction before invoking the callback and
+    /// releases or commits it after the callback completes. If the callback throws,
+    /// the lease is rolled back or released and the exception is rethrown.
+    /// </summary>
+    /// <param name="queue">The queue key identifying the lease boundary.</param>
+    /// <param name="callback">
+    /// The work to execute inside the lease. Receives a <see cref="CancellationToken"/>
+    /// that is cancelled if the lease expires or the host shuts down.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token to cancel the lease acquisition.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task ExecuteInLeaseAsync(
+        QueueKey queue,
+        Func<CancellationToken, Task> callback,
+        CancellationToken cancellationToken
+    );
 }

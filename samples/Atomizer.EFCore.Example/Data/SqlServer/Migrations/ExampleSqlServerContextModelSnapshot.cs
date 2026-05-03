@@ -164,8 +164,8 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
 
                     b.Property<string>("JobKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
                         .HasColumnType("datetimeoffset");
@@ -190,8 +190,8 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("RetryIntervals")
                         .IsRequired()
@@ -212,6 +212,9 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("JobKey")
+                        .IsUnique();
 
                     b.ToTable("AtomizerSchedules", "Atomizer");
                 });

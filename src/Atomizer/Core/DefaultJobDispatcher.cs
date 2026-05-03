@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.ExceptionServices;
 using Atomizer.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,8 +6,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Core;
 
+/// <summary>
+/// Dispatches a job to its registered <see cref="IAtomizerJob{TPayload}"/> handler.
+/// </summary>
 public interface IAtomizerJobDispatcher
 {
+    /// <summary>
+    /// Dispatches the specified job to its handler.
+    /// </summary>
+    /// <param name="job">The job to dispatch.</param>
+    /// <param name="cancellationToken">Cancellation token passed to the handler via <see cref="JobContext"/>.</param>
+    /// <returns>A task representing the asynchronous dispatch operation.</returns>
     Task DispatchAsync(AtomizerJob job, CancellationToken cancellationToken);
 }
 

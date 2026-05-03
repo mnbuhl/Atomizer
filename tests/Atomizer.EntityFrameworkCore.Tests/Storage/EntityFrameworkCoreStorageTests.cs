@@ -32,7 +32,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         _storageFactory = context => new EntityFrameworkCoreStorage<TestDbContext>(
             context,
             options ?? new EntityFrameworkCoreJobStorageOptions(),
-            _logger
+            _logger,
+            _clock
         );
     }
 
@@ -583,6 +584,48 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
 
         var map = () => insertedScheduleEntity.ToAtomizerSchedule();
         map.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task UpsertScheduleAsync_WhenScheduleExistsAndNewObjectUsed_ShouldReturnPersistedId()
+    {
+        // Arrange — insert an initial schedule and capture the persisted Id
+        var now = _clock.UtcNow;
+        var jobKey = new JobKey("WriteLineMessage-upsert-id");
+        var original = AtomizerSchedule.Create(
+            jobKey,
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Original" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            now
+        );
+
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
+        var persistedId = await storage.UpsertScheduleAsync(original, CancellationToken.None);
+        dbContext.ChangeTracker.Clear();
+
+        // Create a brand-new AtomizerSchedule with the same JobKey — it has a different Id
+        var updated = AtomizerSchedule.Create(
+            jobKey,
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Updated" }""",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            now
+        );
+        updated.Id.Should().NotBe(persistedId, "sanity: new object must have a different Id");
+
+        // Act
+        var returnedId = await storage.UpsertScheduleAsync(updated, CancellationToken.None);
+
+        // Assert — returned Id must be the original persisted row's Id, not the new object's Id
+        returnedId.Should().Be(persistedId, "upsert on conflict must return the existing row Id");
+        returnedId.Should().NotBe(updated.Id);
     }
 
     [Fact]

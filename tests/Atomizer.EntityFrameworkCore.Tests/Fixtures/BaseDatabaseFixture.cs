@@ -23,7 +23,7 @@ public abstract class BaseDatabaseFixture<TDbContext> : IAsyncLifetime
         await DatabaseContainer.StartAsync();
         DbContext = ConfigureDbContext();
 
-        await DbContext.Database.MigrateAsync();
+        await DbContext.Database.EnsureCreatedAsync();
     }
 
     protected abstract TDbContext ConfigureDbContext();

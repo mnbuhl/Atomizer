@@ -8,8 +8,17 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Atomizer;
 
+/// <summary>
+/// Extension methods for registering Atomizer services with the dependency injection container.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers core Atomizer services including storage, client, serializer, and job handlers.
+    /// </summary>
+    /// <param name="services">The service collection to add services to.</param>
+    /// <param name="configure">Optional delegate to configure <see cref="AtomizerOptions"/>.</param>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddAtomizer(
         this IServiceCollection services,
         Action<AtomizerOptions>? configure = null
@@ -47,17 +56,15 @@ public static class ServiceCollectionExtensions
             )
         );
 
-        services.Add(
-            ServiceDescriptor.Describe(
-                typeof(IAtomizerLeasingScopeFactory),
-                options.LeasingScopeOptions.LockProviderFactory,
-                options.LeasingScopeOptions.LockProviderLifetime
-            )
-        );
-
         return services;
     }
 
+    /// <summary>
+    /// Registers the Atomizer background processing pipeline including queue and scheduler hosted services.
+    /// </summary>
+    /// <param name="services">The service collection to add services to.</param>
+    /// <param name="configure">Optional delegate to configure <see cref="AtomizerProcessingOptions"/>.</param>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddAtomizerProcessing(
         this IServiceCollection services,
         Action<AtomizerProcessingOptions>? configure = null

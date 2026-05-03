@@ -159,7 +159,7 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
 
                     b.Property<string>("JobKey")
                         .IsRequired()
-                        .HasMaxLength(512)
+                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
@@ -185,7 +185,7 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(512)
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("RetryIntervals")
@@ -207,6 +207,9 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("JobKey")
+                        .IsUnique();
 
                     b.ToTable("AtomizerSchedules", "Atomizer");
                 });

@@ -8,7 +8,7 @@ namespace Atomizer.EntityFrameworkCore.Providers;
 internal sealed class RelationalProviderCache
 {
     public bool IsSupportedProvider => DetermineSupportedProvider(DatabaseProvider);
-    public IDatabaseProviderSql? RawSqlProvider { get; }
+    public ISqlDialect? Dialect { get; }
 
     private DatabaseProvider DatabaseProvider { get; }
     private readonly EntityMap? _jobs;
@@ -22,7 +22,7 @@ internal sealed class RelationalProviderCache
 
         if (IsSupportedProvider)
         {
-            RawSqlProvider = CreateRawSqlProvider();
+            Dialect = CreateDialect();
         }
     }
 
@@ -54,7 +54,7 @@ internal sealed class RelationalProviderCache
         );
     }
 
-    private IDatabaseProviderSql CreateRawSqlProvider()
+    private ISqlDialect CreateDialect()
     {
         if (!IsSupportedProvider || _jobs is null || _schedules is null)
         {
@@ -63,9 +63,9 @@ internal sealed class RelationalProviderCache
 
         return DatabaseProvider switch
         {
-            DatabaseProvider.PostgreSql => new PostgreSqlProvider(_jobs, _schedules),
-            DatabaseProvider.MySql => new MySqlProvider(_jobs, _schedules),
-            DatabaseProvider.SqlServer => new SqlServerProvider(_jobs, _schedules),
+            DatabaseProvider.PostgreSql => new PostgreSqlDialect(_jobs, _schedules),
+            DatabaseProvider.MySql => new MySqlDialect(_jobs, _schedules),
+            DatabaseProvider.SqlServer => new SqlServerDialect(_jobs, _schedules),
             _ => throw new NotSupportedException($"Database provider {DatabaseProvider} is not supported."),
         };
     }

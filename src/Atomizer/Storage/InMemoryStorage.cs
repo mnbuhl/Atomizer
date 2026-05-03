@@ -5,18 +5,28 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage;
 
+/// <summary>
+/// In-process implementation of <see cref="IAtomizerStorage"/> backed by concurrent dictionaries.
+/// </summary>
 public sealed class InMemoryStorage : IAtomizerStorage
 {
     private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new();
-    private readonly Dictionary<QueueKey, HashSet<Guid>> _queues = new(); // guarded per-queue
+    private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<Guid, byte>> _queues = new();
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>> _leasesByToken = new();
 
     private readonly Dictionary<JobKey, AtomizerSchedule> _schedules = new();
+    private readonly ConcurrentDictionary<QueueKey, SemaphoreSlim> _semaphores = new();
 
     private readonly InMemoryJobStorageOptions _options;
     private readonly IAtomizerClock _clock;
     private readonly ILogger<InMemoryStorage> _logger;
 
+    /// <summary>
+    /// Initializes a new <see cref="InMemoryStorage"/> with the specified options, clock, and logger.
+    /// </summary>
+    /// <param name="options">Options controlling storage behaviour such as job retention limits.</param>
+    /// <param name="clock">Clock abstraction for obtaining the current UTC time.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
     public InMemoryStorage(InMemoryJobStorageOptions options, IAtomizerClock clock, ILogger<InMemoryStorage> logger)
     {
         _options = options;
@@ -24,6 +34,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -44,6 +55,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult(job.Id);
     }
 
+    /// <inheritdoc/>
     public Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -53,8 +65,9 @@ public sealed class InMemoryStorage : IAtomizerStorage
         {
             if (!_jobs.TryGetValue(job.Id, out _))
             {
-                _logger.LogError("Update requested for missing job {JobId}", job.Id);
-                continue;
+                throw new InvalidOperationException(
+                    $"Update requested for job {job.Id} that no longer exists in storage."
+                );
             }
 
             _jobs[job.Id] = job;
@@ -66,6 +79,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
         QueueKey queueKey,
         DateTimeOffset now,
@@ -84,20 +98,25 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         List<AtomizerJob> candidates;
 
-        if (!_queues.TryGetValue(queueKey, out var ids) || ids.Count == 0)
+        if (!_queues.TryGetValue(queueKey, out var ids) || ids.IsEmpty)
         {
             _logger.LogDebug("LeaseBatch: queue {QueueKey} is empty", queueKey);
             return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
         }
 
-        candidates = ids.Select(id => _jobs[id]) // safe: ids derived under the same lock
+        candidates = ids
+            .Keys.Select(id => _jobs.TryGetValue(id, out var j) ? j : null)
             .Where(j =>
-                (
-                    j.Status == AtomizerJobStatus.Pending
-                    && (j.VisibleAt == null || j.VisibleAt <= now)
-                    && j.ScheduledAt <= now
-                ) || (j.Status == AtomizerJobStatus.Processing && j.VisibleAt <= now) // expired lease
+                j != null
+                && (
+                    (
+                        j.Status == AtomizerJobStatus.Pending
+                        && (j.VisibleAt == null || j.VisibleAt <= now)
+                        && j.ScheduledAt <= now
+                    ) || (j.Status == AtomizerJobStatus.Processing && j.VisibleAt <= now) // expired lease
+                )
             )
+            .Select(j => j!)
             .OrderBy(j => j.ScheduledAt)
             .ThenBy(j => j.CreatedAt)
             .Take(Math.Max(0, batchSize))
@@ -119,6 +138,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerJob>)candidates);
     }
 
+    /// <inheritdoc/>
     public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, DateTimeOffset now, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -152,24 +172,34 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult(released);
     }
 
-    public Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
+    /// <inheritdoc/>
+    public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var now = _clock.UtcNow;
 
-        schedule.CreatedAt = schedule.CreatedAt == default ? now : schedule.CreatedAt;
-        schedule.UpdatedAt = now;
-        _schedules[schedule.JobKey] = schedule;
-
-        _logger.LogDebug("UpsertSchedule: upserted schedule for jobKey={JobKey}", schedule.JobKey);
-        return Task.FromResult(schedule.Id);
+        var scheduleLock = _semaphores.GetOrAdd(QueueKey.Scheduler, _ => new SemaphoreSlim(1, 1));
+        await scheduleLock.WaitAsync(cancellationToken);
+        try
+        {
+            var now = _clock.UtcNow;
+            schedule.CreatedAt = schedule.CreatedAt == default ? now : schedule.CreatedAt;
+            schedule.UpdatedAt = now;
+            _schedules[schedule.JobKey] = schedule;
+            _logger.LogDebug("UpsertSchedule: upserted schedule for jobKey={JobKey}", schedule.JobKey);
+            return schedule.Id;
+        }
+        finally
+        {
+            scheduleLock.Release();
+        }
     }
 
+    /// <inheritdoc/>
     public Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var now = _clock.UtcNow;
 
+        var now = _clock.UtcNow;
         var schedulesList = schedules.ToList();
 
         foreach (var schedule in schedulesList)
@@ -188,6 +218,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
         DateTimeOffset now,
         CancellationToken cancellationToken
@@ -218,27 +249,64 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
+    /// <inheritdoc/>
+    public async Task<TResult> ExecuteInLeaseAsync<TResult>(
+        QueueKey queue,
+        Func<CancellationToken, Task<TResult>> callback,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var semaphore = _semaphores.GetOrAdd(queue, _ => new SemaphoreSlim(1, 1));
+        var acquired = await semaphore.WaitAsync(TimeSpan.Zero, cancellationToken);
+
+        if (!acquired)
+        {
+            _logger.LogDebug("ExecuteInLeaseAsync: skipping tick for queue '{QueueKey}' — lease already held", queue);
+            return default!;
+        }
+
+        try
+        {
+            return await callback(cancellationToken);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
+    /// <inheritdoc/>
+    public Task ExecuteInLeaseAsync(
+        QueueKey queue,
+        Func<CancellationToken, Task> callback,
+        CancellationToken cancellationToken
+    ) =>
+        ExecuteInLeaseAsync<bool>(
+            queue,
+            async ct =>
+            {
+                await callback(ct);
+                return true;
+            },
+            cancellationToken
+        );
+
     // ---- helpers ----
 
     private void IndexIntoQueue(AtomizerJob job)
     {
-        if (!_queues.TryGetValue(job.QueueKey, out var ids))
-        {
-            ids = new HashSet<Guid>();
-            _queues[job.QueueKey] = ids;
-        }
-        ids.Add(job.Id);
+        var ids = _queues.GetOrAdd(job.QueueKey, _ => new ConcurrentDictionary<Guid, byte>());
+        ids[job.Id] = 0;
     }
 
     private void UnindexFromQueue(AtomizerJob job)
     {
         if (_queues.TryGetValue(job.QueueKey, out var ids))
         {
-            ids.Remove(job.Id);
-            if (ids.Count == 0)
-            {
-                _queues.Remove(job.QueueKey);
-            }
+            ids.TryRemove(job.Id, out _);
+            // Do NOT remove empty outer key — TOCTOU race with concurrent IndexIntoQueue
         }
     }
 

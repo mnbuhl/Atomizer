@@ -1,4 +1,4 @@
-﻿using System.Threading.Channels;
+using System.Threading.Channels;
 using Atomizer.Abstractions;
 using Atomizer.Core;
 using Atomizer.Processing;
@@ -13,9 +13,6 @@ namespace Atomizer.Tests.Processing
         private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
         private readonly IAtomizerServiceScopeFactory _scopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
         private readonly IAtomizerServiceScope _scope = Substitute.For<IAtomizerServiceScope>();
-        private readonly IAtomizerLeasingScopeFactory _leasingScopeFactory =
-            Substitute.For<IAtomizerLeasingScopeFactory>();
-        private readonly IAtomizerLeasingScope _leasingScope = Substitute.For<IAtomizerLeasingScope>();
         private readonly IAtomizerStorage _storage = Substitute.For<IAtomizerStorage>();
         private readonly TestableLogger<QueuePoller> _logger = Substitute.For<TestableLogger<QueuePoller>>();
         private readonly QueuePoller _sut;
@@ -28,11 +25,16 @@ namespace Atomizer.Tests.Processing
             _clock.UtcNow.Returns(_now);
             _clock.MinValue.Returns(DateTimeOffset.MinValue);
             _scope.Storage.Returns(_storage);
-            _scope.LeasingScopeFactory.Returns(_leasingScopeFactory);
-            _leasingScopeFactory
-                .CreateScopeAsync(Arg.Any<QueueKey>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
-                .Returns(_leasingScope);
             _scopeFactory.CreateScope().Returns(_scope);
+            _storage
+                .ExecuteInLeaseAsync(
+                    Arg.Any<QueueKey>(),
+                    Arg.Any<Func<CancellationToken, Task<List<AtomizerJob>>>>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(callInfo =>
+                    callInfo.ArgAt<Func<CancellationToken, Task<List<AtomizerJob>>>>(1)(CancellationToken.None)
+                );
             _queueOptions = new QueueOptions(QueueKey.Default)
             {
                 BatchSize = 2,
@@ -56,7 +58,6 @@ namespace Atomizer.Tests.Processing
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(jobs);
-            _leasingScope.Acquired.Returns(true);
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100); // short run
@@ -81,7 +82,6 @@ namespace Atomizer.Tests.Processing
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob>());
-            _leasingScope.Acquired.Returns(true);
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100);
