@@ -81,9 +81,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            var sql = _providerCache.RawSqlProvider.GetDueJobsAsync(queueKey, now, batchSize);
+            var sql = _providerCache.Dialect.GetDueJobs(queueKey, now, batchSize);
 
             var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
 
@@ -122,9 +122,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         CancellationToken cancellationToken
     )
     {
-        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            var sql = _providerCache.RawSqlProvider.ReleaseLeasedJobsAsync(leaseToken, now);
+            var sql = _providerCache.Dialect.ReleaseLeasedJobs(leaseToken, now);
             var result = await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
             return result;
         }
@@ -209,9 +209,9 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_providerCache is { IsSupportedProvider: true, RawSqlProvider: not null })
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            var sql = _providerCache.RawSqlProvider.GetDueSchedulesAsync(now);
+            var sql = _providerCache.Dialect.GetDueSchedules(now);
 
             var entities = await ScheduleEntities
                 .FromSqlInterpolated(sql)
