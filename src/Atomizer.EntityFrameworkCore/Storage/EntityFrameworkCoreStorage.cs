@@ -1,4 +1,5 @@
-﻿using Atomizer.Abstractions;
+using Atomizer.Abstractions;
+using Atomizer.Core;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     private readonly EntityFrameworkCoreJobStorageOptions _options;
     private readonly ILogger<EntityFrameworkCoreStorage<TDbContext>> _logger;
     private readonly RelationalProviderCache _providerCache;
+    private readonly IAtomizerClock _clock;
 
     private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
     private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
@@ -21,12 +23,14 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     public EntityFrameworkCoreStorage(
         TDbContext dbContext,
         EntityFrameworkCoreJobStorageOptions options,
-        ILogger<EntityFrameworkCoreStorage<TDbContext>> logger
+        ILogger<EntityFrameworkCoreStorage<TDbContext>> logger,
+        IAtomizerClock clock
     )
     {
         _dbContext = dbContext;
         _options = options;
         _logger = logger;
+        _clock = clock;
         _providerCache = RelationalProviderCache.Create(dbContext);
     }
 
@@ -69,6 +73,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Failed to update jobs");
+            throw;
         }
     }
 
@@ -92,6 +97,10 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
+            // WARNING: AsNoTracking() with no row lock means two concurrent QueuePumps
+            // on the same process (or any second node) will both receive the same jobs.
+            // AllowUnsafeProviderFallback is only safe with DegreeOfParallelism=1 and
+            // a single process instance. It is not safe for production use.
             return await JobEntities
                 .AsNoTracking()
                 .Where(j =>
@@ -158,8 +167,15 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            var sql = _providerCache.Dialect.UpsertScheduleAsync(schedule);
+            var now = _clock.UtcNow;
+            var sql = _providerCache.Dialect.UpsertScheduleAsync(schedule, now);
             await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+            // WR-01: On the conflict (UPDATE) path the stored row retains the Id from the
+            // original INSERT. entity.Id is the newly generated Guid from ToEntity() which
+            // was NOT written. Callers should treat the returned Guid as the canonical
+            // schedule Id only when they know it is a new schedule. A future improvement
+            // is to use RETURNING id (PostgreSQL) / OUTPUT inserted.Id (SQL Server) to
+            // retrieve the actual persisted Id regardless of the conflict path.
             return entity.Id;
         }
 
@@ -209,6 +225,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Failed to update schedules");
+            throw;
         }
     }
 
@@ -263,7 +280,18 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         if (!scope.Acquired)
             return default!;
 
-        return await callback(cancellationToken);
+        TResult result;
+        try
+        {
+            result = await callback(cancellationToken);
+        }
+        catch
+        {
+            scope.Abort();
+            throw;
+        }
+
+        return result;
     }
 
     public async Task ExecuteInLeaseAsync(
@@ -281,6 +309,14 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         if (!scope.Acquired)
             return;
 
-        await callback(cancellationToken);
+        try
+        {
+            await callback(cancellationToken);
+        }
+        catch
+        {
+            scope.Abort();
+            throw;
+        }
     }
 }
