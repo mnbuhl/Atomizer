@@ -75,7 +75,57 @@ internal sealed class MySqlDialect : ISqlDialect
 
     public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule)
     {
-        // TODO: Implemented in Phase 4
-        throw new NotImplementedException();
+        var entity = schedule.ToEntity();
+        var mySqlNow = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        var c = _schedules.Col;
+        return FormattableStringFactory.Create(
+            $"""
+                INSERT INTO {_schedules.Table} (
+                    {c[nameof(AtomizerScheduleEntity.Id)]},
+                    {c[nameof(AtomizerScheduleEntity.JobKey)]},
+                    {c[nameof(AtomizerScheduleEntity.QueueKey)]},
+                    {c[nameof(AtomizerScheduleEntity.PayloadType)]},
+                    {c[nameof(AtomizerScheduleEntity.Payload)]},
+                    {c[nameof(AtomizerScheduleEntity.Schedule)]},
+                    {c[nameof(AtomizerScheduleEntity.TimeZone)]},
+                    {c[nameof(AtomizerScheduleEntity.MisfirePolicy)]},
+                    {c[nameof(AtomizerScheduleEntity.MaxCatchUp)]},
+                    {c[nameof(AtomizerScheduleEntity.Enabled)]},
+                    {c[nameof(AtomizerScheduleEntity.RetryIntervals)]},
+                    {c[nameof(AtomizerScheduleEntity.NextRunAt)]},
+                    {c[nameof(AtomizerScheduleEntity.LastEnqueueAt)]},
+                    {c[nameof(AtomizerScheduleEntity.CreatedAt)]},
+                    {c[nameof(AtomizerScheduleEntity.UpdatedAt)]}
+                ) VALUES (
+                    '{entity.Id}',
+                    '{entity.JobKey}',
+                    '{entity.QueueKey}',
+                    '{entity.PayloadType}',
+                    '{entity.Payload}',
+                    '{entity.Schedule}',
+                    '{entity.TimeZone}',
+                    {(int)entity.MisfirePolicy},
+                    {entity.MaxCatchUp},
+                    {(entity.Enabled ? "TRUE" : "FALSE")},
+                    '{string.Join(";", Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds))}',
+                    '{entity.NextRunAt.ToString("yyyy-MM-dd HH:mm:ss")}',
+                    {(entity.LastEnqueueAt.HasValue ? $"'{entity.LastEnqueueAt.Value.ToString("yyyy-MM-dd HH:mm:ss")}'" : "NULL")},
+                    '{entity.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")}',
+                    '{mySqlNow}'
+                )
+                ON DUPLICATE KEY UPDATE
+                    {c[nameof(AtomizerScheduleEntity.QueueKey)]} = VALUES({c[nameof(AtomizerScheduleEntity.QueueKey)]}),
+                    {c[nameof(AtomizerScheduleEntity.PayloadType)]} = VALUES({c[nameof(AtomizerScheduleEntity.PayloadType)]}),
+                    {c[nameof(AtomizerScheduleEntity.Payload)]} = VALUES({c[nameof(AtomizerScheduleEntity.Payload)]}),
+                    {c[nameof(AtomizerScheduleEntity.Schedule)]} = VALUES({c[nameof(AtomizerScheduleEntity.Schedule)]}),
+                    {c[nameof(AtomizerScheduleEntity.TimeZone)]} = VALUES({c[nameof(AtomizerScheduleEntity.TimeZone)]}),
+                    {c[nameof(AtomizerScheduleEntity.MisfirePolicy)]} = VALUES({c[nameof(AtomizerScheduleEntity.MisfirePolicy)]}),
+                    {c[nameof(AtomizerScheduleEntity.MaxCatchUp)]} = VALUES({c[nameof(AtomizerScheduleEntity.MaxCatchUp)]}),
+                    {c[nameof(AtomizerScheduleEntity.Enabled)]} = VALUES({c[nameof(AtomizerScheduleEntity.Enabled)]}),
+                    {c[nameof(AtomizerScheduleEntity.RetryIntervals)]} = VALUES({c[nameof(AtomizerScheduleEntity.RetryIntervals)]}),
+                    {c[nameof(AtomizerScheduleEntity.NextRunAt)]} = VALUES({c[nameof(AtomizerScheduleEntity.NextRunAt)]}),
+                    {c[nameof(AtomizerScheduleEntity.UpdatedAt)]} = '{mySqlNow}';
+            """
+        );
     }
 }
