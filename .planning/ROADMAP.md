@@ -13,7 +13,7 @@ This milestone refactors the Atomizer storage layer from a separate leasing-scop
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Leasing Abstraction** - Define `ExecuteInLeaseAsync` contract and update `IAtomizerStorage` as a documented breaking change
-- [ ] **Phase 2: InMemory Implementation** - Align InMemory backend to the new callback-based leasing contract
+- [x] **Phase 2: InMemory Implementation** - Align InMemory backend to the new callback-based leasing contract (completed 2026-05-03)
 - [ ] **Phase 3: SQL Dialect Strategy** - Extract `ISqlDialect` per-provider strategy classes from inline EF Core SQL branching
 - [ ] **Phase 4: EF Core Implementation** - Implement callback-based leasing, atomic row-locked acquisition, and native upsert in EF Core storage
 - [ ] **Phase 5: Cleanup and Versioning** - Remove deprecated types, apply major version bump, complete XML documentation
@@ -53,7 +53,7 @@ Plans:
 - [x] 02-01-PLAN.md — Implement ExecuteInLeaseAsync overloads, _semaphores field, _queues ConcurrentDictionary, atomic UpsertScheduleAsync, QueuePoller null-guard, delete InMemoryLeasingScopeFactory.cs (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md — Create InMemoryStorageLeaseTests.cs, update InMemoryStorageTests.cs _queues assertion, delete InMemoryLeasingScopeFactoryTests.cs (Wave 2)
+- [x] 02-02-PLAN.md — Create InMemoryStorageLeaseTests.cs, update InMemoryStorageTests.cs _queues assertion, delete InMemoryLeasingScopeFactoryTests.cs (Wave 2)
 
 ### Phase 3: SQL Dialect Strategy
 **Goal**: All provider-specific SQL is extracted into `ISqlDialect` strategy classes — the EF Core storage class contains no inline provider branching
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Leasing Abstraction | 0/4 | Not started | - |
-| 2. InMemory Implementation | 1/2 | In Progress|  |
+| 2. InMemory Implementation | 2/2 | Complete   | 2026-05-03 |
 | 3. SQL Dialect Strategy | 0/TBD | Not started | - |
 | 4. EF Core Implementation | 0/TBD | Not started | - |
 | 5. Cleanup and Versioning | 0/TBD | Not started | - |
