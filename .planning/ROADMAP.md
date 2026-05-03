@@ -50,7 +50,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Implement ExecuteInLeaseAsync overloads, _semaphores field, _queues ConcurrentDictionary, atomic UpsertScheduleAsync, QueuePoller null-guard, delete InMemoryLeasingScopeFactory.cs (Wave 1)
+- [x] 02-01-PLAN.md — Implement ExecuteInLeaseAsync overloads, _semaphores field, _queues ConcurrentDictionary, atomic UpsertScheduleAsync, QueuePoller null-guard, delete InMemoryLeasingScopeFactory.cs (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-02-PLAN.md — Create InMemoryStorageLeaseTests.cs, update InMemoryStorageTests.cs _queues assertion, delete InMemoryLeasingScopeFactoryTests.cs (Wave 2)
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Leasing Abstraction | 0/4 | Not started | - |
-| 2. InMemory Implementation | 0/2 | Not started | - |
+| 2. InMemory Implementation | 1/2 | In Progress|  |
 | 3. SQL Dialect Strategy | 0/TBD | Not started | - |
 | 4. EF Core Implementation | 0/TBD | Not started | - |
 | 5. Cleanup and Versioning | 0/TBD | Not started | - |
