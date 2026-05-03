@@ -70,36 +70,34 @@
 
 ## Traceability
 
-*Populated during roadmap creation.*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LEASE-01 | — | Pending |
-| LEASE-02 | — | Pending |
-| LEASE-03 | — | Pending |
-| ACQR-01 | — | Pending |
-| ACQR-02 | — | Pending |
-| ACQR-03 | — | Pending |
-| UPSRT-01 | — | Pending |
-| UPSRT-02 | — | Pending |
-| UPSRT-03 | — | Pending |
-| UPSRT-04 | — | Pending |
-| DIAL-01 | — | Pending |
-| DIAL-02 | — | Pending |
-| DIAL-03 | — | Pending |
-| DIAL-04 | — | Pending |
-| INMEM-01 | — | Pending |
-| INMEM-02 | — | Pending |
-| INMEM-03 | — | Pending |
-| COMPAT-01 | — | Pending |
-| COMPAT-02 | — | Pending |
-| COMPAT-03 | — | Pending |
+| LEASE-01 | Phase 1 | Pending |
+| LEASE-02 | Phase 1 | Pending |
+| LEASE-03 | Phase 1 | Pending |
+| COMPAT-01 | Phase 1 | Pending |
+| INMEM-01 | Phase 2 | Pending |
+| INMEM-02 | Phase 2 | Pending |
+| INMEM-03 | Phase 2 | Pending |
+| DIAL-01 | Phase 3 | Pending |
+| DIAL-02 | Phase 3 | Pending |
+| DIAL-03 | Phase 3 | Pending |
+| DIAL-04 | Phase 3 | Pending |
+| ACQR-01 | Phase 4 | Pending |
+| ACQR-02 | Phase 4 | Pending |
+| ACQR-03 | Phase 4 | Pending |
+| UPSRT-01 | Phase 4 | Pending |
+| UPSRT-02 | Phase 4 | Pending |
+| UPSRT-03 | Phase 4 | Pending |
+| UPSRT-04 | Phase 4 | Pending |
+| COMPAT-02 | Phase 5 | Pending |
+| COMPAT-03 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
-- Mapped to phases: 0 (populated by roadmapper)
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-03*
-*Last updated: 2026-05-03 after initial definition*
+*Last updated: 2026-05-03 after roadmap creation — all 20 requirements mapped*
