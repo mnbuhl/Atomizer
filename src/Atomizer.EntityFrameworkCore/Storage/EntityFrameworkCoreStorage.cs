@@ -90,7 +90,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         {
             var sql = _providerCache.Dialect.GetDueJobs(queueKey, now, batchSize);
 
-            var entities = await JobEntities.FromSqlInterpolated(sql).ToListAsync(cancellationToken);
+            var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
 
             return entities.Select(job => job.ToAtomizerJob()).ToList();
         }
@@ -181,7 +181,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            // Not race-safe — only used for test-only providers (SQLite) via AllowUnsafeProviderFallback
+            // Not race-safe - use only with 1 service running
             var existing = await ScheduleEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);

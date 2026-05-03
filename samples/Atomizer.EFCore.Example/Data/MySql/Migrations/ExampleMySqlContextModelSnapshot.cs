@@ -164,8 +164,8 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
 
                     b.Property<string>("JobKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<DateTimeOffset?>("LastEnqueueAt")
                         .HasColumnType("datetime(6)");
@@ -190,8 +190,8 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("RetryIntervals")
                         .IsRequired()
@@ -212,6 +212,9 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("JobKey")
+                        .IsUnique();
 
                     b.ToTable("AtomizerSchedules", (string)null);
                 });
