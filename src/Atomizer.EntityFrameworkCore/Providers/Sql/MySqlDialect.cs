@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Atomizer.EntityFrameworkCore.Entities;
 
 namespace Atomizer.EntityFrameworkCore.Providers.Sql;
@@ -24,25 +25,24 @@ internal sealed class MySqlDialect : ISqlDialect
         var colId = c[nameof(AtomizerJobEntity.Id)];
         var statusPending = (int)AtomizerEntityJobStatus.Pending;
         var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        return $"""
-            SELECT t.*
-            FROM {table} AS t
-            WHERE {colQueueKey} = {queueKey.Key}
-              AND (
-                    ( {colStatus} = {statusPending}
-                      AND ( {colVisibleAt} IS NULL
-                            OR {colVisibleAt} <= {now})
-                      AND {colScheduledAt} <= {now}
-                    )
-                    OR
-                    ( {colStatus} = {statusProcessing}
-                      AND {colVisibleAt} <= {now}
-                    )
-                  )
-            ORDER BY {colScheduledAt}, {colId}
-            LIMIT {batchSize}
-            FOR UPDATE SKIP LOCKED;
-            """;
+        var format = $@"SELECT t.*
+FROM {table} AS t
+WHERE {colQueueKey} = {{0}}
+  AND (
+        ( {colStatus} = {statusPending}
+          AND ( {colVisibleAt} IS NULL
+                OR {colVisibleAt} <= {{1}})
+          AND {colScheduledAt} <= {{2}}
+        )
+        OR
+        ( {colStatus} = {statusProcessing}
+          AND {colVisibleAt} <= {{3}}
+        )
+      )
+ORDER BY {colScheduledAt}, {colId}
+LIMIT {{4}}
+FOR UPDATE SKIP LOCKED;";
+        return FormattableStringFactory.Create(format, queueKey.Key, now, now, now, batchSize);
     }
 
     public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
@@ -55,15 +55,14 @@ internal sealed class MySqlDialect : ISqlDialect
         var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
         var statusPending = (int)AtomizerEntityJobStatus.Pending;
         var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        return $"""
-            UPDATE {table}
-            SET {colStatus} = {statusPending},
-                {colLeaseToken} = NULL,
-                {colVisibleAt} = NULL,
-                {colUpdatedAt} = {now}
-            WHERE {colLeaseToken} = {leaseToken.Token}
-              AND {colStatus} = {statusProcessing};
-            """;
+        var format = $@"UPDATE {table}
+SET {colStatus} = {statusPending},
+    {colLeaseToken} = NULL,
+    {colVisibleAt} = NULL,
+    {colUpdatedAt} = {{0}}
+WHERE {colLeaseToken} = {{1}}
+  AND {colStatus} = {statusProcessing};";
+        return FormattableStringFactory.Create(format, now, leaseToken.Token);
     }
 
     public FormattableString GetDueSchedules(DateTimeOffset now)
@@ -73,14 +72,13 @@ internal sealed class MySqlDialect : ISqlDialect
         var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
         var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
         var colId = c[nameof(AtomizerScheduleEntity.Id)];
-        return $"""
-            SELECT t.*
-            FROM {table} AS t
-            WHERE {colNextRunAt} <= {now}
-              AND {colEnabled} = TRUE
-            ORDER BY {colNextRunAt}, {colId}
-            FOR UPDATE SKIP LOCKED;
-            """;
+        var format = $@"SELECT t.*
+FROM {table} AS t
+WHERE {colNextRunAt} <= {{0}}
+  AND {colEnabled} = TRUE
+ORDER BY {colNextRunAt}, {colId}
+FOR UPDATE SKIP LOCKED;";
+        return FormattableStringFactory.Create(format, now);
     }
 
     public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule, DateTimeOffset now)
@@ -104,52 +102,68 @@ internal sealed class MySqlDialect : ISqlDialect
         var colCreatedAt = c[nameof(AtomizerScheduleEntity.CreatedAt)];
         var colUpdatedAt = c[nameof(AtomizerScheduleEntity.UpdatedAt)];
         var retryIntervals = string.Join(";", Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds));
-        return $"""
-            INSERT INTO {table} (
-                {colId},
-                {colJobKey},
-                {colQueueKey},
-                {colPayloadType},
-                {colPayload},
-                {colSchedule},
-                {colTimeZone},
-                {colMisfirePolicy},
-                {colMaxCatchUp},
-                {colEnabled},
-                {colRetryIntervals},
-                {colNextRunAt},
-                {colLastEnqueueAt},
-                {colCreatedAt},
-                {colUpdatedAt}
-            ) VALUES (
-                {entity.Id},
-                {entity.JobKey},
-                {entity.QueueKey},
-                {entity.PayloadType},
-                {entity.Payload},
-                {entity.Schedule},
-                {entity.TimeZone},
-                {(int)entity.MisfirePolicy},
-                {entity.MaxCatchUp},
-                {entity.Enabled},
-                {retryIntervals},
-                {entity.NextRunAt},
-                {entity.LastEnqueueAt},
-                {entity.CreatedAt},
-                {now}
-            )
-            ON DUPLICATE KEY UPDATE
-                {colQueueKey} = VALUES({colQueueKey}),
-                {colPayloadType} = VALUES({colPayloadType}),
-                {colPayload} = VALUES({colPayload}),
-                {colSchedule} = VALUES({colSchedule}),
-                {colTimeZone} = VALUES({colTimeZone}),
-                {colMisfirePolicy} = VALUES({colMisfirePolicy}),
-                {colMaxCatchUp} = VALUES({colMaxCatchUp}),
-                {colEnabled} = VALUES({colEnabled}),
-                {colRetryIntervals} = VALUES({colRetryIntervals}),
-                {colNextRunAt} = VALUES({colNextRunAt}),
-                {colUpdatedAt} = {now};
-            """;
+        var format = $@"INSERT INTO {table} (
+    {colId},
+    {colJobKey},
+    {colQueueKey},
+    {colPayloadType},
+    {colPayload},
+    {colSchedule},
+    {colTimeZone},
+    {colMisfirePolicy},
+    {colMaxCatchUp},
+    {colEnabled},
+    {colRetryIntervals},
+    {colNextRunAt},
+    {colLastEnqueueAt},
+    {colCreatedAt},
+    {colUpdatedAt}
+) VALUES (
+    {{0}},
+    {{1}},
+    {{2}},
+    {{3}},
+    {{4}},
+    {{5}},
+    {{6}},
+    {{7}},
+    {{8}},
+    {{9}},
+    {{10}},
+    {{11}},
+    {{12}},
+    {{13}},
+    {{14}}
+)
+ON DUPLICATE KEY UPDATE
+    {colQueueKey} = VALUES({colQueueKey}),
+    {colPayloadType} = VALUES({colPayloadType}),
+    {colPayload} = VALUES({colPayload}),
+    {colSchedule} = VALUES({colSchedule}),
+    {colTimeZone} = VALUES({colTimeZone}),
+    {colMisfirePolicy} = VALUES({colMisfirePolicy}),
+    {colMaxCatchUp} = VALUES({colMaxCatchUp}),
+    {colEnabled} = VALUES({colEnabled}),
+    {colRetryIntervals} = VALUES({colRetryIntervals}),
+    {colNextRunAt} = VALUES({colNextRunAt}),
+    {colUpdatedAt} = {{14}};";
+        return FormattableStringFactory.Create(
+            format,
+            entity.Id,
+            entity.JobKey,
+            entity.QueueKey,
+            entity.PayloadType,
+            entity.Payload,
+            entity.Schedule,
+            entity.TimeZone,
+            (int)entity.MisfirePolicy,
+            entity.MaxCatchUp,
+            entity.Enabled,
+            retryIntervals,
+            entity.NextRunAt,
+            entity.LastEnqueueAt,
+            entity.CreatedAt,
+            now
+        );
     }
 }

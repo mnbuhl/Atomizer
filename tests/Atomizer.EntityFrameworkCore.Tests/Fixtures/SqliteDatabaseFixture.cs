@@ -16,7 +16,7 @@ public class SqliteDatabaseFixture : ICollectionFixture<SqliteDatabaseFixture>, 
         RelationalProviderCache.ResetInstanceForTests();
 
         DbContext = ConfigureDbContext();
-        await DbContext.Database.MigrateAsync();
+        await DbContext.Database.EnsureCreatedAsync();
     }
 
     private SqliteDbContext ConfigureDbContext()
