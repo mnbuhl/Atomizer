@@ -1,11 +1,17 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Atomizer.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer;
 
+/// <summary>
+/// Top-level configuration options for the Atomizer framework.
+/// </summary>
 public sealed class AtomizerOptions
 {
+    /// <summary>
+    /// Gets or sets the storage options that define the backing store for jobs and schedules.
+    /// </summary>
     public JobStorageOptions? JobStorageOptions { get; set; }
 
     internal SchedulingOptions SchedulingOptions { get; set; } = new SchedulingOptions();
@@ -13,6 +19,12 @@ public sealed class AtomizerOptions
     internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
     internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
 
+    /// <summary>
+    /// Registers a queue with the specified name and optional configuration.
+    /// </summary>
+    /// <param name="name">The name identifying the queue.</param>
+    /// <param name="configure">Optional delegate to configure queue-specific options.</param>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions AddQueue(string name, Action<QueueOptions>? configure = null)
     {
         var options = new QueueOptions(name);
@@ -38,6 +50,11 @@ public sealed class AtomizerOptions
         return this;
     }
 
+    /// <summary>
+    /// Scans the specified assemblies for <see cref="IAtomizerJob{TPayload}"/> implementations and registers them.
+    /// </summary>
+    /// <param name="assemblies">One or more assemblies to scan for job handlers.</param>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions AddHandlersFrom(params Assembly[] assemblies)
     {
         if (assemblies.Length == 0)
@@ -66,8 +83,18 @@ public sealed class AtomizerOptions
         return this;
     }
 
+    /// <summary>
+    /// Scans the assembly containing <typeparamref name="TMarker"/> for job handler implementations and registers them.
+    /// </summary>
+    /// <typeparam name="TMarker">A type whose assembly is scanned for handlers.</typeparam>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions AddHandlersFrom<TMarker>() => AddHandlersFrom(typeof(TMarker).Assembly);
 
+    /// <summary>
+    /// Configures the scheduling subsystem using the specified delegate.
+    /// </summary>
+    /// <param name="configure">Delegate to configure <see cref="SchedulingOptions"/>.</param>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions ConfigureScheduling(Action<SchedulingOptions> configure)
     {
         configure.Invoke(SchedulingOptions);

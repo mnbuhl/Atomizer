@@ -1,10 +1,20 @@
-﻿using Atomizer.Abstractions;
+using Atomizer.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer;
 
+/// <summary>
+/// Holds the factory and lifetime settings for the job storage implementation.
+/// </summary>
 public class JobStorageOptions
 {
+    /// <summary>
+    /// Initializes a new <see cref="JobStorageOptions"/> with the specified factory and lifetime.
+    /// </summary>
+    /// <param name="jobStorageFactory">Factory delegate used to create the <see cref="IAtomizerStorage"/> instance.</param>
+    /// <param name="jobStorageLifetime">The DI lifetime for the storage instance.
+    /// <remarks>Defaults to <see cref="ServiceLifetime.Singleton"/>.</remarks>
+    /// </param>
     public JobStorageOptions(
         Func<IServiceProvider, IAtomizerStorage> jobStorageFactory,
         ServiceLifetime jobStorageLifetime = ServiceLifetime.Singleton

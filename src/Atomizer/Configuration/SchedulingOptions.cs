@@ -1,5 +1,8 @@
-﻿namespace Atomizer;
+namespace Atomizer;
 
+/// <summary>
+/// Configuration options for the Atomizer recurring-job scheduler.
+/// </summary>
 public class SchedulingOptions
 {
     /// <summary>
@@ -22,10 +25,14 @@ public class SchedulingOptions
     public TimeSpan? ScheduleLeadTime { get; set; }
 
     /// <summary>
-    /// The interval at which the long running loops tick.
+    /// Gets the interval at which the internal scheduling loop ticks.
+    /// <remarks>Default is 1 second.</remarks>
     /// </summary>
     public TimeSpan TickInterval { get; internal set; } = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// Initializes a new <see cref="SchedulingOptions"/> with default values.
+    /// </summary>
     public SchedulingOptions()
     {
         ScheduleLeadTime ??=

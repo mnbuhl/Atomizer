@@ -1,14 +1,34 @@
-﻿// ReSharper disable once CheckNamespace
+// ReSharper disable once CheckNamespace
 namespace Atomizer;
 
+/// <summary>
+/// Provides the public API for enqueuing and scheduling jobs.
+/// </summary>
 public interface IAtomizerClient
 {
+    /// <summary>
+    /// Enqueues a job for immediate processing.
+    /// </summary>
+    /// <typeparam name="TPayload">The type of the job payload.</typeparam>
+    /// <param name="payload">The payload to pass to the job handler.</param>
+    /// <param name="configure">Optional delegate to configure enqueue options.</param>
+    /// <param name="cancellation">Cancellation token to cancel the operation.</param>
+    /// <returns>The unique identifier of the enqueued job.</returns>
     Task<Guid> EnqueueAsync<TPayload>(
         TPayload payload,
         Action<EnqueueOptions>? configure = null,
         CancellationToken cancellation = default
     );
 
+    /// <summary>
+    /// Schedules a job to run at the specified time.
+    /// </summary>
+    /// <typeparam name="TPayload">The type of the job payload.</typeparam>
+    /// <param name="payload">The payload to pass to the job handler.</param>
+    /// <param name="runAt">The UTC time at which the job should become visible for processing.</param>
+    /// <param name="configure">Optional delegate to configure enqueue options.</param>
+    /// <param name="cancellation">Cancellation token to cancel the operation.</param>
+    /// <returns>The unique identifier of the scheduled job.</returns>
     Task<Guid> ScheduleAsync<TPayload>(
         TPayload payload,
         DateTimeOffset runAt,
@@ -16,6 +36,16 @@ public interface IAtomizerClient
         CancellationToken cancellation = default
     );
 
+    /// <summary>
+    /// Upserts a recurring job schedule identified by the given key.
+    /// </summary>
+    /// <typeparam name="TPayload">The type of the job payload.</typeparam>
+    /// <param name="payload">The payload to pass to the job handler on each occurrence.</param>
+    /// <param name="name">The unique key that identifies this recurring schedule.</param>
+    /// <param name="schedule">The cron-based schedule defining when the job runs.</param>
+    /// <param name="configure">Optional delegate to configure recurring options.</param>
+    /// <param name="cancellation">Cancellation token to cancel the operation.</param>
+    /// <returns>The unique identifier of the upserted schedule.</returns>
     Task<Guid> ScheduleRecurringAsync<TPayload>(
         TPayload payload,
         JobKey name,
@@ -25,6 +55,9 @@ public interface IAtomizerClient
     );
 }
 
+/// <summary>
+/// Options for enqueuing or scheduling a single job.
+/// </summary>
 public sealed class EnqueueOptions
 {
     /// <summary>
@@ -44,6 +77,9 @@ public sealed class EnqueueOptions
     public RetryStrategy RetryStrategy { get; set; } = RetryStrategy.Default;
 }
 
+/// <summary>
+/// Options for configuring a recurring job schedule.
+/// </summary>
 public sealed class RecurringOptions
 {
     /// <summary>

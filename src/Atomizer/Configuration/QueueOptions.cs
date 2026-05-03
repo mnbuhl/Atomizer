@@ -1,9 +1,12 @@
-﻿namespace Atomizer;
+namespace Atomizer;
 
+/// <summary>
+/// Configuration options for a single Atomizer processing queue.
+/// </summary>
 public sealed class QueueOptions
 {
     /// <summary>
-    /// The name of the queue.
+    /// Gets the key identifying this queue.
     /// </summary>
     public QueueKey QueueKey { get; private set; }
 
@@ -32,10 +35,15 @@ public sealed class QueueOptions
     public TimeSpan StorageCheckInterval { get; set; } = TimeSpan.FromSeconds(15);
 
     /// <summary>
-    /// The interval at which the long running loops tick.
+    /// Gets the interval at which the internal processing loop ticks.
+    /// <remarks>Default is 1 second.</remarks>
     /// </summary>
     public TimeSpan TickInterval { get; private set; } = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// Initializes a new <see cref="QueueOptions"/> with the specified queue key.
+    /// </summary>
+    /// <param name="queueKey">The queue key identifying this queue.</param>
     public QueueOptions(QueueKey queueKey)
     {
         QueueKey = queueKey;
