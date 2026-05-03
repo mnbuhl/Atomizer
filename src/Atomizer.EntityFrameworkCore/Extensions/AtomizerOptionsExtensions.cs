@@ -1,5 +1,4 @@
-﻿using Atomizer.Core;
-using Atomizer.EntityFrameworkCore.Storage;
+﻿using Atomizer.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,14 +21,6 @@ public static class AtomizerOptionsExtensions
                 sp.GetRequiredService<TDbContext>(),
                 efOptions,
                 sp.GetRequiredService<ILogger<EntityFrameworkCoreStorage<TDbContext>>>()
-            ),
-            ServiceLifetime.Scoped
-        );
-
-        options.LeasingScopeOptions = new LeasingScopeOptions(
-            sp => new DatabaseTransactionLeasingScopeFactory<TDbContext>(
-                sp.GetRequiredService<TDbContext>(),
-                sp.GetRequiredService<ILogger<DatabaseTransactionLeasingScopeFactory<TDbContext>>>()
             ),
             ServiceLifetime.Scoped
         );

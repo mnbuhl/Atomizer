@@ -19,10 +19,6 @@ public static class AtomizerOptionsExtensions
             sp.GetRequiredService<IAtomizerClock>(),
             sp.GetRequiredService<ILogger<InMemoryStorage>>()
         ));
-        options.LeasingScopeOptions = new LeasingScopeOptions(sp => new InMemoryLeasingScopeFactory(
-            sp.GetRequiredService<IAtomizerClock>(),
-            sp.GetRequiredService<ILogger<InMemoryLeasingScopeFactory>>()
-        ));
         return options;
     }
 }
