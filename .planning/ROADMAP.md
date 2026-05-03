@@ -86,7 +86,16 @@ Plans:
   5. `UpsertScheduleAsync` for SQL Server uses `MERGE ... USING ... WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT`
   6. `UpsertScheduleAsync` for MySQL uses `INSERT ... ON DUPLICATE KEY UPDATE ...`
   7. The integration test suite passes on all three provider containers (PostgreSQL, SQL Server, MySQL) with no concurrent-upsert failures
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1** *(parallel — no dependencies)*
+- [ ] 04-01-PLAN.md — LockTimeout option, unique index on JobKey, ExecuteInLeaseAsync both overloads, remove AsNoTracking from GetDueJobsAsync SQL path (Wave 1)
+- [ ] 04-02-PLAN.md — Implement UpsertScheduleAsync in PostgreSqlDialect, SqlServerDialect, MySqlDialect (Wave 1)
+- [ ] 04-04-PLAN.md — Replace MigrateAsync with EnsureCreatedAsync in BaseDatabaseFixture; delete all Migrations/ folders and DesignTimeDbContextFactory files (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-03-PLAN.md — Wire EntityFrameworkCoreStorage.UpsertScheduleAsync to dialect; retain unsafe fallback with comment (Wave 2)
 
 ### Phase 5: Cleanup and Versioning
 **Goal**: All deprecated leasing types are removed from both packages, a major version bump is applied, and all new/changed public API members carry XML documentation
@@ -108,5 +117,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Leasing Abstraction | 0/4 | Not started | - |
 | 2. InMemory Implementation | 2/2 | Complete    | 2026-05-03 |
 | 3. SQL Dialect Strategy | 0/3 | Ready to execute | - |
-| 4. EF Core Implementation | 0/TBD | Not started | - |
+| 4. EF Core Implementation | 0/4 | Ready to execute | - |
 | 5. Cleanup and Versioning | 0/TBD | Not started | - |
