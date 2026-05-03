@@ -105,7 +105,16 @@ Plans:
   1. `IAtomizerLeasingScopeFactory`, `IAtomizerLeasingScope`, `DatabaseTransactionLeasingScopeFactory`, `InMemoryLeasingScopeFactory`, `NoopLeasingScopeFactory`, and `LeasingScopeOptions` are absent from both shipped assemblies
   2. Both `Atomizer` and `Atomizer.EntityFrameworkCore` NuGet packages carry a major version number higher than the last published version
   3. Every new or changed public API member has an XML `<summary>` (and `<param>` / `<returns>` where applicable) — the build passes with `TreatWarningsAsErrors=true`
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1** *(parallel — no dependencies)*
+- [ ] 05-01-PLAN.md — Make DatabaseTransactionLeasingScope internal sealed, delete DatabaseTransactionLeasingScopeFactory, add GenerateDocumentationFile to both csproj files (Wave 1)
+- [ ] 05-02-PLAN.md — XML docs for abstractions (IAtomizerClient, IAtomizerJob, IAtomizerServiceScope, IAtomizerJobSerializer) and configuration + EF Core extension files (Wave 1)
+- [ ] 05-03-PLAN.md — XML docs for domain models (AtomizerJob, AtomizerSchedule, AtomizerJobError), base classes, value objects, and all exception types (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 05-04-PLAN.md — Build gate: run dotnet build, fix any residual CS1591 gaps, confirm zero errors and zero warnings (Wave 2)
 
 ## Progress
 
@@ -118,4 +127,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. InMemory Implementation | 2/2 | Complete    | 2026-05-03 |
 | 3. SQL Dialect Strategy | 0/3 | Ready to execute | - |
 | 4. EF Core Implementation | 4/4 | Complete   | 2026-05-03 |
-| 5. Cleanup and Versioning | 0/TBD | Not started | - |
+| 5. Cleanup and Versioning | 0/4 | Not started | - |
