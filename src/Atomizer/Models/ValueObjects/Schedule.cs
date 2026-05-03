@@ -73,14 +73,14 @@ public sealed class Schedule : ValueObject
     public static Schedule Daily => new Schedule("0", "0", "0", "*", "*", "*");
 
     /// <summary>
-    /// Gets a schedule that fires at midnight UTC every day (same as Daily — use Cron for specific days).
+    /// Gets a schedule that fires at midnight UTC every Sunday.
     /// </summary>
-    public static Schedule Weekly => new Schedule("0", "0", "0", "*", "*", "*");
+    public static Schedule Weekly => new Schedule("0", "0", "0", "*", "*", "0");
 
     /// <summary>
-    /// Gets a schedule that fires at midnight UTC on a recurring monthly basis.
+    /// Gets a schedule that fires at midnight UTC on the 1st of each month.
     /// </summary>
-    public static Schedule Monthly => new Schedule("0", "0", "0", "*", "*", "?");
+    public static Schedule Monthly => new Schedule("0", "0", "0", "1", "*", "*");
 
     /// <summary>
     /// Creates a <see cref="Schedule"/> from a 5- or 6-part cron expression string.
