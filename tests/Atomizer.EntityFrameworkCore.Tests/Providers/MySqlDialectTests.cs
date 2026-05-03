@@ -1,3 +1,4 @@
+using Atomizer;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
 using Atomizer.EntityFrameworkCore.Providers.Sql;
@@ -59,13 +60,22 @@ public sealed class MySqlDialectTests
     }
 
     [Fact]
-    public void UpsertScheduleAsync_WhenCalled_ShouldThrowNotImplementedException()
+    public void UpsertScheduleAsync_WhenCalled_ShouldContainOnDuplicateKeyUpdate()
     {
         var (jobs, schedules) = BuildMaps();
         var dialect = new MySqlDialect(jobs, schedules);
+        var schedule = AtomizerSchedule.Create(
+            new JobKey("test-key"),
+            QueueKey.Default,
+            typeof(object),
+            "{}",
+            Schedule.EveryMinute,
+            TimeZoneInfo.Utc,
+            DateTimeOffset.UtcNow
+        );
 
-        Action act = () => dialect.UpsertScheduleAsync(null!);
+        var sql = dialect.UpsertScheduleAsync(schedule, DateTimeOffset.UtcNow);
 
-        act.Should().Throw<NotImplementedException>();
+        sql.Format.Should().Contain("ON DUPLICATE KEY UPDATE");
     }
 }

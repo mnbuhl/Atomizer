@@ -32,7 +32,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         _storageFactory = context => new EntityFrameworkCoreStorage<TestDbContext>(
             context,
             options ?? new EntityFrameworkCoreJobStorageOptions(),
-            _logger
+            _logger,
+            _clock
         );
     }
 
