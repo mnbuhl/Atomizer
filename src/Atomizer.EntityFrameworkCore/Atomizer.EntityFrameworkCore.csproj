@@ -9,6 +9,7 @@
         <AnalysisLevel>latest</AnalysisLevel>
         <EnablePackageValidation>true</EnablePackageValidation>
         <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
     <PropertyGroup>
         <PackageId>Atomizer.EntityFrameworkCore</PackageId>
