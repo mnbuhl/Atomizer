@@ -26,6 +26,15 @@ namespace Atomizer.Tests.Processing
             _clock.MinValue.Returns(DateTimeOffset.MinValue);
             _scope.Storage.Returns(_storage);
             _scopeFactory.CreateScope().Returns(_scope);
+            _storage
+                .ExecuteInLeaseAsync(
+                    Arg.Any<QueueKey>(),
+                    Arg.Any<Func<CancellationToken, Task<List<AtomizerJob>>>>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(callInfo =>
+                    callInfo.ArgAt<Func<CancellationToken, Task<List<AtomizerJob>>>>(1)(CancellationToken.None)
+                );
             _queueOptions = new QueueOptions(QueueKey.Default)
             {
                 BatchSize = 2,
@@ -49,17 +58,6 @@ namespace Atomizer.Tests.Processing
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(jobs);
-            _storage
-                .ExecuteInLeaseAsync(
-                    Arg.Any<QueueKey>(),
-                    Arg.Any<Func<CancellationToken, Task>>(),
-                    Arg.Any<CancellationToken>()
-                )
-                .Returns(callInfo =>
-                {
-                    var callback = callInfo.ArgAt<Func<CancellationToken, Task>>(1);
-                    return callback(CancellationToken.None);
-                });
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100); // short run
@@ -84,17 +82,6 @@ namespace Atomizer.Tests.Processing
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob>());
-            _storage
-                .ExecuteInLeaseAsync(
-                    Arg.Any<QueueKey>(),
-                    Arg.Any<Func<CancellationToken, Task>>(),
-                    Arg.Any<CancellationToken>()
-                )
-                .Returns(callInfo =>
-                {
-                    var callback = callInfo.ArgAt<Func<CancellationToken, Task>>(1);
-                    return callback(CancellationToken.None);
-                });
 
             var cts = new CancellationTokenSource();
             cts.CancelAfter(100);
