@@ -1,19 +1,42 @@
-﻿using Atomizer.Exceptions;
+using Atomizer.Exceptions;
 using Atomizer.Models.Base;
 
 namespace Atomizer;
 
+/// <summary>
+/// Defines the retry behavior for a failed job, including the number of attempts and per-attempt delays.
+/// </summary>
 public sealed class RetryStrategy : ValueObject
 {
+    /// <summary>
+    /// Gets the maximum number of attempts before the job is marked as failed.
+    /// </summary>
     public int MaxAttempts { get; private set; } = 3;
+
+    /// <summary>
+    /// Gets the delay to apply before each retry attempt.
+    /// </summary>
     public TimeSpan[] RetryIntervals { get; private set; } = [];
 
     private RetryStrategy() { }
 
+    /// <summary>
+    /// Gets the default retry strategy: 3 attempts with 15-second fixed delays and plus-or-minus 20% jitter.
+    /// </summary>
     public static RetryStrategy Default => Fixed(TimeSpan.FromSeconds(15), 3, jitter: true);
 
+    /// <summary>
+    /// Gets a strategy that makes a single attempt with no retries.
+    /// </summary>
     public static RetryStrategy None => new() { MaxAttempts = 1, RetryIntervals = [] };
 
+    /// <summary>
+    /// Creates a retry strategy with a constant delay between attempts, optionally applying random jitter.
+    /// </summary>
+    /// <param name="delay">The fixed delay between attempts. Must be non-negative.</param>
+    /// <param name="maxAttempts">The maximum number of attempts. Must be at least 1.</param>
+    /// <param name="jitter">When true, applies plus-or-minus 20% random jitter to each delay.</param>
+    /// <returns>A new <see cref="RetryStrategy"/> with constant intervals.</returns>
     public static RetryStrategy Fixed(TimeSpan delay, int maxAttempts, bool jitter = false)
     {
         if (delay < TimeSpan.Zero)
@@ -36,6 +59,11 @@ public sealed class RetryStrategy : ValueObject
         return new RetryStrategy { MaxAttempts = maxAttempts, RetryIntervals = intervals.ToArray() };
     }
 
+    /// <summary>
+    /// Creates a retry strategy with explicit per-attempt delay intervals.
+    /// </summary>
+    /// <param name="intervals">The ordered list of delays, one per retry attempt. Must be non-empty and contain no negative values.</param>
+    /// <returns>A new <see cref="RetryStrategy"/> using the provided intervals. The number of attempts equals the number of intervals.</returns>
     public static RetryStrategy Intervals(IEnumerable<TimeSpan> intervals)
     {
         var intervalsArray = intervals.ToArray();
@@ -53,6 +81,15 @@ public sealed class RetryStrategy : ValueObject
         return new RetryStrategy { MaxAttempts = intervalsArray.Length, RetryIntervals = intervalsArray };
     }
 
+    /// <summary>
+    /// Creates a retry strategy with exponentially increasing delays between attempts.
+    /// </summary>
+    /// <param name="initialInterval">The delay before the first retry. Must be greater than zero.</param>
+    /// <param name="maxAttempts">The maximum number of attempts. Must be at least 1.</param>
+    /// <param name="exponent">The growth factor applied to each successive interval. Must be greater than 1.0.</param>
+    /// <param name="maxInterval">Optional upper bound on any single interval. Must be greater than zero if specified.</param>
+    /// <param name="jitter">When true, applies plus-or-minus 20% random jitter to each computed interval.</param>
+    /// <returns>A new <see cref="RetryStrategy"/> with exponentially increasing intervals.</returns>
     public static RetryStrategy Exponential(
         TimeSpan initialInterval,
         int maxAttempts,
@@ -105,11 +142,21 @@ public sealed class RetryStrategy : ValueObject
         return new RetryStrategy { MaxAttempts = maxAttempts, RetryIntervals = intervals };
     }
 
+    /// <summary>
+    /// Returns true if another attempt should be made after the given attempt number.
+    /// </summary>
+    /// <param name="attempt">The zero-based attempt count already made.</param>
+    /// <returns>true when attempt is less than MaxAttempts.</returns>
     public bool ShouldRetry(int attempt)
     {
         return attempt < MaxAttempts;
     }
 
+    /// <summary>
+    /// Returns the delay to apply before the specified attempt.
+    /// </summary>
+    /// <param name="attempt">The one-based attempt number (1 = first retry).</param>
+    /// <returns>The TimeSpan delay for the given attempt.</returns>
     public TimeSpan GetRetryInterval(int attempt)
     {
         if (attempt < 1 || attempt > MaxAttempts)
@@ -120,6 +167,10 @@ public sealed class RetryStrategy : ValueObject
         return RetryIntervals[attempt - 1];
     }
 
+    /// <summary>
+    /// Returns the MaxAttempts and all retry intervals as equality components.
+    /// </summary>
+    /// <returns>An enumerable of equality-defining values.</returns>
     protected override IEnumerable<object> GetEqualityValues()
     {
         yield return MaxAttempts;
