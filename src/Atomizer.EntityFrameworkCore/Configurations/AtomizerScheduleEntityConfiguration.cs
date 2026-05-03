@@ -22,8 +22,8 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
         builder.ToTable("AtomizerSchedules", _schema);
         builder.HasKey(e => e.Id);
         builder.Property(job => job.Id).ValueGeneratedOnAdd();
-        builder.Property(e => e.JobKey).IsRequired().HasMaxLength(512);
-        builder.Property(e => e.QueueKey).IsRequired().HasMaxLength(512);
+        builder.Property(e => e.JobKey).IsRequired().HasMaxLength(255);
+        builder.Property(e => e.QueueKey).IsRequired().HasMaxLength(100);
         builder.Property(e => e.PayloadType).IsRequired().HasMaxLength(1024);
         builder.Property(e => e.Payload).IsRequired();
         builder.Property(e => e.Schedule).IsRequired().HasMaxLength(1024);
