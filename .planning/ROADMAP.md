@@ -35,7 +35,7 @@ Plans:
 - [x] 01-01-PLAN.md — Define ExecuteInLeaseAsync on IAtomizerStorage; remove leasing abstractions and service scope property (Wave 1)
 - [x] 01-02-PLAN.md — DI cleanup, storage stubs (NotImplementedException), DatabaseTransactionLeasingScopeFactory patch (Wave 2)
 - [x] 01-03-PLAN.md — Rewrite QueuePoller and SchedulePoller to ExecuteInLeaseAsync call sites (Wave 2)
-- [ ] 01-04-PLAN.md — Fix compile-breaking test files: delete NoopLeasingScopeFactoryTests, update QueuePollerTests and SchedulePollerTests (Wave 3)
+- [x] 01-04-PLAN.md — Fix compile-breaking test files: delete NoopLeasingScopeFactoryTests, update QueuePollerTests and SchedulePollerTests (Wave 3)
 
 ### Phase 2: InMemory Implementation
 **Goal**: The InMemory backend implements the new callback-based leasing contract with the same atomicity guarantees as EF Core from the caller's perspective
