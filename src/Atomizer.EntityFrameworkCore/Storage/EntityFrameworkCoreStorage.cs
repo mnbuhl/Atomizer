@@ -85,7 +85,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         {
             var sql = _providerCache.Dialect.GetDueJobs(queueKey, now, batchSize);
 
-            var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
+            var entities = await JobEntities.FromSqlInterpolated(sql).ToListAsync(cancellationToken);
 
             return entities.Select(job => job.ToAtomizerJob()).ToList();
         }
@@ -238,23 +238,39 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         );
     }
 
-    public Task<TResult> ExecuteInLeaseAsync<TResult>(
+    public async Task<TResult> ExecuteInLeaseAsync<TResult>(
         QueueKey queue,
         Func<CancellationToken, Task<TResult>> callback,
         CancellationToken cancellationToken
     )
     {
-        // TODO: Implemented in Phase 4
-        throw new NotImplementedException();
+        await using var scope = await DatabaseTransactionLeasingScope.StartTransaction(
+            _dbContext,
+            _options.LockTimeout,
+            cancellationToken
+        );
+
+        if (!scope.Acquired)
+            return default!;
+
+        return await callback(cancellationToken);
     }
 
-    public Task ExecuteInLeaseAsync(
+    public async Task ExecuteInLeaseAsync(
         QueueKey queue,
         Func<CancellationToken, Task> callback,
         CancellationToken cancellationToken
     )
     {
-        // TODO: Implemented in Phase 4
-        throw new NotImplementedException();
+        await using var scope = await DatabaseTransactionLeasingScope.StartTransaction(
+            _dbContext,
+            _options.LockTimeout,
+            cancellationToken
+        );
+
+        if (!scope.Acquired)
+            return;
+
+        await callback(cancellationToken);
     }
 }

@@ -51,5 +51,7 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
                     c => c.ToArray()
                 )
             );
+
+        builder.HasIndex(e => e.JobKey).IsUnique();
     }
 }
