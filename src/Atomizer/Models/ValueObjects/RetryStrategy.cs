@@ -28,7 +28,7 @@ public sealed class RetryStrategy : ValueObject
     /// <summary>
     /// Gets a strategy that makes a single attempt with no retries.
     /// </summary>
-    public static RetryStrategy None => new() { MaxAttempts = 1, RetryIntervals = [] };
+    public static RetryStrategy None => new() { MaxAttempts = 1, RetryIntervals = [TimeSpan.Zero] };
 
     /// <summary>
     /// Creates a retry strategy with a constant delay between attempts, optionally applying random jitter.
@@ -68,7 +68,7 @@ public sealed class RetryStrategy : ValueObject
     {
         var intervalsArray = intervals.ToArray();
 
-        if (intervalsArray is null || intervalsArray.Length == 0)
+        if (intervalsArray.Length == 0)
         {
             throw new InvalidRetryStrategyException("Intervals cannot be null or empty.", nameof(intervals));
         }
@@ -180,9 +180,20 @@ public sealed class RetryStrategy : ValueObject
         }
     }
 
+#if NET6_0_OR_GREATER
     private static TimeSpan ApplyJitter(TimeSpan interval)
     {
-        var jitterFactor = 0.8 + new Random().NextDouble() * 0.4; // Random factor between 0.8 and 1.2
+        var jitterFactor = 0.8 + Random.Shared.NextDouble() * 0.4; // Random factor between 0.8 and 1.2
         return TimeSpan.FromMilliseconds(interval.TotalMilliseconds * jitterFactor);
     }
+#else
+    private static readonly ThreadLocal<Random> _random =
+        new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
+
+    private static TimeSpan ApplyJitter(TimeSpan interval)
+    {
+        var jitterFactor = 0.8 + _random.Value!.NextDouble() * 0.4; // Random factor between 0.8 and 1.2
+        return TimeSpan.FromMilliseconds(interval.TotalMilliseconds * jitterFactor);
+    }
+#endif
 }
