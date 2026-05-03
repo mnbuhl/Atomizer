@@ -10,6 +10,7 @@ namespace Atomizer.EntityFrameworkCore.Storage;
 public class DatabaseTransactionLeasingScope : IDisposable, IAsyncDisposable
 {
     private readonly IDbContextTransaction? _transaction;
+    private bool _aborted;
 
     public DatabaseTransactionLeasingScope(IDbContextTransaction? transaction)
     {
@@ -19,8 +20,32 @@ public class DatabaseTransactionLeasingScope : IDisposable, IAsyncDisposable
 
     public bool Acquired { get; }
 
+    /// <summary>
+    /// Marks the scope as aborted so that <see cref="Dispose"/> and <see cref="DisposeAsync"/>
+    /// roll back the transaction instead of committing it.
+    /// Call this in a catch block before rethrowing when the lease body threw an exception.
+    /// </summary>
+    public void Abort()
+    {
+        _aborted = true;
+    }
+
     public void Dispose()
     {
+        if (_aborted)
+        {
+            try
+            {
+                _transaction?.Rollback();
+            }
+            finally
+            {
+                _transaction?.Dispose();
+            }
+
+            return;
+        }
+
         try
         {
             _transaction?.Commit();
@@ -38,6 +63,26 @@ public class DatabaseTransactionLeasingScope : IDisposable, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_aborted)
+        {
+            try
+            {
+                if (_transaction != null)
+                {
+                    await _transaction.RollbackAsync();
+                }
+            }
+            finally
+            {
+                if (_transaction != null)
+                {
+                    await _transaction.DisposeAsync();
+                }
+            }
+
+            return;
+        }
+
         try
         {
             if (_transaction != null)
