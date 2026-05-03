@@ -6,3 +6,5 @@ riderModule.iml
 .idea/
 Atomizer.sln.DotSettings.user
 example.db*
+.omc/
+.claude/
