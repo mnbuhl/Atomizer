@@ -107,6 +107,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Leasing Abstraction | 0/4 | Not started | - |
 | 2. InMemory Implementation | 2/2 | Complete    | 2026-05-03 |
-| 3. SQL Dialect Strategy | 0/3 | Not started | - |
+| 3. SQL Dialect Strategy | 0/3 | Ready to execute | - |
 | 4. EF Core Implementation | 0/TBD | Not started | - |
 | 5. Cleanup and Versioning | 0/TBD | Not started | - |
