@@ -49,9 +49,9 @@ public sealed class LeaseToken : ValueObject
             );
         }
 
-        InstanceId = parts.Length > 0 ? parts[0] : string.Empty;
-        QueueKey = parts.Length > 1 ? new QueueKey(parts[1]) : QueueKey.Default;
-        LeaseId = parts.Length > 2 ? parts[2] : string.Empty;
+        InstanceId = parts[0];
+        QueueKey = new QueueKey(parts[1]);
+        LeaseId = parts[2];
 
         Token = token;
     }
