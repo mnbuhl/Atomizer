@@ -23,11 +23,11 @@ A storage abstraction so clean and correct that implementing a new backend requi
 
 ### Active
 
-- [ ] Callback-based leasing abstraction — `ExecuteInLeaseAsync(...)` replaces `IAtomizerLeasingScopeFactory/IAtomizerLeasingScope`; each backend implements its own atomicity strategy
+- ✓ Callback-based leasing abstraction — `ExecuteInLeaseAsync(...)` replaces `IAtomizerLeasingScopeFactory/IAtomizerLeasingScope`; each backend implements its own atomicity strategy — Validated in Phase 1
 - [ ] `GetDueJobsAsync` and `GetDueSchedulesAsync` use `FOR UPDATE` (or provider equivalent) inside the lease callback to guarantee at-most-once dispatch
 - [ ] Native upsert for `UpsertScheduleAsync` using provider-specific SQL (`ON CONFLICT` for PostgreSQL, `MERGE` for SQL Server, `INSERT ... ON DUPLICATE KEY UPDATE` for MySQL) — fixes the current @todo race condition
 - [ ] Provider SQL extracted into `ISqlDialect` strategy classes (one per provider: `PostgreSqlDialect`, `SqlServerDialect`, `MySqlDialect`)
-- [ ] InMemory backend fully aligned to the same callback-based leasing contract — same error modes and atomicity guarantees as EF Core from the caller's perspective
+- ✓ InMemory backend fully aligned to the same callback-based leasing contract — same error modes and atomicity guarantees as EF Core from the caller's perspective — Validated in Phase 2
 - [ ] IAtomizerStorage abstraction updated (breaking change) — shipped as a major version bump
 
 ### Out of Scope
@@ -59,11 +59,11 @@ A storage abstraction so clean and correct that implementing a new backend requi
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Callback-based leasing (`ExecuteInLeaseAsync`) | Transaction must span GetDueJobs + UpdateJobs; collapsing into storage is not safe because committing before updating would allow double-dispatch | — Pending |
-| Provider SQL extracted to `ISqlDialect` | Raw SQL currently scattered in one class; dialect strategy makes adding new SQL providers safe and testable | — Pending |
-| Native upsert per-provider (not EF Core ExecuteUpdate) | EF Core doesn't natively support upsert; provider-specific SQL is already the pattern used elsewhere | — Pending |
-| InMemory fully aligns to EF Core contract | Diverging behavior between backends makes integration tests misleading and surprises users switching backends | — Pending |
-| Major version bump | IAtomizerStorage is public API; breaking the leasing interface is intentional and must be communicated explicitly | — Pending |
+| Callback-based leasing (`ExecuteInLeaseAsync`) | Transaction must span GetDueJobs + UpdateJobs; collapsing into storage is not safe because committing before updating would allow double-dispatch | ✓ Implemented — Phase 1 |
+| InMemory fully aligns to EF Core contract | Diverging behavior between backends makes integration tests misleading and surprises users switching backends | ✓ Implemented — Phase 2 |
+| Provider SQL extracted to `ISqlDialect` | Raw SQL currently scattered in one class; dialect strategy makes adding new SQL providers safe and testable | — Pending (Phase 3) |
+| Native upsert per-provider (not EF Core ExecuteUpdate) | EF Core doesn't natively support upsert; provider-specific SQL is already the pattern used elsewhere | — Pending (Phase 4) |
+| Major version bump | IAtomizerStorage is public API; breaking the leasing interface is intentional and must be communicated explicitly | — Pending (Phase 5) |
 
 ## Evolution
 
@@ -83,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-03 after initialization*
+*Last updated: 2026-05-03 after Phase 2 completion*
