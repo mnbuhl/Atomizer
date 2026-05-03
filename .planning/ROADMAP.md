@@ -29,7 +29,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `IAtomizerLeasingScopeFactory`, `IAtomizerLeasingScope`, and the `Acquired` flag are removed from the public API surface
   3. The interface signature contains no SQL or transaction primitives — each backend decides how to implement atomicity
   4. The existing `QueuePoller` and `SchedulePoller` callers are updated to use the new call site
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Define ExecuteInLeaseAsync on IAtomizerStorage; remove leasing abstractions and service scope property (Wave 1)
+- [ ] 01-02-PLAN.md — DI cleanup, storage stubs (NotImplementedException), DatabaseTransactionLeasingScopeFactory patch (Wave 2)
+- [ ] 01-03-PLAN.md — Rewrite QueuePoller and SchedulePoller to ExecuteInLeaseAsync call sites (Wave 2)
+- [ ] 01-04-PLAN.md — Fix compile-breaking test files: delete NoopLeasingScopeFactoryTests, update QueuePollerTests and SchedulePollerTests (Wave 3)
 
 ### Phase 2: InMemory Implementation
 **Goal**: The InMemory backend implements the new callback-based leasing contract with the same atomicity guarantees as EF Core from the caller's perspective
@@ -84,7 +90,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Leasing Abstraction | 0/TBD | Not started | - |
+| 1. Leasing Abstraction | 0/4 | Not started | - |
 | 2. InMemory Implementation | 0/TBD | Not started | - |
 | 3. SQL Dialect Strategy | 0/TBD | Not started | - |
 | 4. EF Core Implementation | 0/TBD | Not started | - |
