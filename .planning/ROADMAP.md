@@ -64,7 +64,15 @@ Plans:
   2. `PostgreSqlDialect`, `SqlServerDialect`, and `MySqlDialect` each implement `ISqlDialect` and own all provider-specific SQL for the storage layer
   3. `EntityFrameworkCoreStorage` contains no `if/switch` on provider type — it delegates all raw SQL to the injected dialect
   4. Adding a new relational provider requires only implementing `ISqlDialect` and registering it — no changes to the storage class
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Create ISqlDialect, rename *Provider → *Dialect (internal sealed), add UpsertScheduleAsync stub, wire RelationalProviderCache.Dialect property (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — Update EntityFrameworkCoreStorage: replace _providerCache.RawSqlProvider with _providerCache.Dialect at all 3 call sites (Wave 2)
+- [ ] 03-03-PLAN.md — Write PostgreSqlDialectTests, SqlServerDialectTests, MySqlDialectTests asserting provider SQL keywords (Wave 2)
 
 ### Phase 4: EF Core Implementation
 **Goal**: EF Core storage implements callback-based leasing with row-locked atomic acquisition and native per-provider upsert, eliminating the schedule upsert race condition
@@ -99,6 +107,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Leasing Abstraction | 0/4 | Not started | - |
 | 2. InMemory Implementation | 2/2 | Complete    | 2026-05-03 |
-| 3. SQL Dialect Strategy | 0/TBD | Not started | - |
+| 3. SQL Dialect Strategy | 0/3 | Not started | - |
 | 4. EF Core Implementation | 0/TBD | Not started | - |
 | 5. Cleanup and Versioning | 0/TBD | Not started | - |
