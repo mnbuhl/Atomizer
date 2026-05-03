@@ -5,6 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage;
 
+/// <summary>
+/// In-process implementation of <see cref="IAtomizerStorage"/> backed by concurrent dictionaries.
+/// </summary>
 public sealed class InMemoryStorage : IAtomizerStorage
 {
     private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new();
@@ -18,6 +21,12 @@ public sealed class InMemoryStorage : IAtomizerStorage
     private readonly IAtomizerClock _clock;
     private readonly ILogger<InMemoryStorage> _logger;
 
+    /// <summary>
+    /// Initializes a new <see cref="InMemoryStorage"/> with the specified options, clock, and logger.
+    /// </summary>
+    /// <param name="options">Options controlling storage behaviour such as job retention limits.</param>
+    /// <param name="clock">Clock abstraction for obtaining the current UTC time.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
     public InMemoryStorage(InMemoryJobStorageOptions options, IAtomizerClock clock, ILogger<InMemoryStorage> logger)
     {
         _options = options;
@@ -25,6 +34,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -45,6 +55,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult(job.Id);
     }
 
+    /// <inheritdoc/>
     public Task UpdateJobsAsync(IEnumerable<AtomizerJob> jobs, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -67,6 +78,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
         QueueKey queueKey,
         DateTimeOffset now,
@@ -120,6 +132,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerJob>)candidates);
     }
 
+    /// <inheritdoc/>
     public Task<int> ReleaseLeasedAsync(LeaseToken leaseToken, DateTimeOffset now, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -153,6 +166,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult(released);
     }
 
+    /// <inheritdoc/>
     public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -174,6 +188,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         }
     }
 
+    /// <inheritdoc/>
     public Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -197,6 +212,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
         DateTimeOffset now,
         CancellationToken cancellationToken

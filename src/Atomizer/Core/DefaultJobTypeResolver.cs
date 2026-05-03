@@ -1,10 +1,18 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Atomizer.Exceptions;
 
 namespace Atomizer.Core;
 
+/// <summary>
+/// Resolves the <see cref="IAtomizerJob{TPayload}"/> handler type for a given payload type.
+/// </summary>
 public interface IAtomizerJobTypeResolver
 {
+    /// <summary>
+    /// Resolves the handler type for the specified payload type.
+    /// </summary>
+    /// <param name="payloadType">The payload type to resolve a handler for.</param>
+    /// <returns>The <see cref="IAtomizerJob{TPayload}"/> constructed generic type for the given payload.</returns>
     Type Resolve(Type payloadType);
 }
 

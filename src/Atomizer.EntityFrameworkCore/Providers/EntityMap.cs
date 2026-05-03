@@ -1,11 +1,22 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Atomizer.EntityFrameworkCore.Providers;
 
+/// <summary>
+/// Holds the provider-escaped table name and column name map for an entity type,
+/// used to construct raw SQL queries in dialect implementations.
+/// </summary>
 public class EntityMap
 {
+    /// <summary>
+    /// Gets the fully-qualified, provider-escaped table name (e.g. <c>"schema"."Table"</c>).
+    /// </summary>
     public string Table { get; }
+
+    /// <summary>
+    /// Gets a dictionary mapping CLR property names to their provider-escaped column name strings.
+    /// </summary>
     public Dictionary<string, string> Col { get; }
 
     private EntityMap(string table, Dictionary<string, string> col)
@@ -14,6 +25,13 @@ public class EntityMap
         Col = col;
     }
 
+    /// <summary>
+    /// Builds an <see cref="EntityMap"/> for the specified CLR type by inspecting the EF Core model metadata.
+    /// </summary>
+    /// <param name="model">The EF Core model containing entity type metadata.</param>
+    /// <param name="clrType">The CLR type of the entity to map.</param>
+    /// <param name="provider">The database provider used to determine the correct identifier quoting style.</param>
+    /// <returns>A new <see cref="EntityMap"/> with escaped table and column names.</returns>
     public static EntityMap Build(IModel model, Type clrType, DatabaseProvider provider)
     {
         var entityType =

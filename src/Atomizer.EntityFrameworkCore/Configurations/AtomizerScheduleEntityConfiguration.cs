@@ -1,4 +1,4 @@
-﻿using Atomizer.EntityFrameworkCore.Entities;
+using Atomizer.EntityFrameworkCore.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -12,11 +12,19 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
 {
     private readonly string? _schema;
 
+    /// <summary>
+    /// Initializes a new <see cref="AtomizerScheduleEntityConfiguration"/> with the specified database schema.
+    /// </summary>
+    /// <param name="schema">The database schema to use for the schedules table, or <see langword="null"/> for the default schema.</param>
     public AtomizerScheduleEntityConfiguration(string? schema)
     {
         _schema = schema;
     }
 
+    /// <summary>
+    /// Configures the <see cref="AtomizerScheduleEntity"/> type mapping.
+    /// </summary>
+    /// <param name="builder">The builder used to configure the entity type.</param>
     public void Configure(EntityTypeBuilder<AtomizerScheduleEntity> builder)
     {
         builder.ToTable("AtomizerSchedules", _schema);

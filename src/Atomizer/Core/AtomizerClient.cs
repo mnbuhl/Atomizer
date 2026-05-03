@@ -1,8 +1,12 @@
-﻿using Atomizer.Abstractions;
+using Atomizer.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Core;
 
+/// <summary>
+/// Default implementation of <see cref="IAtomizerClient"/> that serializes payloads
+/// and delegates to the configured <see cref="IAtomizerStorage"/>.
+/// </summary>
 public class AtomizerClient : IAtomizerClient
 {
     private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
@@ -10,6 +14,13 @@ public class AtomizerClient : IAtomizerClient
     private readonly IAtomizerClock _clock;
     private readonly ILogger<AtomizerClient> _logger;
 
+    /// <summary>
+    /// Initializes a new <see cref="AtomizerClient"/> with the required dependencies.
+    /// </summary>
+    /// <param name="serviceScopeFactory">Factory used to create storage scopes.</param>
+    /// <param name="jobSerializer">Serializer used to serialize job payloads.</param>
+    /// <param name="clock">Clock abstraction for obtaining the current UTC time.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
     public AtomizerClient(
         IAtomizerServiceScopeFactory serviceScopeFactory,
         IAtomizerJobSerializer jobSerializer,
@@ -23,6 +34,7 @@ public class AtomizerClient : IAtomizerClient
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public Task<Guid> EnqueueAsync<TPayload>(
         TPayload payload,
         Action<EnqueueOptions>? configure = null,
@@ -35,6 +47,7 @@ public class AtomizerClient : IAtomizerClient
         return EnqueueInternalAsync(payload, _clock.UtcNow, options, cancellation);
     }
 
+    /// <inheritdoc/>
     public Task<Guid> ScheduleAsync<TPayload>(
         TPayload payload,
         DateTimeOffset runAt,
@@ -48,6 +61,7 @@ public class AtomizerClient : IAtomizerClient
         return EnqueueInternalAsync(payload, runAt, options, cancellation);
     }
 
+    /// <inheritdoc/>
     public async Task<Guid> ScheduleRecurringAsync<TPayload>(
         TPayload payload,
         JobKey name,

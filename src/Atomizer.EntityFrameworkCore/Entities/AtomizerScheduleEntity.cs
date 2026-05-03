@@ -1,95 +1,81 @@
-﻿namespace Atomizer.EntityFrameworkCore.Entities;
+namespace Atomizer.EntityFrameworkCore.Entities;
 
 /// <summary>
-/// Entity representing a scheduled job in Atomizer.
+/// Database entity representing a recurring job schedule.
 /// </summary>
 public class AtomizerScheduleEntity
 {
-    /// <summary>
-    /// Unique identifier for the schedule.
-    /// </summary>
+    /// <summary>Gets or sets the unique identifier for the schedule.</summary>
     public Guid Id { get; set; }
 
-    /// <summary>
-    /// Key identifying the job.
-    /// </summary>
+    /// <summary>Gets or sets the key identifying this recurring schedule.</summary>
     public string JobKey { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Key identifying the queue.
-    /// </summary>
+    /// <summary>Gets or sets the key identifying the target queue.</summary>
     public string QueueKey { get; set; } = string.Empty;
 
-    /// <summary>
-    /// The type name of the payload.
-    /// </summary>
+    /// <summary>Gets or sets the assembly-qualified name of the payload type.</summary>
     public string PayloadType { get; set; } = string.Empty;
 
-    /// <summary>
-    /// The serialized payload.
-    /// </summary>
+    /// <summary>Gets or sets the serialized payload passed to generated jobs.</summary>
     public string Payload { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Cron expression for scheduling.
-    /// </summary>
+    /// <summary>Gets or sets the cron expression string defining when jobs are generated.</summary>
     public string Schedule { get; set; } = "0 0 0 * *";
 
-    /// <summary>
-    /// Time zone identifier.
-    /// </summary>
+    /// <summary>Gets or sets the time zone identifier for cron evaluation.</summary>
     public string TimeZone { get; set; } = "UTC";
 
-    /// <summary>
-    /// Misfire policy for missed runs.
-    /// </summary>
+    /// <summary>Gets or sets the misfire policy applied when the schedule fires late.</summary>
     public MisfirePolicyEntity MisfirePolicy { get; set; }
 
-    /// <summary>
-    /// Maximum number of catch-up runs.
-    /// </summary>
+    /// <summary>Gets or sets the maximum number of missed occurrences to catch up on.</summary>
     public int MaxCatchUp { get; set; } = 5;
 
-    /// <summary>
-    /// Indicates if the schedule is enabled.
-    /// </summary>
+    /// <summary>Gets or sets whether this schedule is currently active.</summary>
     public bool Enabled { get; set; } = true;
 
-    /// <summary>
-    /// Maximum number of attempts for a job.
-    /// </summary>
+    /// <summary>Gets or sets the serialized retry intervals for generated jobs.</summary>
     public TimeSpan[] RetryIntervals { get; set; } = [];
 
-    /// <summary>
-    /// The next scheduled run time.
-    /// </summary>
+    /// <summary>Gets or sets the UTC time at which the next occurrence is due.</summary>
     public DateTimeOffset NextRunAt { get; set; }
 
-    /// <summary>
-    /// The last time the job was enqueued.
-    /// </summary>
+    /// <summary>Gets or sets the UTC time at which the most recent job was enqueued.</summary>
     public DateTimeOffset? LastEnqueueAt { get; set; }
 
-    /// <summary>
-    /// The time the schedule was created.
-    /// </summary>
+    /// <summary>Gets or sets the UTC time at which this schedule was created.</summary>
     public DateTimeOffset CreatedAt { get; set; }
 
-    /// <summary>
-    /// The time the schedule was last updated.
-    /// </summary>
+    /// <summary>Gets or sets the UTC time at which this schedule was last updated.</summary>
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+/// <summary>
+/// Represents the misfire policy for an <see cref="AtomizerScheduleEntity"/> as stored in the database.
+/// </summary>
 public enum MisfirePolicyEntity
 {
+    /// <summary>Skip the missed run and advance to the next scheduled occurrence.</summary>
     Ignore = 1,
+
+    /// <summary>Enqueue one job immediately, then advance to the next scheduled occurrence.</summary>
     ExecuteNow = 2,
+
+    /// <summary>Enqueue all missed occurrences up to the configured maximum.</summary>
     CatchUp = 3,
 }
 
+/// <summary>
+/// Provides mapping methods between <see cref="AtomizerSchedule"/> domain objects and <see cref="AtomizerScheduleEntity"/> records.
+/// </summary>
 public static class AtomizerScheduleEntityMapper
 {
+    /// <summary>
+    /// Maps a domain <see cref="AtomizerSchedule"/> to its <see cref="AtomizerScheduleEntity"/> database representation.
+    /// </summary>
+    /// <param name="schedule">The domain schedule to map.</param>
+    /// <returns>A new <see cref="AtomizerScheduleEntity"/> populated from the domain object.</returns>
     public static AtomizerScheduleEntity ToEntity(this AtomizerSchedule schedule)
     {
         return new AtomizerScheduleEntity
@@ -112,6 +98,11 @@ public static class AtomizerScheduleEntityMapper
         };
     }
 
+    /// <summary>
+    /// Maps an <see cref="AtomizerScheduleEntity"/> database record to its domain <see cref="AtomizerSchedule"/> representation.
+    /// </summary>
+    /// <param name="entity">The entity to map.</param>
+    /// <returns>A new <see cref="AtomizerSchedule"/> populated from the entity.</returns>
     public static AtomizerSchedule ToAtomizerSchedule(this AtomizerScheduleEntity entity)
     {
         return new AtomizerSchedule

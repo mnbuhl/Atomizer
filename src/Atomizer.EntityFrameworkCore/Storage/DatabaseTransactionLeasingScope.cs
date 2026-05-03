@@ -12,12 +12,19 @@ internal sealed class DatabaseTransactionLeasingScope : IDisposable, IAsyncDispo
     private readonly IDbContextTransaction? _transaction;
     private bool _aborted;
 
+    /// <summary>
+    /// Initializes a new <see cref="DatabaseTransactionLeasingScope"/> wrapping the specified transaction.
+    /// </summary>
+    /// <param name="transaction">The database transaction to wrap, or <see langword="null"/> if acquisition failed.</param>
     public DatabaseTransactionLeasingScope(IDbContextTransaction? transaction)
     {
         _transaction = transaction;
         Acquired = transaction != null;
     }
 
+    /// <summary>
+    /// Gets a value indicating whether the transaction was successfully acquired.
+    /// </summary>
     public bool Acquired { get; }
 
     /// <summary>
@@ -30,6 +37,9 @@ internal sealed class DatabaseTransactionLeasingScope : IDisposable, IAsyncDispo
         _aborted = true;
     }
 
+    /// <summary>
+    /// Commits or rolls back the transaction depending on whether <see cref="Abort"/> was called.
+    /// </summary>
     public void Dispose()
     {
         if (_aborted)
@@ -61,6 +71,10 @@ internal sealed class DatabaseTransactionLeasingScope : IDisposable, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Asynchronously commits or rolls back the transaction depending on whether <see cref="Abort"/> was called.
+    /// </summary>
+    /// <returns>A <see cref="ValueTask"/> representing the asynchronous dispose operation.</returns>
     public async ValueTask DisposeAsync()
     {
         if (_aborted)
@@ -107,6 +121,15 @@ internal sealed class DatabaseTransactionLeasingScope : IDisposable, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Begins a <see cref="System.Data.IsolationLevel.ReadCommitted"/> transaction on the given context,
+    /// returning a scope that wraps it. Returns a non-acquired scope if the transaction cannot be started.
+    /// </summary>
+    /// <typeparam name="TDbContext">The <see cref="DbContext"/> type.</typeparam>
+    /// <param name="dbContext">The database context on which to begin the transaction.</param>
+    /// <param name="timeout">Maximum time to wait for the transaction to start.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A <see cref="DatabaseTransactionLeasingScope"/> wrapping the started transaction.</returns>
     public static async Task<DatabaseTransactionLeasingScope> StartTransaction<TDbContext>(
         TDbContext dbContext,
         TimeSpan timeout,
