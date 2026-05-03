@@ -1,14 +1,13 @@
-﻿using System.Data;
-using Atomizer.Abstractions;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Atomizer.EntityFrameworkCore.Storage;
 
 /// <summary>
-/// Wraps a database transaction as a lock mechanism to fit into Atomizer's locking abstraction.
+/// Wraps a database transaction as a lock mechanism for Atomizer's leasing abstraction.
 /// </summary>
-public class DatabaseTransactionLeasingScope : IAtomizerLeasingScope
+public class DatabaseTransactionLeasingScope : IDisposable, IAsyncDisposable
 {
     private readonly IDbContextTransaction? _transaction;
 
@@ -17,6 +16,8 @@ public class DatabaseTransactionLeasingScope : IAtomizerLeasingScope
         _transaction = transaction;
         Acquired = transaction != null;
     }
+
+    public bool Acquired { get; }
 
     public void Dispose()
     {
@@ -61,7 +62,7 @@ public class DatabaseTransactionLeasingScope : IAtomizerLeasingScope
         }
     }
 
-    public static async Task<IAtomizerLeasingScope> StartTransaction<TDbContext>(
+    public static async Task<DatabaseTransactionLeasingScope> StartTransaction<TDbContext>(
         TDbContext dbContext,
         TimeSpan timeout,
         CancellationToken cancellationToken
@@ -81,6 +82,4 @@ public class DatabaseTransactionLeasingScope : IAtomizerLeasingScope
             return new DatabaseTransactionLeasingScope(null);
         }
     }
-
-    public bool Acquired { get; }
 }

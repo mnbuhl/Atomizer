@@ -54,48 +54,37 @@ internal class QueuePoller : IQueuePoller
                     using var scope = _serviceScopeFactory.CreateScope();
 
                     _lastStorageCheck = now;
-                    var leasingScopeFactory = scope.LeasingScopeFactory;
-
-#if NETCOREAPP3_0_OR_GREATER
-                    await using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
-                        queue.QueueKey,
-                        queue.VisibilityTimeout,
-                        ct
-                    );
-#else
-                    using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
-                        queue.QueueKey,
-                        queue.VisibilityTimeout,
-                        ct
-                    );
-#endif
                     var storage = scope.Storage;
 
-                    if (leasingScope.Acquired)
-                    {
-                        var jobs = await storage.GetDueJobsAsync(queue.QueueKey, now, queue.BatchSize, ct);
-
-                        if (jobs.Count > 0)
+                    await storage.ExecuteInLeaseAsync(
+                        queue.QueueKey,
+                        async innerCt =>
                         {
-                            _logger.LogDebug("Queue '{Queue}' leasing {JobCount} job(s)", queue.QueueKey, jobs.Count);
+                            var jobs = await storage.GetDueJobsAsync(queue.QueueKey, now, queue.BatchSize, innerCt);
 
-                            foreach (var job in jobs)
+                            if (jobs.Count > 0)
                             {
-                                job.Lease(leaseToken, now, queue.VisibilityTimeout);
-                                leasedJobs.Add(job);
-                            }
+                                _logger.LogDebug(
+                                    "Queue '{Queue}' leasing {JobCount} job(s)",
+                                    queue.QueueKey,
+                                    jobs.Count
+                                );
 
-                            await storage.UpdateJobsAsync(leasedJobs, ct);
-                        }
-                        else
-                        {
-                            _logger.LogDebug("Queue '{Queue}' found no jobs to lease", queue.QueueKey);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogDebug("Failed to acquire processing scope for queue '{Queue}'", queue.QueueKey);
-                    }
+                                foreach (var job in jobs)
+                                {
+                                    job.Lease(leaseToken, now, queue.VisibilityTimeout);
+                                    leasedJobs.Add(job);
+                                }
+
+                                await storage.UpdateJobsAsync(leasedJobs, innerCt);
+                            }
+                            else
+                            {
+                                _logger.LogDebug("Queue '{Queue}' found no jobs to lease", queue.QueueKey);
+                            }
+                        },
+                        ct
+                    );
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

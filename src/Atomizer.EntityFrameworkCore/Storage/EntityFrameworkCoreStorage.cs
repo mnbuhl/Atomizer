@@ -237,4 +237,24 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 + "Note that this may lead to unexpected behavior."
         );
     }
+
+    public Task<TResult> ExecuteInLeaseAsync<TResult>(
+        QueueKey queue,
+        Func<CancellationToken, Task<TResult>> callback,
+        CancellationToken cancellationToken
+    )
+    {
+        // TODO: Implemented in Phase 4
+        throw new NotImplementedException();
+    }
+
+    public Task ExecuteInLeaseAsync(
+        QueueKey queue,
+        Func<CancellationToken, Task> callback,
+        CancellationToken cancellationToken
+    )
+    {
+        // TODO: Implemented in Phase 4
+        throw new NotImplementedException();
+    }
 }

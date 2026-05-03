@@ -49,49 +49,34 @@ internal sealed class SchedulePoller : ISchedulePoller
                     var horizon = now + _options.ScheduleLeadTime!.Value;
 
                     using var scope = _serviceScopeFactory.CreateScope();
-                    var leasingScopeFactory = scope.LeasingScopeFactory;
+                    var storage = scope.Storage;
 
-#if NETCOREAPP3_0_OR_GREATER
-                    await using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
+                    await storage.ExecuteInLeaseAsync(
                         QueueKey.Scheduler,
-                        TimeSpan.FromMinutes(1),
-                        execToken
-                    );
-#else
-                    using var leasingScope = await leasingScopeFactory.CreateScopeAsync(
-                        QueueKey.Scheduler,
-                        TimeSpan.FromMinutes(1),
-                        execToken
-                    );
-#endif
-                    if (leasingScope.Acquired)
-                    {
-                        var storage = scope.Storage;
-
-                        var dueSchedules = await storage.GetDueSchedulesAsync(horizon, ioToken);
-
-                        foreach (var schedule in dueSchedules)
+                        async innerCt =>
                         {
-                            if (schedule.PayloadType is null)
+                            var dueSchedules = await storage.GetDueSchedulesAsync(horizon, innerCt);
+
+                            foreach (var schedule in dueSchedules)
                             {
-                                _logger.LogWarning(
-                                    "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
-                                    schedule.JobKey
-                                );
-                                schedule.Disable(now);
-                                continue;
+                                if (schedule.PayloadType is null)
+                                {
+                                    _logger.LogWarning(
+                                        "Schedule {ScheduleKey} has no payload type defined, disabling schedule",
+                                        schedule.JobKey
+                                    );
+                                    schedule.Disable(now);
+                                    continue;
+                                }
+
+                                await _scheduleProcessor.ProcessAsync(schedule, horizon, execToken);
+                                schedule.UpdateNextOccurence(horizon, now);
                             }
 
-                            await _scheduleProcessor.ProcessAsync(schedule, horizon, execToken);
-                            schedule.UpdateNextOccurence(horizon, now);
-                        }
-
-                        await storage.UpdateSchedulesAsync(dueSchedules, execToken);
-                    }
-                    else
-                    {
-                        _logger.LogDebug("Could not acquire leasing scope for schedule poller");
-                    }
+                            await storage.UpdateSchedulesAsync(dueSchedules, innerCt);
+                        },
+                        ioToken
+                    );
                 }
             }
             catch (OperationCanceledException) when (ioToken.IsCancellationRequested)

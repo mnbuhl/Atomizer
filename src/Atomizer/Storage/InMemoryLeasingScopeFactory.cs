@@ -1,11 +1,10 @@
-﻿using System.Collections.Concurrent;
-using Atomizer.Abstractions;
+using System.Collections.Concurrent;
 using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Storage;
 
-internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
+internal sealed class InMemoryLeasingScopeFactory
 {
     private static readonly ConcurrentDictionary<QueueKey, (SemaphoreSlim, DateTimeOffset)> Semaphores = new();
 
@@ -18,7 +17,7 @@ internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
         _logger = logger;
     }
 
-    public Task<IAtomizerLeasingScope> CreateScopeAsync(
+    public Task<InMemoryLeasingScope> CreateScopeAsync(
         QueueKey key,
         TimeSpan scopeTimeout,
         CancellationToken cancellationToken
@@ -36,7 +35,11 @@ internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
         return scope;
     }
 
-    private sealed class InMemoryLeasingScope : IAtomizerLeasingScope
+    internal sealed class InMemoryLeasingScope : IDisposable
+#if NETCOREAPP3_0_OR_GREATER
+        ,
+        IAsyncDisposable
+#endif
     {
         private readonly SemaphoreSlim _semaphore;
         private bool _released;
@@ -48,7 +51,7 @@ internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
 
         public bool Acquired { get; private set; }
 
-        public static async Task<IAtomizerLeasingScope> AcquireAsync(
+        public static async Task<InMemoryLeasingScope> AcquireAsync(
             QueueKey key,
             TimeSpan lockTimeout,
             DateTimeOffset acquiredAt,
@@ -92,10 +95,12 @@ internal sealed class InMemoryLeasingScopeFactory : IAtomizerLeasingScopeFactory
             }
         }
 
+#if NETCOREAPP3_0_OR_GREATER
         public async ValueTask DisposeAsync()
         {
             Dispose();
             await Task.CompletedTask;
         }
+#endif
     }
 }

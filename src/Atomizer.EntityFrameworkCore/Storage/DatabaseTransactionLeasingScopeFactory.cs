@@ -1,11 +1,9 @@
-﻿using Atomizer.Abstractions;
-using Atomizer.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.EntityFrameworkCore.Storage;
 
-public class DatabaseTransactionLeasingScopeFactory<TDbContext> : IAtomizerLeasingScopeFactory
+public class DatabaseTransactionLeasingScopeFactory<TDbContext>
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
@@ -20,7 +18,7 @@ public class DatabaseTransactionLeasingScopeFactory<TDbContext> : IAtomizerLeasi
         _logger = logger;
     }
 
-    public async Task<IAtomizerLeasingScope> CreateScopeAsync(
+    public async Task<DatabaseTransactionLeasingScope> CreateScopeAsync(
         QueueKey key,
         TimeSpan scopeTimeout,
         CancellationToken cancellationToken
@@ -32,9 +30,13 @@ public class DatabaseTransactionLeasingScopeFactory<TDbContext> : IAtomizerLeasi
             return await DatabaseTransactionLeasingScope.StartTransaction(_dbContext, scopeTimeout, cancellationToken);
         }
 
-        _logger.LogDebug("Database is not relational, using NoopLeasingScopeFactory for queue {QueueKey}", key);
+        _logger.LogDebug(
+            "Database is not relational, leasing scope not supported for queue {QueueKey}",
+            key
+        );
 
-        var noopLeasingScopeFactory = new NoopLeasingScopeFactory();
-        return await noopLeasingScopeFactory.CreateScopeAsync(key, scopeTimeout, cancellationToken);
+        throw new NotSupportedException(
+            "DatabaseTransactionLeasingScopeFactory requires a relational database provider."
+        );
     }
 }
