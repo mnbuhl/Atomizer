@@ -7,7 +7,7 @@ namespace Atomizer.EntityFrameworkCore.Storage;
 /// <summary>
 /// Wraps a database transaction as a lock mechanism for Atomizer's leasing abstraction.
 /// </summary>
-public class DatabaseTransactionLeasingScope : IDisposable, IAsyncDisposable
+internal sealed class DatabaseTransactionLeasingScope : IDisposable, IAsyncDisposable
 {
     private readonly IDbContextTransaction? _transaction;
     private bool _aborted;
