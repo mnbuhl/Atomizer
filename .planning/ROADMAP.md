@@ -46,7 +46,11 @@ Plans:
   2. `InMemoryStorage.UpsertScheduleAsync` is atomic — the existing per-queue lock prevents the same race condition fixed on EF Core
   3. The InMemory unit test suite passes without the `IAtomizerLeasingScopeFactory` dependency
   4. A caller using the InMemory backend cannot observe a behavioral difference in error modes or lock lifecycle compared to the EF Core contract
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Implement ExecuteInLeaseAsync overloads, _semaphores field, _queues ConcurrentDictionary, atomic UpsertScheduleAsync, QueuePoller null-guard, delete InMemoryLeasingScopeFactory.cs (Wave 1)
+- [ ] 02-02-PLAN.md — Create InMemoryStorageLeaseTests.cs, update InMemoryStorageTests.cs _queues assertion, delete InMemoryLeasingScopeFactoryTests.cs (Wave 2)
 
 ### Phase 3: SQL Dialect Strategy
 **Goal**: All provider-specific SQL is extracted into `ISqlDialect` strategy classes — the EF Core storage class contains no inline provider branching
@@ -91,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Leasing Abstraction | 0/4 | Not started | - |
-| 2. InMemory Implementation | 0/TBD | Not started | - |
+| 2. InMemory Implementation | 0/2 | Not started | - |
 | 3. SQL Dialect Strategy | 0/TBD | Not started | - |
 | 4. EF Core Implementation | 0/TBD | Not started | - |
 | 5. Cleanup and Versioning | 0/TBD | Not started | - |
