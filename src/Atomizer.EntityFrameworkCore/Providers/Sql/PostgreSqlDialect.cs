@@ -77,7 +77,57 @@ internal sealed class PostgreSqlDialect : ISqlDialect
 
     public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule)
     {
-        // TODO: Implemented in Phase 4
-        throw new NotImplementedException();
+        var entity = schedule.ToEntity();
+        var pgNow = DateTimeOffset.UtcNow.ToString("u");
+        var c = _schedules.Col;
+        return FormattableStringFactory.Create(
+            $"""
+                INSERT INTO {_schedules.Table} (
+                    {c[nameof(AtomizerScheduleEntity.Id)]},
+                    {c[nameof(AtomizerScheduleEntity.JobKey)]},
+                    {c[nameof(AtomizerScheduleEntity.QueueKey)]},
+                    {c[nameof(AtomizerScheduleEntity.PayloadType)]},
+                    {c[nameof(AtomizerScheduleEntity.Payload)]},
+                    {c[nameof(AtomizerScheduleEntity.Schedule)]},
+                    {c[nameof(AtomizerScheduleEntity.TimeZone)]},
+                    {c[nameof(AtomizerScheduleEntity.MisfirePolicy)]},
+                    {c[nameof(AtomizerScheduleEntity.MaxCatchUp)]},
+                    {c[nameof(AtomizerScheduleEntity.Enabled)]},
+                    {c[nameof(AtomizerScheduleEntity.RetryIntervals)]},
+                    {c[nameof(AtomizerScheduleEntity.NextRunAt)]},
+                    {c[nameof(AtomizerScheduleEntity.LastEnqueueAt)]},
+                    {c[nameof(AtomizerScheduleEntity.CreatedAt)]},
+                    {c[nameof(AtomizerScheduleEntity.UpdatedAt)]}
+                ) VALUES (
+                    '{entity.Id}',
+                    '{entity.JobKey}',
+                    '{entity.QueueKey}',
+                    '{entity.PayloadType}',
+                    '{entity.Payload}',
+                    '{entity.Schedule}',
+                    '{entity.TimeZone}',
+                    {(int)entity.MisfirePolicy},
+                    {entity.MaxCatchUp},
+                    {(entity.Enabled ? "TRUE" : "FALSE")},
+                    '{string.Join(";", Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds))}',
+                    '{entity.NextRunAt:u}',
+                    {(entity.LastEnqueueAt.HasValue ? $"'{entity.LastEnqueueAt:u}'" : "NULL")},
+                    '{entity.CreatedAt:u}',
+                    '{pgNow}'
+                )
+                ON CONFLICT ({c[nameof(AtomizerScheduleEntity.JobKey)]}) DO UPDATE SET
+                    {c[nameof(AtomizerScheduleEntity.QueueKey)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.QueueKey)]},
+                    {c[nameof(AtomizerScheduleEntity.PayloadType)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.PayloadType)]},
+                    {c[nameof(AtomizerScheduleEntity.Payload)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.Payload)]},
+                    {c[nameof(AtomizerScheduleEntity.Schedule)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.Schedule)]},
+                    {c[nameof(AtomizerScheduleEntity.TimeZone)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.TimeZone)]},
+                    {c[nameof(AtomizerScheduleEntity.MisfirePolicy)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.MisfirePolicy)]},
+                    {c[nameof(AtomizerScheduleEntity.MaxCatchUp)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.MaxCatchUp)]},
+                    {c[nameof(AtomizerScheduleEntity.Enabled)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.Enabled)]},
+                    {c[nameof(AtomizerScheduleEntity.RetryIntervals)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.RetryIntervals)]},
+                    {c[nameof(AtomizerScheduleEntity.NextRunAt)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.NextRunAt)]},
+                    {c[nameof(AtomizerScheduleEntity.UpdatedAt)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.UpdatedAt)]};
+            """
+        );
     }
 }
