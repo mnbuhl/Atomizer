@@ -170,13 +170,10 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             var now = _clock.UtcNow;
             var sql = _providerCache.Dialect.UpsertScheduleAsync(schedule, now);
             await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
-            // WR-01: On the conflict (UPDATE) path the stored row retains the Id from the
-            // original INSERT. entity.Id is the newly generated Guid from ToEntity() which
-            // was NOT written. Callers should treat the returned Guid as the canonical
-            // schedule Id only when they know it is a new schedule. A future improvement
-            // is to use RETURNING id (PostgreSQL) / OUTPUT inserted.Id (SQL Server) to
-            // retrieve the actual persisted Id regardless of the conflict path.
-            return entity.Id;
+            return await ScheduleEntities
+                .Where(s => s.JobKey == entity.JobKey)
+                .Select(s => s.Id)
+                .FirstAsync(cancellationToken);
         }
 
         if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)

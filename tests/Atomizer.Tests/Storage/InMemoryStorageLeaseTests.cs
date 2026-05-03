@@ -141,6 +141,88 @@ public sealed class InMemoryStorageLeaseTests
         semaphores[key].CurrentCount.Should().Be(1, "semaphore must be released after non-generic overload completes");
     }
 
+    // ---- deadlock regression: GetDueSchedulesAsync / UpdateSchedulesAsync must not re-acquire scheduler semaphore ----
+
+    [Fact]
+    public async Task ExecuteInLeaseAsync_WhenCallbackCallsGetDueSchedulesAsync_ShouldNotDeadlock()
+    {
+        var clock = Substitute.For<IAtomizerClock>();
+        var now = DateTimeOffset.UtcNow;
+        clock.UtcNow.Returns(now);
+        clock.MinValue.Returns(DateTimeOffset.MinValue);
+        clock.MaxValue.Returns(DateTimeOffset.MaxValue);
+        var logger = Substitute.For<TestableLogger<InMemoryStorage>>();
+        var options = new InMemoryJobStorageOptions { AmountOfJobsToRetainInMemory = 100 };
+        var sut = new InMemoryStorage(options, clock, logger);
+
+        var schedule = AtomizerSchedule.Create(
+            new JobKey("deadlock-get"),
+            QueueKey.Default,
+            typeof(string),
+            "payload",
+            Schedule.Default,
+            TimeZoneInfo.Utc,
+            now.AddMinutes(-1)
+        );
+        await sut.UpsertScheduleAsync(schedule, CancellationToken.None);
+
+        IReadOnlyList<AtomizerSchedule> result = null!;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await sut.ExecuteInLeaseAsync(
+            QueueKey.Scheduler,
+            async ct =>
+            {
+                result = await sut.GetDueSchedulesAsync(now, ct);
+            },
+            cts.Token
+        );
+
+        result
+            .Should()
+            .ContainSingle("GetDueSchedulesAsync must complete inside the lease callback without deadlocking");
+    }
+
+    [Fact]
+    public async Task ExecuteInLeaseAsync_WhenCallbackCallsUpdateSchedulesAsync_ShouldNotDeadlock()
+    {
+        var clock = Substitute.For<IAtomizerClock>();
+        var now = DateTimeOffset.UtcNow;
+        clock.UtcNow.Returns(now);
+        clock.MinValue.Returns(DateTimeOffset.MinValue);
+        clock.MaxValue.Returns(DateTimeOffset.MaxValue);
+        var logger = Substitute.For<TestableLogger<InMemoryStorage>>();
+        var options = new InMemoryJobStorageOptions { AmountOfJobsToRetainInMemory = 100 };
+        var sut = new InMemoryStorage(options, clock, logger);
+
+        var schedule = AtomizerSchedule.Create(
+            new JobKey("deadlock-update"),
+            QueueKey.Default,
+            typeof(string),
+            "payload",
+            Schedule.Default,
+            TimeZoneInfo.Utc,
+            now
+        );
+        await sut.UpsertScheduleAsync(schedule, CancellationToken.None);
+        schedule.Enabled = false;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await sut.ExecuteInLeaseAsync(
+            QueueKey.Scheduler,
+            async ct => await sut.UpdateSchedulesAsync([schedule], ct),
+            cts.Token
+        );
+
+        var schedules = NonPublicSpy.GetFieldValue<InMemoryStorage, Dictionary<JobKey, AtomizerSchedule>>(
+            "_schedules",
+            sut
+        );
+        schedules[schedule.JobKey]
+            .Enabled.Should()
+            .BeFalse("UpdateSchedulesAsync must complete inside the lease callback without deadlocking");
+    }
+
     // ---- INMEM-03: UpsertScheduleAsync and ExecuteInLeaseAsync(QueueKey.Scheduler) share the same semaphore (Design A) ----
 
     [Fact]
@@ -185,7 +267,7 @@ public sealed class InMemoryStorageLeaseTests
         var upsertTask = sut.UpsertScheduleAsync(schedule, CancellationToken.None);
 
         // Give upsertTask a moment to reach WaitAsync — it must be blocked, not completed
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         upsertTask.IsCompleted.Should().BeFalse("UpsertScheduleAsync must block while scheduler lease is held");
 
         // Release the lease — upsert can now proceed
