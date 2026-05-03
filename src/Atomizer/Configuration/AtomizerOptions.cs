@@ -22,10 +22,10 @@ public sealed class AtomizerOptions
     /// <summary>
     /// Adds a named queue with optional configuration.
     /// </summary>
-    /// <param name="name">The unique name of the queue.</param>
+    /// <param name="name">The unique key of the queue. Validation is applied immediately at the call site.</param>
     /// <param name="configure">Optional delegate to configure queue-specific options.</param>
     /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
-    public AtomizerOptions AddQueue(string name, Action<QueueOptions>? configure = null)
+    public AtomizerOptions AddQueue(QueueKey name, Action<QueueOptions>? configure = null)
     {
         var options = new QueueOptions(name);
         configure?.Invoke(options);
