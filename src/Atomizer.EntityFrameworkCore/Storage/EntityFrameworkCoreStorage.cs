@@ -156,37 +156,47 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         var entity = schedule.ToEntity();
 
-        var existing = await ScheduleEntities
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
-
-        if (existing is not null)
+        if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
-            entity.Id = existing.Id;
-            ScheduleEntities.Update(entity);
-        }
-        else
-        {
-            ScheduleEntities.Add(entity);
+            var sql = _providerCache.Dialect.UpsertScheduleAsync(schedule);
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+            return entity.Id;
         }
 
-        try
+        if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex)
-        {
-            // Might fail due to race conditions in a distributed setup
-            // Look into optimistic concurrency control later
-            _logger.LogError(
-                ex,
-                "Failed to upsert schedule {ScheduleKey} for job {JobKey}",
-                schedule.JobKey,
-                schedule.JobKey
-            );
+            // Not race-safe — only used for test-only providers (SQLite) via AllowUnsafeProviderFallback
+            var existing = await ScheduleEntities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
+
+            if (existing is not null)
+            {
+                entity.Id = existing.Id;
+                ScheduleEntities.Update(entity);
+            }
+            else
+            {
+                ScheduleEntities.Add(entity);
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to upsert schedule for job {JobKey}", schedule.JobKey);
+            }
+
+            return entity.Id;
         }
 
-        return entity.Id;
+        throw new NotSupportedException(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
+        );
     }
 
     public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
