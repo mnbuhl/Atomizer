@@ -109,12 +109,12 @@ Plans:
 
 Plans:
 **Wave 1** *(parallel — no dependencies)*
-- [ ] 05-01-PLAN.md — Make DatabaseTransactionLeasingScope internal sealed, delete DatabaseTransactionLeasingScopeFactory, add GenerateDocumentationFile to both csproj files (Wave 1)
-- [ ] 05-02-PLAN.md — XML docs for abstractions (IAtomizerClient, IAtomizerJob, IAtomizerServiceScope, IAtomizerJobSerializer) and configuration + EF Core extension files (Wave 1)
-- [ ] 05-03-PLAN.md — XML docs for domain models (AtomizerJob, AtomizerSchedule, AtomizerJobError), base classes, value objects, and all exception types (Wave 1)
+- [x] 05-01-PLAN.md — Make DatabaseTransactionLeasingScope internal sealed, delete DatabaseTransactionLeasingScopeFactory, add GenerateDocumentationFile to both csproj files (Wave 1)
+- [x] 05-02-PLAN.md — XML docs for abstractions (IAtomizerClient, IAtomizerJob, IAtomizerServiceScope, IAtomizerJobSerializer) and configuration + EF Core extension files (Wave 1)
+- [x] 05-03-PLAN.md — XML docs for domain models (AtomizerJob, AtomizerSchedule, AtomizerJobError), base classes, value objects, and all exception types (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 05-04-PLAN.md — Build gate: run dotnet build, fix any residual CS1591 gaps, confirm zero errors and zero warnings (Wave 2)
+- [x] 05-04-PLAN.md — Build gate: run dotnet build, fix any residual CS1591 gaps, confirm zero errors and zero warnings (Wave 2)
 
 ## Progress
 
