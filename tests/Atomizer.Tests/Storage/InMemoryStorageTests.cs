@@ -43,11 +43,11 @@ namespace Atomizer.Tests.Storage
                 _sut
             );
             jobs.Should().ContainKey(job.Id);
-            var queues = NonPublicSpy.GetFieldValue<InMemoryStorage, Dictionary<QueueKey, HashSet<Guid>>>(
-                "_queues",
-                _sut
-            );
-            queues[QueueKey.Default].Should().Contain(job.Id);
+            var queues = NonPublicSpy.GetFieldValue<
+                InMemoryStorage,
+                ConcurrentDictionary<QueueKey, ConcurrentDictionary<Guid, byte>>
+            >("_queues", _sut);
+            queues[QueueKey.Default].Should().ContainKey(job.Id);
         }
 
         [Fact]
