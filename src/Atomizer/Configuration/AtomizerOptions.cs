@@ -4,8 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer;
 
+/// <summary>
+/// Configures the Atomizer background job system.
+/// </summary>
 public sealed class AtomizerOptions
 {
+    /// <summary>
+    /// Gets or sets the storage backend options. Must be configured before the host starts.
+    /// </summary>
     public JobStorageOptions? JobStorageOptions { get; set; }
 
     internal SchedulingOptions SchedulingOptions { get; set; } = new SchedulingOptions();
@@ -13,6 +19,12 @@ public sealed class AtomizerOptions
     internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
     internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
 
+    /// <summary>
+    /// Adds a named queue with optional configuration.
+    /// </summary>
+    /// <param name="name">The unique name of the queue.</param>
+    /// <param name="configure">Optional delegate to configure queue-specific options.</param>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions AddQueue(string name, Action<QueueOptions>? configure = null)
     {
         var options = new QueueOptions(name);
@@ -38,6 +50,11 @@ public sealed class AtomizerOptions
         return this;
     }
 
+    /// <summary>
+    /// Scans the specified assemblies for <see cref="IAtomizerJob{TPayload}"/> implementations and registers them as scoped services.
+    /// </summary>
+    /// <param name="assemblies">One or more assemblies to scan.</param>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions AddHandlersFrom(params Assembly[] assemblies)
     {
         if (assemblies.Length == 0)
@@ -66,8 +83,18 @@ public sealed class AtomizerOptions
         return this;
     }
 
+    /// <summary>
+    /// Scans the assembly containing <typeparamref name="TMarker"/> for <see cref="IAtomizerJob{TPayload}"/> implementations.
+    /// </summary>
+    /// <typeparam name="TMarker">A type whose assembly is scanned for job handlers.</typeparam>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions AddHandlersFrom<TMarker>() => AddHandlersFrom(typeof(TMarker).Assembly);
 
+    /// <summary>
+    /// Configures the scheduling subsystem options.
+    /// </summary>
+    /// <param name="configure">Delegate to configure <see cref="SchedulingOptions"/>.</param>
+    /// <returns>The current <see cref="AtomizerOptions"/> instance for chaining.</returns>
     public AtomizerOptions ConfigureScheduling(Action<SchedulingOptions> configure)
     {
         configure.Invoke(SchedulingOptions);

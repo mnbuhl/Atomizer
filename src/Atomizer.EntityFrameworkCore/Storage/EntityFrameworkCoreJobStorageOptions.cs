@@ -1,5 +1,8 @@
 ﻿namespace Atomizer.EntityFrameworkCore;
 
+/// <summary>
+/// Configures the Entity Framework Core storage backend for Atomizer.
+/// </summary>
 public class EntityFrameworkCoreJobStorageOptions
 {
     /// <summary>

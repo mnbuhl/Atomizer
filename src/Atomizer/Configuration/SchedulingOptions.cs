@@ -1,5 +1,8 @@
 ﻿namespace Atomizer;
 
+/// <summary>
+/// Configures the Atomizer scheduling subsystem.
+/// </summary>
 public class SchedulingOptions
 {
     /// <summary>
@@ -26,6 +29,10 @@ public class SchedulingOptions
     /// </summary>
     public TimeSpan TickInterval { get; internal set; } = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="SchedulingOptions"/> with default values.
+    /// <remarks><see cref="ScheduleLeadTime"/> defaults to the larger of <see cref="StorageCheckInterval"/> and 1 second.</remarks>
+    /// </summary>
     public SchedulingOptions()
     {
         ScheduleLeadTime ??=
