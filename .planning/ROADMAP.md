@@ -68,11 +68,11 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 03-01-PLAN.md — Create ISqlDialect, rename *Provider → *Dialect (internal sealed), add UpsertScheduleAsync stub, wire RelationalProviderCache.Dialect property (Wave 1)
+- [x] 03-01-PLAN.md — Create ISqlDialect, rename *Provider → *Dialect (internal sealed), add UpsertScheduleAsync stub, wire RelationalProviderCache.Dialect property (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 03-02-PLAN.md — Update EntityFrameworkCoreStorage: replace _providerCache.RawSqlProvider with _providerCache.Dialect at all 3 call sites (Wave 2)
-- [ ] 03-03-PLAN.md — Write PostgreSqlDialectTests, SqlServerDialectTests, MySqlDialectTests asserting provider SQL keywords (Wave 2)
+- [x] 03-02-PLAN.md — Update EntityFrameworkCoreStorage: replace _providerCache.RawSqlProvider with _providerCache.Dialect at all 3 call sites (Wave 2)
+- [x] 03-03-PLAN.md — Write PostgreSqlDialectTests, SqlServerDialectTests, MySqlDialectTests asserting provider SQL keywords (Wave 2)
 
 ### Phase 4: EF Core Implementation
 **Goal**: EF Core storage implements callback-based leasing with row-locked atomic acquisition and native per-provider upsert, eliminating the schedule upsert race condition
