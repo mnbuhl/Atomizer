@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Atomizer is a background job scheduling and queueing framework for ASP.NET Core, distributed as two NuGet packages (`Atomizer` core and `Atomizer.EntityFrameworkCore`). This milestone refactors the entire storage layer to be cleaner, more correct, and extensible to non-SQL backends (MongoDB, Redis) in future milestones.
+Atomizer is a background job scheduling and queueing framework for ASP.NET Core, distributed as two NuGet packages (`Atomizer` core and `Atomizer.EntityFrameworkCore`). The v1.0 milestone delivered a clean, correct, and extensible storage abstraction — making it straightforward to add non-SQL backends (MongoDB, Redis) in future milestones.
 
 ## Core Value
 
@@ -20,50 +20,56 @@ A storage abstraction so clean and correct that implementing a new backend requi
 - ✓ AtomizerJob domain state transitions (Lease, Attempt, MarkAsCompleted, etc.) — existing
 - ✓ Providers: PostgreSQL, SQL Server, MySQL — existing
 - ✓ Idempotency key support on InsertAsync — existing
+- ✓ Callback-based leasing abstraction — `ExecuteInLeaseAsync(...)` replaces `IAtomizerLeasingScopeFactory/IAtomizerLeasingScope`; each backend implements its own atomicity strategy — v1.0
+- ✓ InMemory backend fully aligned to the same callback-based leasing contract — same error modes and atomicity guarantees as EF Core from the caller's perspective — v1.0
+- ✓ Provider SQL extracted into `ISqlDialect` strategy classes (one per provider: `PostgreSqlDialect`, `SqlServerDialect`, `MySqlDialect`) — v1.0
+- ✓ `GetDueJobsAsync` and `GetDueSchedulesAsync` use `FOR UPDATE SKIP LOCKED` (or provider equivalent) inside the lease callback — v1.0
+- ✓ Native upsert for `UpsertScheduleAsync` using provider-specific SQL — fixes the @todo race condition — v1.0
+- ✓ IAtomizerStorage abstraction updated (breaking change) — v1.0
+- ✓ XML documentation on all public APIs — zero CS1591 under TreatWarningsAsErrors=true — v1.0
 
 ### Active
 
-- ✓ Callback-based leasing abstraction — `ExecuteInLeaseAsync(...)` replaces `IAtomizerLeasingScopeFactory/IAtomizerLeasingScope`; each backend implements its own atomicity strategy — Validated in Phase 1
-- [ ] `GetDueJobsAsync` and `GetDueSchedulesAsync` use `FOR UPDATE` (or provider equivalent) inside the lease callback to guarantee at-most-once dispatch
-- [ ] Native upsert for `UpsertScheduleAsync` using provider-specific SQL (`ON CONFLICT` for PostgreSQL, `MERGE` for SQL Server, `INSERT ... ON DUPLICATE KEY UPDATE` for MySQL) — fixes the current @todo race condition
-- [ ] Provider SQL extracted into `ISqlDialect` strategy classes (one per provider: `PostgreSqlDialect`, `SqlServerDialect`, `MySqlDialect`)
-- ✓ InMemory backend fully aligned to the same callback-based leasing contract — same error modes and atomicity guarantees as EF Core from the caller's perspective — Validated in Phase 2
-- [ ] IAtomizerStorage abstraction updated (breaking change) — shipped as a major version bump
+*(Next milestone requirements to be defined via `/gsd-new-milestone`)*
+
+- [ ] Address InMemoryStorage thread safety gaps: `_schedules` read without lock in `GetDueSchedulesAsync`/`UpdateSchedulesAsync` (CR-03, CR-04); `InsertAsync` missing idempotency key check (CR-01)
+- [ ] EF Core: `queue` parameter ignored in `ExecuteInLeaseAsync` — no per-queue DB isolation (behavioral divergence from InMemory contract)
+- [ ] MongoDB backend implementing `ExecuteInLeaseAsync` via distributed lock
+- [ ] Redis backend implementing `ExecuteInLeaseAsync` via RedLock or Lua script
 
 ### Out of Scope
 
 - SQLite as a production-supported provider — it lacks `FOR NO KEY UPDATE SKIP LOCKED`; stays as test-only via Testcontainers
-- MongoDB / Redis backend implementations — this milestone defines the abstraction that allows them; the implementations are future milestones
+- NuGet major version bump — project will not publish to NuGet during v1.0 milestone
 - Changes to the public `IAtomizerClient` API (EnqueueAsync, ScheduleAsync, ScheduleRecurringAsync) — out of scope
 - Changes to the processing pipeline (QueuePump, JobWorker, DefaultJobDispatcher) — out of scope
-- Entity schema changes (AtomizerJobEntity, AtomizerScheduleEntity table layout) — out of scope unless required by upsert approach
+- Oracle provider — removed in #10, not being re-added
 
 ## Context
 
-- Current branch: `refactor/data` — already set up for this work
-- Recent overhauls landed: EF Core overhaul (#8), InMemory overhaul v2 (#9), .NET 10 support (#11), Oracle support removed (#10)
-- Known `@todo` in `UpsertScheduleAsync`: non-atomic check-then-insert is a real race condition that this milestone must fix
-- `IAtomizerLeasingScopeFactory` / `IAtomizerLeasingScope` is a public API — changing it is a breaking change requiring a major version bump
-- The callback-based leasing approach must keep the transaction open between `GetDueJobsAsync` (acquires row locks) and `UpdateJobsAsync` (commits status) — this is a correctness invariant, not a nice-to-have
-- Non-SQL providers (MongoDB, Redis) will use this same abstraction but implement their own atomicity strategy (distributed locks, optimistic retry, etc.) — the contract must not assume SQL
+- **Shipped v1.0** on 2026-05-03: 5 phases, 17 plans, 227 commits, 253 files changed, ~6,020 LOC C#
+- Current branch: `refactor/data`
+- EF Core integration tests require Docker (Testcontainers) — runtime behavior not verified in static CI
+- Known tech debt carried into next milestone: InMemoryStorage concurrency gaps (CR-01, CR-03, CR-04), EF Core per-queue isolation, UpsertScheduleAsync incorrect returned Id on conflict path
 
 ## Constraints
 
-- **Compatibility**: netstandard2.1 target for core library — no C# 8+ features without `#if` guards
-- **Breaking change**: IAtomizerStorage and leasing abstraction changes require a major version bump
+- **Compatibility**: `Atomizer` targets `netstandard2.0;net8.0;net10.0`. Use `#if NETCOREAPP3_0_OR_GREATER` for `IAsyncDisposable` / `await using`.
 - **No Newtonsoft**: System.Text.Json only
 - **Formatting**: CSharpier (`dotnet csharpier .`)
 - **XML docs**: All public APIs must have XML documentation
+- **No NuGet publish**: v1.0 milestone does not include package publication
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Callback-based leasing (`ExecuteInLeaseAsync`) | Transaction must span GetDueJobs + UpdateJobs; collapsing into storage is not safe because committing before updating would allow double-dispatch | ✓ Implemented — Phase 1 |
-| InMemory fully aligns to EF Core contract | Diverging behavior between backends makes integration tests misleading and surprises users switching backends | ✓ Implemented — Phase 2 |
-| Provider SQL extracted to `ISqlDialect` | Raw SQL currently scattered in one class; dialect strategy makes adding new SQL providers safe and testable | — Pending (Phase 3) |
-| Native upsert per-provider (not EF Core ExecuteUpdate) | EF Core doesn't natively support upsert; provider-specific SQL is already the pattern used elsewhere | — Pending (Phase 4) |
-| Major version bump | IAtomizerStorage is public API; breaking the leasing interface is intentional and must be communicated explicitly | — Pending (Phase 5) |
+| Callback-based leasing (`ExecuteInLeaseAsync`) | Transaction must span GetDueJobs + UpdateJobs; collapsing into storage prevents double-dispatch | ✓ Implemented — v1.0 Phase 1 |
+| InMemory fully aligns to EF Core contract | Diverging behavior between backends makes integration tests misleading and surprises users switching backends | ✓ Implemented — v1.0 Phase 2 |
+| Provider SQL extracted to `ISqlDialect` (internal) | Raw SQL currently scattered; dialect strategy makes adding new SQL providers safe and testable; `internal` prevents external implementations | ✓ Implemented — v1.0 Phase 3 |
+| Native upsert per-provider (not EF Core ExecuteUpdate) | EF Core doesn't natively support upsert; provider-specific SQL is already the pattern used elsewhere | ✓ Implemented — v1.0 Phase 4 |
+| COMPAT-02 dropped (no version bump) | Project will not publish to NuGet this milestone | ✓ Dropped — v1.0 Phase 5 |
+| `queue` param unused in EF Core `ExecuteInLeaseAsync` | EF Core uses connection-scoped ReadCommitted transaction rather than per-queue locking — per-queue isolation is a future concern | ⚠️ Revisit — next milestone |
 
 ## Evolution
 
@@ -83,4 +89,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-03 after Phase 2 completion*
+*Last updated: 2026-05-03 after v1.0 milestone*

@@ -1,94 +1,50 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-05-03T17:15:44.730Z"
-last_activity: 2026-05-03 -- Phase 05 planning complete
+milestone_name: Storage Refactor
+status: complete
+stopped_at: Milestone v1.0 archived
+last_updated: "2026-05-03T18:45:00Z"
+last_activity: 2026-05-03 -- v1.0 milestone complete
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 17
-  completed_plans: 13
-  percent: 76
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-03)
+See: .planning/PROJECT.md (updated 2026-05-03 after v1.0)
 
 **Core value:** A storage abstraction so clean and correct that implementing a new backend requires no tribal knowledge — just the interface.
-**Current focus:** Phase 4 — EF Core Implementation
+**Current focus:** v1.0 complete — planning next milestone
 
 ## Current Position
 
-Phase: 4 (EF Core Implementation) — EXECUTING
-Plan: 1 of 4
-Status: Ready to execute
-Last activity: 2026-05-03 -- Phase 05 planning complete
-
-Progress: [░░░░░░░░░░] 0%
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 6
-- Average duration: -
-- Total execution time: 0 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01 | 4 | - | - |
-| 2 | 2 | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: —
-- Trend: —
-
-*Updated after each plan completion*
-
-## Accumulated Context
-
-### Decisions
-
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Callback-based leasing (`ExecuteInLeaseAsync`): Transaction must span GetDueJobs + UpdateJobs — collapsing into storage prevents double-dispatch
-- `ISqlDialect` strategy: Provider SQL is scattered; dialect classes make adding SQL providers safe and testable
-- Native upsert per-provider: EF Core has no native upsert; provider-specific SQL is already the established pattern
-- InMemory aligns to EF Core contract: Diverging backends make integration tests misleading
-- Major version bump: `IAtomizerStorage` is public API; breaking leasing interface must be communicated explicitly
-
-### Pending Todos
-
-None yet.
-
-### Blockers/Concerns
-
-- Phase 1 is the critical gate: nothing in phases 2-5 can proceed until `ExecuteInLeaseAsync` interface shape is finalized
-- Phase 3 (ISqlDialect extraction) must complete before Phase 4 touches EF Core storage logic
+Phase: — (milestone complete)
+Status: v1.0 shipped 2026-05-03
+Last activity: 2026-05-03 — v1.0 milestone archived
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
+Items acknowledged and carried forward from v1.0:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| Tech debt | Idempotency key unique index (read-before-write race) | Deferred | Pre-milestone |
-| Tech debt | EF UpdateRange writes all columns (no targeted UPDATE) | Deferred | Pre-milestone |
-| Bug | Static `Semaphores` dictionary process-wide (test isolation) | Deferred | Pre-milestone |
-| Bug | Stale acquiredTimestamp in InMemory lock tuple | Addressed by INMEM refactor |
+| Tech debt | InMemoryStorage `_schedules` read without lock in GetDueSchedulesAsync (CR-03) | Deferred | v1.0 close |
+| Tech debt | InMemoryStorage UpdateSchedulesAsync writes `_schedules` without lock (CR-04) | Deferred | v1.0 close |
+| Tech debt | InMemoryStorage InsertAsync missing idempotency key check (CR-01) | Deferred | v1.0 close |
+| Tech debt | EF Core ExecuteInLeaseAsync queue param unused — no per-queue DB isolation | Deferred | v1.0 close |
+| Tech debt | EF Core UpsertScheduleAsync ON CONFLICT path returns incorrect entity Id | Deferred | v1.0 close |
+| Tech debt | ScheduleProcessor.InsertAsync runs outside schedule lease transaction | Deferred | v1.0 close |
+| Human verification | EF Core integration tests require Docker (Testcontainers) | Deferred | v1.0 close |
 
 ## Session Continuity
 
-Last session: 2026-05-03T16:54:34.274Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-cleanup-and-versioning/05-CONTEXT.md
+Last session: 2026-05-03
+Stopped at: v1.0 milestone complete
+Resume: Start next milestone with `/gsd-new-milestone`

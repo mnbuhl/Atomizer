@@ -40,7 +40,7 @@
 ### Public API & Versioning
 
 - [ ] **COMPAT-01**: `IAtomizerStorage` interface is updated to reflect the new leasing contract — this is a documented breaking change
-- [ ] **COMPAT-02**: A major version bump is applied to both `Atomizer` and `Atomizer.EntityFrameworkCore` NuGet packages
+- ~~**COMPAT-02**: A major version bump is applied to both `Atomizer` and `Atomizer.EntityFrameworkCore` NuGet packages~~ — *dropped 2026-05-03: project will not publish to NuGet this milestone*
 - [ ] **COMPAT-03**: XML documentation on all new/changed public API members
 
 ## v2 Requirements
@@ -67,6 +67,7 @@
 | Entity schema changes (table layout, column names) | Out of scope unless required by upsert SQL |
 | AtomizerJobErrorEntity redesign | Deferred — separate concern |
 | Oracle provider | Removed in #10 — not being re-added |
+| NuGet major version bump (COMPAT-02) | Project will not publish to NuGet this milestone — dropped 2026-05-03 |
 
 ## Traceability
 
@@ -90,12 +91,12 @@
 | UPSRT-02 | Phase 4 | Pending |
 | UPSRT-03 | Phase 4 | Pending |
 | UPSRT-04 | Phase 4 | Pending |
-| COMPAT-02 | Phase 5 | Pending |
+| COMPAT-02 | Phase 5 | Dropped — out of scope 2026-05-03 |
 | COMPAT-03 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 20 total
-- Mapped to phases: 20 ✓
+- v1 requirements: 19 active (COMPAT-02 dropped)
+- Mapped to phases: 19 ✓
 - Unmapped: 0
 
 ---
