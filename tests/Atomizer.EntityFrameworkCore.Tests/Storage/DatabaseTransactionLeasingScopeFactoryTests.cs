@@ -1,5 +1,4 @@
-﻿using Atomizer.Abstractions;
-using Atomizer.EntityFrameworkCore.Storage;
+﻿using Atomizer.EntityFrameworkCore.Storage;
 using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup;
 using Atomizer.Tests.Utilities;
@@ -59,7 +58,7 @@ public abstract class DatabaseTransactionLeasingScopeFactoryTests
         var key = NewKey();
 
         // Act
-        var scopes = new List<IAtomizerLeasingScope>();
+        var scopes = new List<DatabaseTransactionLeasingScope>();
 
         using var scope1 = await sut1.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);
         using var scope2 = await sut2.CreateScopeAsync(key, TimeSpan.FromSeconds(5), CancellationToken.None);

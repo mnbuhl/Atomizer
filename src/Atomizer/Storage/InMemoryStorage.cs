@@ -218,6 +218,26 @@ public sealed class InMemoryStorage : IAtomizerStorage
         return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
+    public Task<TResult> ExecuteInLeaseAsync<TResult>(
+        QueueKey queue,
+        Func<CancellationToken, Task<TResult>> callback,
+        CancellationToken cancellationToken
+    )
+    {
+        // TODO: Implemented in Phase 2
+        throw new NotImplementedException();
+    }
+
+    public Task ExecuteInLeaseAsync(
+        QueueKey queue,
+        Func<CancellationToken, Task> callback,
+        CancellationToken cancellationToken
+    )
+    {
+        // TODO: Implemented in Phase 2
+        throw new NotImplementedException();
+    }
+
     // ---- helpers ----
 
     private void IndexIntoQueue(AtomizerJob job)
