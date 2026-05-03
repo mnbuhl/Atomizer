@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Leasing Abstraction** - Define `ExecuteInLeaseAsync` contract and update `IAtomizerStorage` as a documented breaking change
 - [x] **Phase 2: InMemory Implementation** - Align InMemory backend to the new callback-based leasing contract (completed 2026-05-03)
 - [ ] **Phase 3: SQL Dialect Strategy** - Extract `ISqlDialect` per-provider strategy classes from inline EF Core SQL branching
-- [ ] **Phase 4: EF Core Implementation** - Implement callback-based leasing, atomic row-locked acquisition, and native upsert in EF Core storage
+- [x] **Phase 4: EF Core Implementation** - Implement callback-based leasing, atomic row-locked acquisition, and native upsert in EF Core storage (completed 2026-05-03)
 - [ ] **Phase 5: Cleanup and Versioning** - Remove deprecated types, apply major version bump, complete XML documentation
 
 ## Phase Details
@@ -90,12 +90,12 @@ Plans:
 
 Plans:
 **Wave 1** *(parallel — no dependencies)*
-- [ ] 04-01-PLAN.md — LockTimeout option, unique index on JobKey, ExecuteInLeaseAsync both overloads, remove AsNoTracking from GetDueJobsAsync SQL path (Wave 1)
-- [ ] 04-02-PLAN.md — Implement UpsertScheduleAsync in PostgreSqlDialect, SqlServerDialect, MySqlDialect (Wave 1)
-- [ ] 04-04-PLAN.md — Replace MigrateAsync with EnsureCreatedAsync in BaseDatabaseFixture; delete all Migrations/ folders and DesignTimeDbContextFactory files (Wave 1)
+- [x] 04-01-PLAN.md — LockTimeout option, unique index on JobKey, ExecuteInLeaseAsync both overloads, remove AsNoTracking from GetDueJobsAsync SQL path (Wave 1)
+- [x] 04-02-PLAN.md — Implement UpsertScheduleAsync in PostgreSqlDialect, SqlServerDialect, MySqlDialect (Wave 1)
+- [x] 04-04-PLAN.md — Replace MigrateAsync with EnsureCreatedAsync in BaseDatabaseFixture; delete all Migrations/ folders and DesignTimeDbContextFactory files (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 04-03-PLAN.md — Wire EntityFrameworkCoreStorage.UpsertScheduleAsync to dialect; retain unsafe fallback with comment (Wave 2)
+- [x] 04-03-PLAN.md — Wire EntityFrameworkCoreStorage.UpsertScheduleAsync to dialect; retain unsafe fallback with comment (Wave 2)
 
 ### Phase 5: Cleanup and Versioning
 **Goal**: All deprecated leasing types are removed from both packages, a major version bump is applied, and all new/changed public API members carry XML documentation
@@ -117,5 +117,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Leasing Abstraction | 0/4 | Not started | - |
 | 2. InMemory Implementation | 2/2 | Complete    | 2026-05-03 |
 | 3. SQL Dialect Strategy | 0/3 | Ready to execute | - |
-| 4. EF Core Implementation | 0/4 | Ready to execute | - |
+| 4. EF Core Implementation | 4/4 | Complete   | 2026-05-03 |
 | 5. Cleanup and Versioning | 0/TBD | Not started | - |
