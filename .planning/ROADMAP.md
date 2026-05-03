@@ -32,9 +32,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Define ExecuteInLeaseAsync on IAtomizerStorage; remove leasing abstractions and service scope property (Wave 1)
-- [ ] 01-02-PLAN.md — DI cleanup, storage stubs (NotImplementedException), DatabaseTransactionLeasingScopeFactory patch (Wave 2)
-- [ ] 01-03-PLAN.md — Rewrite QueuePoller and SchedulePoller to ExecuteInLeaseAsync call sites (Wave 2)
+- [x] 01-01-PLAN.md — Define ExecuteInLeaseAsync on IAtomizerStorage; remove leasing abstractions and service scope property (Wave 1)
+- [x] 01-02-PLAN.md — DI cleanup, storage stubs (NotImplementedException), DatabaseTransactionLeasingScopeFactory patch (Wave 2)
+- [x] 01-03-PLAN.md — Rewrite QueuePoller and SchedulePoller to ExecuteInLeaseAsync call sites (Wave 2)
 - [ ] 01-04-PLAN.md — Fix compile-breaking test files: delete NoopLeasingScopeFactoryTests, update QueuePollerTests and SchedulePollerTests (Wave 3)
 
 ### Phase 2: InMemory Implementation
