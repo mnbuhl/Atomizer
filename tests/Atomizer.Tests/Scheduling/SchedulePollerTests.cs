@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Atomizer.Abstractions;
 using Atomizer.Core;
 using Atomizer.Scheduling;
@@ -41,11 +41,6 @@ public class SchedulePollerTests
         var execCts = new CancellationTokenSource();
         var scope = Substitute.For<IAtomizerServiceScope>();
         var storage = Substitute.For<IAtomizerStorage>();
-        var leasingScopeFactory = Substitute.For<IAtomizerLeasingScopeFactory>();
-        var leasingScope = Substitute.For<IAtomizerLeasingScope>();
-        leasingScopeFactory
-            .CreateScopeAsync(Arg.Any<QueueKey>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
-            .Returns(leasingScope);
         var schedule1 = AtomizerSchedule.Create(
             "testjob",
             QueueKey.Default,
@@ -65,12 +60,21 @@ public class SchedulePollerTests
             _clock.UtcNow
         );
         scope.Storage.Returns(storage);
-        scope.LeasingScopeFactory.Returns(leasingScopeFactory);
-        leasingScope.Acquired.Returns(true);
         _serviceScopeFactory.CreateScope().Returns(scope);
         storage
             .GetDueSchedulesAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(new[] { schedule1, schedule2 });
+        storage
+            .ExecuteInLeaseAsync(
+                Arg.Any<QueueKey>(),
+                Arg.Any<Func<CancellationToken, Task>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo =>
+            {
+                var callback = callInfo.ArgAt<Func<CancellationToken, Task>>(1);
+                return callback(CancellationToken.None);
+            });
         _scheduleProcessor
             .ProcessAsync(Arg.Any<AtomizerSchedule>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
@@ -108,8 +112,16 @@ public class SchedulePollerTests
         var ioCts = new CancellationTokenSource();
         var execCts = new CancellationTokenSource();
         var scope = Substitute.For<IAtomizerServiceScope>();
-        scope.LeasingScopeFactory.Returns(_ => throw new InvalidOperationException("fail"));
+        var storage = Substitute.For<IAtomizerStorage>();
+        scope.Storage.Returns(storage);
         _serviceScopeFactory.CreateScope().Returns(scope);
+        storage
+            .ExecuteInLeaseAsync(
+                Arg.Any<QueueKey>(),
+                Arg.Any<Func<CancellationToken, Task>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ => throw new InvalidOperationException("fail"));
 
         // Act
         var runTask = _sut.RunAsync(ioCts.Token, execCts.Token);

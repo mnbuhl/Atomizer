@@ -55,12 +55,19 @@ internal class QueuePoller : IQueuePoller
                     _lastStorageCheck = now;
                     var storage = scope.Storage;
 
+<<<<<<< HEAD
                     leasedJobs = await storage.ExecuteInLeaseAsync(
+=======
+                    await storage.ExecuteInLeaseAsync(
+>>>>>>> worktree-agent-a8c50de87634b18f9
                         queue.QueueKey,
                         async innerCt =>
                         {
                             var jobs = await storage.GetDueJobsAsync(queue.QueueKey, now, queue.BatchSize, innerCt);
+<<<<<<< HEAD
                             var acquired = new List<AtomizerJob>();
+=======
+>>>>>>> worktree-agent-a8c50de87634b18f9
 
                             if (jobs.Count > 0)
                             {
@@ -69,6 +76,7 @@ internal class QueuePoller : IQueuePoller
                                     queue.QueueKey,
                                     jobs.Count
                                 );
+<<<<<<< HEAD
 
                                 foreach (var job in jobs)
                                 {
@@ -84,6 +92,21 @@ internal class QueuePoller : IQueuePoller
                             }
 
                             return acquired;
+=======
+
+                                foreach (var job in jobs)
+                                {
+                                    job.Lease(leaseToken, now, queue.VisibilityTimeout);
+                                    leasedJobs.Add(job);
+                                }
+
+                                await storage.UpdateJobsAsync(leasedJobs, innerCt);
+                            }
+                            else
+                            {
+                                _logger.LogDebug("Queue '{Queue}' found no jobs to lease", queue.QueueKey);
+                            }
+>>>>>>> worktree-agent-a8c50de87634b18f9
                         },
                         ct
                     );

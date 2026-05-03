@@ -55,7 +55,11 @@ internal sealed class SchedulePoller : ISchedulePoller
                         QueueKey.Scheduler,
                         async innerCt =>
                         {
+<<<<<<< HEAD
                             var dueSchedules = await storage.GetDueSchedulesAsync(horizon, ioToken);
+=======
+                            var dueSchedules = await storage.GetDueSchedulesAsync(horizon, innerCt);
+>>>>>>> worktree-agent-a8c50de87634b18f9
 
                             foreach (var schedule in dueSchedules)
                             {
@@ -73,9 +77,15 @@ internal sealed class SchedulePoller : ISchedulePoller
                                 schedule.UpdateNextOccurence(horizon, now);
                             }
 
+<<<<<<< HEAD
                             await storage.UpdateSchedulesAsync(dueSchedules, execToken);
                         },
                         execToken
+=======
+                            await storage.UpdateSchedulesAsync(dueSchedules, innerCt);
+                        },
+                        ioToken
+>>>>>>> worktree-agent-a8c50de87634b18f9
                     );
                 }
             }

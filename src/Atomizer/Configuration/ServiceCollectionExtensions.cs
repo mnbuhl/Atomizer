@@ -47,14 +47,6 @@ public static class ServiceCollectionExtensions
             )
         );
 
-        services.Add(
-            ServiceDescriptor.Describe(
-                typeof(IAtomizerLeasingScopeFactory),
-                options.LeasingScopeOptions.LockProviderFactory,
-                options.LeasingScopeOptions.LockProviderLifetime
-            )
-        );
-
         return services;
     }
 
