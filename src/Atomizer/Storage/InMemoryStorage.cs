@@ -195,75 +195,58 @@ public sealed class InMemoryStorage : IAtomizerStorage
     }
 
     /// <inheritdoc/>
-    public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
+    public Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var scheduleLock = _semaphores.GetOrAdd(QueueKey.Scheduler, _ => new SemaphoreSlim(1, 1));
-        await scheduleLock.WaitAsync(cancellationToken);
-        try
+        var now = _clock.UtcNow;
+        var schedulesList = schedules.ToList();
+
+        foreach (var schedule in schedulesList)
         {
-            var now = _clock.UtcNow;
-            var schedulesList = schedules.ToList();
-
-            foreach (var schedule in schedulesList)
+            if (!_schedules.ContainsKey(schedule.JobKey))
             {
-                if (!_schedules.ContainsKey(schedule.JobKey))
-                {
-                    _logger.LogDebug("UpdateSchedules: schedule for jobKey={JobKey} not found", schedule.JobKey);
-                    continue;
-                }
-
-                schedule.UpdatedAt = now;
-                _schedules[schedule.JobKey] = schedule;
+                _logger.LogDebug("UpdateSchedules: schedule for jobKey={JobKey} not found", schedule.JobKey);
+                continue;
             }
 
-            _logger.LogDebug("UpdateSchedules: updated {Count} schedules", schedulesList.Count);
+            schedule.UpdatedAt = now;
+            _schedules[schedule.JobKey] = schedule;
         }
-        finally
-        {
-            scheduleLock.Release();
-        }
+
+        _logger.LogDebug("UpdateSchedules: updated {Count} schedules", schedulesList.Count);
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
+    public Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(
         DateTimeOffset now,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var scheduleLock = _semaphores.GetOrAdd(QueueKey.Scheduler, _ => new SemaphoreSlim(1, 1));
-        await scheduleLock.WaitAsync(cancellationToken);
-        try
+        _logger.LogDebug("GetDueSchedules requested now={Now:o}", now);
+
+        var due = _schedules
+            .Values.Where(s => s.Enabled && s.NextRunAt <= now)
+            .OrderBy(s => s.NextRunAt)
+            .ThenBy(s => s.CreatedAt)
+            .ToList();
+
+        if (due.Count == 0)
         {
-            _logger.LogDebug("GetDueSchedules requested now={Now:o}", now);
-
-            var due = _schedules
-                .Values.Where(s => s.Enabled && s.NextRunAt <= now)
-                .OrderBy(s => s.NextRunAt)
-                .ThenBy(s => s.CreatedAt)
-                .ToList();
-
-            if (due.Count == 0)
-            {
-                _logger.LogDebug("LeaseDueSchedules: no due schedules");
-                return Array.Empty<AtomizerSchedule>();
-            }
-
-            _logger.LogDebug(
-                "LeaseDueSchedules: leased {Count} schedules: [{Keys}]",
-                due.Count,
-                string.Join(",", due.Select(x => x.JobKey))
-            );
-
-            return due;
+            _logger.LogDebug("LeaseDueSchedules: no due schedules");
+            return Task.FromResult((IReadOnlyList<AtomizerSchedule>)Array.Empty<AtomizerSchedule>());
         }
-        finally
-        {
-            scheduleLock.Release();
-        }
+
+        _logger.LogDebug(
+            "LeaseDueSchedules: leased {Count} schedules: [{Keys}]",
+            due.Count,
+            string.Join(",", due.Select(x => x.JobKey))
+        );
+
+        return Task.FromResult((IReadOnlyList<AtomizerSchedule>)due);
     }
 
     /// <inheritdoc/>

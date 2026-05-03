@@ -69,6 +69,7 @@ internal sealed class SchedulePoller : ISchedulePoller
                                     continue;
                                 }
 
+                                // ReSharper disable once PossiblyMistakenUseOfCancellationToken
                                 await _scheduleProcessor.ProcessAsync(schedule, horizon, execToken);
                                 schedule.UpdateNextOccurence(horizon, now);
                             }
