@@ -25,7 +25,8 @@ internal sealed class MySqlDialect : ISqlDialect
         var colId = c[nameof(AtomizerJobEntity.Id)];
         var statusPending = (int)AtomizerEntityJobStatus.Pending;
         var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        var format = $@"SELECT t.*
+        var format =
+            $@"SELECT t.*
 FROM {table} AS t
 WHERE {colQueueKey} = {{0}}
   AND (
@@ -55,7 +56,8 @@ FOR UPDATE SKIP LOCKED;";
         var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
         var statusPending = (int)AtomizerEntityJobStatus.Pending;
         var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        var format = $@"UPDATE {table}
+        var format =
+            $@"UPDATE {table}
 SET {colStatus} = {statusPending},
     {colLeaseToken} = NULL,
     {colVisibleAt} = NULL,
@@ -72,7 +74,8 @@ WHERE {colLeaseToken} = {{1}}
         var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
         var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
         var colId = c[nameof(AtomizerScheduleEntity.Id)];
-        var format = $@"SELECT t.*
+        var format =
+            $@"SELECT t.*
 FROM {table} AS t
 WHERE {colNextRunAt} <= {{0}}
   AND {colEnabled} = TRUE
@@ -101,8 +104,12 @@ FOR UPDATE SKIP LOCKED;";
         var colLastEnqueueAt = c[nameof(AtomizerScheduleEntity.LastEnqueueAt)];
         var colCreatedAt = c[nameof(AtomizerScheduleEntity.CreatedAt)];
         var colUpdatedAt = c[nameof(AtomizerScheduleEntity.UpdatedAt)];
-        var retryIntervals = string.Join(";", Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds));
-        var format = $@"INSERT INTO {table} (
+        var retryIntervals = string.Join(
+            ";",
+            Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds)
+        );
+        var format =
+            $@"INSERT INTO {table} (
     {colId},
     {colJobKey},
     {colQueueKey},

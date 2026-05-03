@@ -25,7 +25,8 @@ internal sealed class SqlServerDialect : ISqlDialect
         var colId = c[nameof(AtomizerJobEntity.Id)];
         var statusPending = (int)AtomizerEntityJobStatus.Pending;
         var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        var format = $@"SELECT TOP({batchSize}) t.*
+        var format =
+            $@"SELECT TOP({batchSize}) t.*
 FROM {table} AS t WITH (UPDLOCK, READPAST, ROWLOCK)
 WHERE {colQueueKey} = {{0}}
   AND (
@@ -53,7 +54,8 @@ ORDER BY {colScheduledAt}, {colId};";
         var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
         var statusPending = (int)AtomizerEntityJobStatus.Pending;
         var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        var format = $@"UPDATE {table}
+        var format =
+            $@"UPDATE {table}
 SET {colStatus} = {statusPending},
     {colLeaseToken} = NULL,
     {colVisibleAt} = NULL,
@@ -70,7 +72,8 @@ WHERE {colLeaseToken} = {{1}}
         var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
         var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
         var colId = c[nameof(AtomizerScheduleEntity.Id)];
-        var format = $@"SELECT t.*
+        var format =
+            $@"SELECT t.*
 FROM {table} AS t WITH (UPDLOCK, READPAST, ROWLOCK)
 WHERE {colNextRunAt} <= {{0}}
   AND {colEnabled} = 1
@@ -98,8 +101,12 @@ ORDER BY {colNextRunAt}, {colId};";
         var colLastEnqueueAt = c[nameof(AtomizerScheduleEntity.LastEnqueueAt)];
         var colCreatedAt = c[nameof(AtomizerScheduleEntity.CreatedAt)];
         var colUpdatedAt = c[nameof(AtomizerScheduleEntity.UpdatedAt)];
-        var retryIntervals = string.Join(";", Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds));
-        var format = $@"MERGE {table} WITH (HOLDLOCK) AS target
+        var retryIntervals = string.Join(
+            ";",
+            Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds)
+        );
+        var format =
+            $@"MERGE {table} WITH (HOLDLOCK) AS target
 USING (SELECT {{0}}) AS src ({colJobKey})
 ON target.{colJobKey} = src.{colJobKey}
 WHEN MATCHED THEN UPDATE SET
@@ -149,21 +156,21 @@ WHEN NOT MATCHED THEN INSERT (
 );";
         return FormattableStringFactory.Create(
             format,
-            entity.JobKey,              // {0}
-            entity.QueueKey,            // {1}
-            entity.PayloadType,         // {2}
-            entity.Payload,             // {3}
-            entity.Schedule,            // {4}
-            entity.TimeZone,            // {5}
-            (int)entity.MisfirePolicy,  // {6}
-            entity.MaxCatchUp,          // {7}
-            entity.Enabled ? 1 : 0,     // {8}
-            retryIntervals,             // {9}
-            entity.NextRunAt,           // {10}
-            now,                        // {11}
-            entity.Id,                  // {12}
-            entity.LastEnqueueAt,       // {13}
-            entity.CreatedAt            // {14}
+            entity.JobKey, // {0}
+            entity.QueueKey, // {1}
+            entity.PayloadType, // {2}
+            entity.Payload, // {3}
+            entity.Schedule, // {4}
+            entity.TimeZone, // {5}
+            (int)entity.MisfirePolicy, // {6}
+            entity.MaxCatchUp, // {7}
+            entity.Enabled ? 1 : 0, // {8}
+            retryIntervals, // {9}
+            entity.NextRunAt, // {10}
+            now, // {11}
+            entity.Id, // {12}
+            entity.LastEnqueueAt, // {13}
+            entity.CreatedAt // {14}
         );
     }
 }

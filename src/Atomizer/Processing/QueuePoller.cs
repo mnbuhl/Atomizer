@@ -60,12 +60,7 @@ internal class QueuePoller : IQueuePoller
                             queue.QueueKey,
                             async innerCt =>
                             {
-                                var jobs = await storage.GetDueJobsAsync(
-                                    queue.QueueKey,
-                                    now,
-                                    queue.BatchSize,
-                                    innerCt
-                                );
+                                var jobs = await storage.GetDueJobsAsync(queue.QueueKey, now, queue.BatchSize, innerCt);
                                 var acquired = new List<AtomizerJob>();
 
                                 if (jobs.Count > 0)

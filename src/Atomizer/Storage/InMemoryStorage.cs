@@ -104,8 +104,8 @@ public sealed class InMemoryStorage : IAtomizerStorage
             return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
         }
 
-        candidates = ids.Keys
-            .Select(id => _jobs.TryGetValue(id, out var j) ? j : null)
+        candidates = ids
+            .Keys.Select(id => _jobs.TryGetValue(id, out var j) ? j : null)
             .Where(j =>
                 j != null
                 && (
@@ -280,10 +280,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         if (!acquired)
         {
-            _logger.LogDebug(
-                "ExecuteInLeaseAsync: skipping tick for queue '{QueueKey}' — lease already held",
-                queue
-            );
+            _logger.LogDebug("ExecuteInLeaseAsync: skipping tick for queue '{QueueKey}' — lease already held", queue);
             return default!;
         }
 

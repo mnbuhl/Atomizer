@@ -187,8 +187,9 @@ public sealed class RetryStrategy : ValueObject
         return TimeSpan.FromMilliseconds(interval.TotalMilliseconds * jitterFactor);
     }
 #else
-    private static readonly ThreadLocal<Random> _random =
-        new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
+    private static readonly ThreadLocal<Random> _random = new ThreadLocal<Random>(() =>
+        new Random(Guid.NewGuid().GetHashCode())
+    );
 
     private static TimeSpan ApplyJitter(TimeSpan interval)
     {

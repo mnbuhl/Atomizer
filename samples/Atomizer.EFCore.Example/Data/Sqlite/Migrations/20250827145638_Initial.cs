@@ -11,8 +11,7 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "Atomizer");
+            migrationBuilder.EnsureSchema(name: "Atomizer");
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobs",
@@ -34,12 +33,13 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     FailedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
                     LeaseToken = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
                     ScheduleJobKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
-                    IdempotencyKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true)
+                    IdempotencyKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerJobs", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "AtomizerSchedules",
@@ -60,12 +60,13 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     NextRunAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerSchedules", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "Products",
@@ -75,12 +76,13 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Price = table.Column<decimal>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Quantity = table.Column<int>(type: "INTEGER", nullable: false)
+                    Quantity = table.Column<int>(type: "INTEGER", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Products", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobErrors",
@@ -94,7 +96,7 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     ExceptionType = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     Attempt = table.Column<int>(type: "INTEGER", nullable: false),
-                    RuntimeIdentity = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true)
+                    RuntimeIdentity = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
                 },
                 constraints: table =>
                 {
@@ -105,33 +107,29 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                         principalSchema: "Atomizer",
                         principalTable: "AtomizerJobs",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobErrors_JobId",
                 schema: "Atomizer",
                 table: "AtomizerJobErrors",
-                column: "JobId");
+                column: "JobId"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "AtomizerJobErrors",
-                schema: "Atomizer");
+            migrationBuilder.DropTable(name: "AtomizerJobErrors", schema: "Atomizer");
 
-            migrationBuilder.DropTable(
-                name: "AtomizerSchedules",
-                schema: "Atomizer");
+            migrationBuilder.DropTable(name: "AtomizerSchedules", schema: "Atomizer");
 
-            migrationBuilder.DropTable(
-                name: "Products");
+            migrationBuilder.DropTable(name: "Products");
 
-            migrationBuilder.DropTable(
-                name: "AtomizerJobs",
-                schema: "Atomizer");
+            migrationBuilder.DropTable(name: "AtomizerJobs", schema: "Atomizer");
         }
     }
 }

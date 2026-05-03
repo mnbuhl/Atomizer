@@ -157,10 +157,7 @@ public class AtomizerSchedule : Model
             case MisfirePolicy.CatchUp:
                 var from = (LastEnqueueAt ?? CreatedAt).AddTicks(1);
                 occurrences.AddRange(
-                    CronExpression
-                        .GetOccurrences(from, now, TimeZone)
-                        .OrderBy(dt => dt)
-                        .Take(MaxCatchUp)
+                    CronExpression.GetOccurrences(from, now, TimeZone).OrderBy(dt => dt).Take(MaxCatchUp)
                 );
                 break;
             default:
