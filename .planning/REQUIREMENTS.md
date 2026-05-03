@@ -33,9 +33,9 @@
 
 ### InMemory Alignment
 
-- [ ] **INMEM-01**: InMemory backend implements the same callback-based leasing contract as EF Core — callers cannot observe behavioral differences
-- [ ] **INMEM-02**: InMemory `GetDueJobsAsync` holds its per-queue `SemaphoreSlim` lock for the duration of the lease callback (released after the callback completes, same as EF Core transaction lifecycle)
-- [ ] **INMEM-03**: InMemory `UpsertScheduleAsync` is atomic — uses the existing lock to prevent the same race condition as the SQL @todo
+- [x] **INMEM-01**: InMemory backend implements the same callback-based leasing contract as EF Core — callers cannot observe behavioral differences
+- [x] **INMEM-02**: InMemory `GetDueJobsAsync` holds its per-queue `SemaphoreSlim` lock for the duration of the lease callback (released after the callback completes, same as EF Core transaction lifecycle)
+- [x] **INMEM-03**: InMemory `UpsertScheduleAsync` is atomic — uses the existing lock to prevent the same race condition as the SQL @todo
 
 ### Public API & Versioning
 
@@ -76,9 +76,9 @@
 | LEASE-02 | Phase 1 | Pending |
 | LEASE-03 | Phase 1 | Pending |
 | COMPAT-01 | Phase 1 | Pending |
-| INMEM-01 | Phase 2 | Pending |
-| INMEM-02 | Phase 2 | Pending |
-| INMEM-03 | Phase 2 | Pending |
+| INMEM-01 | Phase 2 | Complete |
+| INMEM-02 | Phase 2 | Complete |
+| INMEM-03 | Phase 2 | Complete |
 | DIAL-01 | Phase 3 | Pending |
 | DIAL-02 | Phase 3 | Pending |
 | DIAL-03 | Phase 3 | Pending |
