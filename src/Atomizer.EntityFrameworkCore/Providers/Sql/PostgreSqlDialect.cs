@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Atomizer.EntityFrameworkCore.Entities;
 
 namespace Atomizer.EntityFrameworkCore.Providers.Sql;
@@ -16,118 +15,141 @@ internal sealed class PostgreSqlDialect : ISqlDialect
 
     public FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
     {
-        var pgNow = now.ToString("u");
+        var table = _jobs.Table;
         var c = _jobs.Col;
-        return FormattableStringFactory.Create(
-            $"""
-                SELECT t.*
-                FROM {_jobs.Table} AS t
-                WHERE {c[nameof(AtomizerJobEntity.QueueKey)]} = '{queueKey}'
-                  AND (
-                        ( {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending}
-                          AND ( {c[nameof(AtomizerJobEntity.VisibleAt)]} IS NULL
-                                OR {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{pgNow}')
-                          AND {c[nameof(AtomizerJobEntity.ScheduledAt)]} <= '{pgNow}'
-                        )
-                        OR
-                        ( {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing}
-                          AND {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{pgNow}'
-                        )
-                      )
-                ORDER BY {c[nameof(AtomizerJobEntity.ScheduledAt)]}, {c[nameof(AtomizerJobEntity.Id)]}
-                LIMIT {batchSize}
-                FOR NO KEY UPDATE SKIP LOCKED;
-            """
-        );
+        var colStatus = c[nameof(AtomizerJobEntity.Status)];
+        var colQueueKey = c[nameof(AtomizerJobEntity.QueueKey)];
+        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
+        var colScheduledAt = c[nameof(AtomizerJobEntity.ScheduledAt)];
+        var colId = c[nameof(AtomizerJobEntity.Id)];
+        var statusPending = (int)AtomizerEntityJobStatus.Pending;
+        var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
+        return $"""
+            SELECT t.*
+            FROM {table} AS t
+            WHERE {colQueueKey} = {queueKey.Key}
+              AND (
+                    ( {colStatus} = {statusPending}
+                      AND ( {colVisibleAt} IS NULL
+                            OR {colVisibleAt} <= {now})
+                      AND {colScheduledAt} <= {now}
+                    )
+                    OR
+                    ( {colStatus} = {statusProcessing}
+                      AND {colVisibleAt} <= {now}
+                    )
+                  )
+            ORDER BY {colScheduledAt}, {colId}
+            LIMIT {batchSize}
+            FOR NO KEY UPDATE SKIP LOCKED;
+            """;
     }
 
     public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
     {
+        var table = _jobs.Table;
         var c = _jobs.Col;
-        return FormattableStringFactory.Create(
-            $"""
-                UPDATE {_jobs.Table}
-                SET {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending},
-                    {c[nameof(AtomizerJobEntity.LeaseToken)]} = NULL,
-                    {c[nameof(AtomizerJobEntity.VisibleAt)]} = NULL,
-                    {c[nameof(AtomizerJobEntity.UpdatedAt)]} = '{now:u}'
-                WHERE {c[nameof(AtomizerJobEntity.LeaseToken)]} = '{leaseToken.Token}'
-                  AND {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing};
-            """
-        );
+        var colStatus = c[nameof(AtomizerJobEntity.Status)];
+        var colLeaseToken = c[nameof(AtomizerJobEntity.LeaseToken)];
+        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
+        var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
+        var statusPending = (int)AtomizerEntityJobStatus.Pending;
+        var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
+        return $"""
+            UPDATE {table}
+            SET {colStatus} = {statusPending},
+                {colLeaseToken} = NULL,
+                {colVisibleAt} = NULL,
+                {colUpdatedAt} = {now}
+            WHERE {colLeaseToken} = {leaseToken.Token}
+              AND {colStatus} = {statusProcessing};
+            """;
     }
 
     public FormattableString GetDueSchedules(DateTimeOffset now)
     {
-        var pgNow = now.ToString("u");
+        var table = _schedules.Table;
         var c = _schedules.Col;
-        return FormattableStringFactory.Create(
-            $"""
-                SELECT t.*
-                FROM {_schedules.Table} AS t
-                WHERE {c[nameof(AtomizerScheduleEntity.Enabled)]} = TRUE
-                  AND {c[nameof(AtomizerScheduleEntity.NextRunAt)]} <= '{pgNow}'
-                ORDER BY {c[nameof(AtomizerScheduleEntity.NextRunAt)]}, {c[
-                nameof(AtomizerScheduleEntity.Id)
-            ]}
-                FOR NO KEY UPDATE SKIP LOCKED;
-            """
-        );
+        var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
+        var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
+        var colId = c[nameof(AtomizerScheduleEntity.Id)];
+        return $"""
+            SELECT t.*
+            FROM {table} AS t
+            WHERE {colEnabled} = TRUE
+              AND {colNextRunAt} <= {now}
+            ORDER BY {colNextRunAt}, {colId}
+            FOR NO KEY UPDATE SKIP LOCKED;
+            """;
     }
 
-    public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule)
+    public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule, DateTimeOffset now)
     {
         var entity = schedule.ToEntity();
-        var pgNow = DateTimeOffset.UtcNow.ToString("u");
+        var table = _schedules.Table;
         var c = _schedules.Col;
-        return FormattableStringFactory.Create(
-            $"""
-                INSERT INTO {_schedules.Table} (
-                    {c[nameof(AtomizerScheduleEntity.Id)]},
-                    {c[nameof(AtomizerScheduleEntity.JobKey)]},
-                    {c[nameof(AtomizerScheduleEntity.QueueKey)]},
-                    {c[nameof(AtomizerScheduleEntity.PayloadType)]},
-                    {c[nameof(AtomizerScheduleEntity.Payload)]},
-                    {c[nameof(AtomizerScheduleEntity.Schedule)]},
-                    {c[nameof(AtomizerScheduleEntity.TimeZone)]},
-                    {c[nameof(AtomizerScheduleEntity.MisfirePolicy)]},
-                    {c[nameof(AtomizerScheduleEntity.MaxCatchUp)]},
-                    {c[nameof(AtomizerScheduleEntity.Enabled)]},
-                    {c[nameof(AtomizerScheduleEntity.RetryIntervals)]},
-                    {c[nameof(AtomizerScheduleEntity.NextRunAt)]},
-                    {c[nameof(AtomizerScheduleEntity.LastEnqueueAt)]},
-                    {c[nameof(AtomizerScheduleEntity.CreatedAt)]},
-                    {c[nameof(AtomizerScheduleEntity.UpdatedAt)]}
-                ) VALUES (
-                    '{entity.Id}',
-                    '{entity.JobKey}',
-                    '{entity.QueueKey}',
-                    '{entity.PayloadType}',
-                    '{entity.Payload}',
-                    '{entity.Schedule}',
-                    '{entity.TimeZone}',
-                    {(int)entity.MisfirePolicy},
-                    {entity.MaxCatchUp},
-                    {(entity.Enabled ? "TRUE" : "FALSE")},
-                    '{string.Join(";", Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds))}',
-                    '{entity.NextRunAt:u}',
-                    {(entity.LastEnqueueAt.HasValue ? $"'{entity.LastEnqueueAt:u}'" : "NULL")},
-                    '{entity.CreatedAt:u}',
-                    '{pgNow}'
-                )
-                ON CONFLICT ({c[nameof(AtomizerScheduleEntity.JobKey)]}) DO UPDATE SET
-                    {c[nameof(AtomizerScheduleEntity.QueueKey)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.QueueKey)]},
-                    {c[nameof(AtomizerScheduleEntity.PayloadType)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.PayloadType)]},
-                    {c[nameof(AtomizerScheduleEntity.Payload)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.Payload)]},
-                    {c[nameof(AtomizerScheduleEntity.Schedule)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.Schedule)]},
-                    {c[nameof(AtomizerScheduleEntity.TimeZone)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.TimeZone)]},
-                    {c[nameof(AtomizerScheduleEntity.MisfirePolicy)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.MisfirePolicy)]},
-                    {c[nameof(AtomizerScheduleEntity.MaxCatchUp)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.MaxCatchUp)]},
-                    {c[nameof(AtomizerScheduleEntity.Enabled)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.Enabled)]},
-                    {c[nameof(AtomizerScheduleEntity.RetryIntervals)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.RetryIntervals)]},
-                    {c[nameof(AtomizerScheduleEntity.NextRunAt)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.NextRunAt)]},
-                    {c[nameof(AtomizerScheduleEntity.UpdatedAt)]} = EXCLUDED.{c[nameof(AtomizerScheduleEntity.UpdatedAt)]};
-            """
-        );
+        var colId = c[nameof(AtomizerScheduleEntity.Id)];
+        var colJobKey = c[nameof(AtomizerScheduleEntity.JobKey)];
+        var colQueueKey = c[nameof(AtomizerScheduleEntity.QueueKey)];
+        var colPayloadType = c[nameof(AtomizerScheduleEntity.PayloadType)];
+        var colPayload = c[nameof(AtomizerScheduleEntity.Payload)];
+        var colSchedule = c[nameof(AtomizerScheduleEntity.Schedule)];
+        var colTimeZone = c[nameof(AtomizerScheduleEntity.TimeZone)];
+        var colMisfirePolicy = c[nameof(AtomizerScheduleEntity.MisfirePolicy)];
+        var colMaxCatchUp = c[nameof(AtomizerScheduleEntity.MaxCatchUp)];
+        var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
+        var colRetryIntervals = c[nameof(AtomizerScheduleEntity.RetryIntervals)];
+        var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
+        var colLastEnqueueAt = c[nameof(AtomizerScheduleEntity.LastEnqueueAt)];
+        var colCreatedAt = c[nameof(AtomizerScheduleEntity.CreatedAt)];
+        var colUpdatedAt = c[nameof(AtomizerScheduleEntity.UpdatedAt)];
+        var retryIntervals = string.Join(";", Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds));
+        return $"""
+            INSERT INTO {table} (
+                {colId},
+                {colJobKey},
+                {colQueueKey},
+                {colPayloadType},
+                {colPayload},
+                {colSchedule},
+                {colTimeZone},
+                {colMisfirePolicy},
+                {colMaxCatchUp},
+                {colEnabled},
+                {colRetryIntervals},
+                {colNextRunAt},
+                {colLastEnqueueAt},
+                {colCreatedAt},
+                {colUpdatedAt}
+            ) VALUES (
+                {entity.Id},
+                {entity.JobKey},
+                {entity.QueueKey},
+                {entity.PayloadType},
+                {entity.Payload},
+                {entity.Schedule},
+                {entity.TimeZone},
+                {(int)entity.MisfirePolicy},
+                {entity.MaxCatchUp},
+                {entity.Enabled},
+                {retryIntervals},
+                {entity.NextRunAt},
+                {entity.LastEnqueueAt},
+                {entity.CreatedAt},
+                {now}
+            )
+            ON CONFLICT ({colJobKey}) DO UPDATE SET
+                {colQueueKey} = EXCLUDED.{colQueueKey},
+                {colPayloadType} = EXCLUDED.{colPayloadType},
+                {colPayload} = EXCLUDED.{colPayload},
+                {colSchedule} = EXCLUDED.{colSchedule},
+                {colTimeZone} = EXCLUDED.{colTimeZone},
+                {colMisfirePolicy} = EXCLUDED.{colMisfirePolicy},
+                {colMaxCatchUp} = EXCLUDED.{colMaxCatchUp},
+                {colEnabled} = EXCLUDED.{colEnabled},
+                {colRetryIntervals} = EXCLUDED.{colRetryIntervals},
+                {colNextRunAt} = EXCLUDED.{colNextRunAt},
+                {colUpdatedAt} = EXCLUDED.{colUpdatedAt};
+            """;
     }
 }
