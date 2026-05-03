@@ -1,45 +1,47 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using Atomizer.EntityFrameworkCore.Entities;
 
 namespace Atomizer.EntityFrameworkCore.Providers.Sql;
 
-public class SqlServerProvider : IDatabaseProviderSql
+internal sealed class PostgreSqlDialect : ISqlDialect
 {
     private readonly EntityMap _jobs;
     private readonly EntityMap _schedules;
 
-    public SqlServerProvider(EntityMap jobs, EntityMap schedules)
+    public PostgreSqlDialect(EntityMap jobs, EntityMap schedules)
     {
         _jobs = jobs;
         _schedules = schedules;
     }
 
-    public FormattableString GetDueJobsAsync(QueueKey queueKey, DateTimeOffset now, int batchSize)
+    public FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
     {
-        var sqlServerNow = now.ToString("u");
+        var pgNow = now.ToString("u");
         var c = _jobs.Col;
         return FormattableStringFactory.Create(
             $"""
-                SELECT TOP({batchSize}) t.*
-                FROM {_jobs.Table} AS t WITH (UPDLOCK, READPAST, ROWLOCK)
+                SELECT t.*
+                FROM {_jobs.Table} AS t
                 WHERE {c[nameof(AtomizerJobEntity.QueueKey)]} = '{queueKey}'
                   AND (
                         ( {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending}
                           AND ( {c[nameof(AtomizerJobEntity.VisibleAt)]} IS NULL
-                                OR {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{sqlServerNow}')
-                          AND {c[nameof(AtomizerJobEntity.ScheduledAt)]} <= '{sqlServerNow}'
+                                OR {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{pgNow}')
+                          AND {c[nameof(AtomizerJobEntity.ScheduledAt)]} <= '{pgNow}'
                         )
                         OR
                         ( {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing}
-                          AND {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{sqlServerNow}'
+                          AND {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{pgNow}'
                         )
                       )
-                ORDER BY {c[nameof(AtomizerJobEntity.ScheduledAt)]}, {c[nameof(AtomizerJobEntity.Id)]};
+                ORDER BY {c[nameof(AtomizerJobEntity.ScheduledAt)]}, {c[nameof(AtomizerJobEntity.Id)]}
+                LIMIT {batchSize}
+                FOR NO KEY UPDATE SKIP LOCKED;
             """
         );
     }
 
-    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken, DateTimeOffset now)
+    public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
     {
         var c = _jobs.Col;
         return FormattableStringFactory.Create(
@@ -55,18 +57,27 @@ public class SqlServerProvider : IDatabaseProviderSql
         );
     }
 
-    public FormattableString GetDueSchedulesAsync(DateTimeOffset now)
+    public FormattableString GetDueSchedules(DateTimeOffset now)
     {
-        var sqlServerNow = now.ToString("u");
+        var pgNow = now.ToString("u");
         var c = _schedules.Col;
         return FormattableStringFactory.Create(
             $"""
                 SELECT t.*
-                FROM {_schedules.Table} AS t WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE {c[nameof(AtomizerScheduleEntity.NextRunAt)]} <= '{sqlServerNow}'
-                  AND {c[nameof(AtomizerScheduleEntity.Enabled)]} = 1
-                ORDER BY {c[nameof(AtomizerScheduleEntity.NextRunAt)]}, {c[nameof(AtomizerScheduleEntity.Id)]};
+                FROM {_schedules.Table} AS t
+                WHERE {c[nameof(AtomizerScheduleEntity.Enabled)]} = TRUE
+                  AND {c[nameof(AtomizerScheduleEntity.NextRunAt)]} <= '{pgNow}'
+                ORDER BY {c[nameof(AtomizerScheduleEntity.NextRunAt)]}, {c[
+                nameof(AtomizerScheduleEntity.Id)
+            ]}
+                FOR NO KEY UPDATE SKIP LOCKED;
             """
         );
+    }
+
+    public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule)
+    {
+        // TODO: Implemented in Phase 4
+        throw new NotImplementedException();
     }
 }

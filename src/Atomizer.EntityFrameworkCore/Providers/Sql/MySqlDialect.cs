@@ -1,22 +1,22 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using Atomizer.EntityFrameworkCore.Entities;
 
 namespace Atomizer.EntityFrameworkCore.Providers.Sql;
 
-public class PostgreSqlProvider : IDatabaseProviderSql
+internal sealed class MySqlDialect : ISqlDialect
 {
     private readonly EntityMap _jobs;
     private readonly EntityMap _schedules;
 
-    public PostgreSqlProvider(EntityMap jobs, EntityMap schedules)
+    public MySqlDialect(EntityMap jobs, EntityMap schedules)
     {
         _jobs = jobs;
         _schedules = schedules;
     }
 
-    public FormattableString GetDueJobsAsync(QueueKey queueKey, DateTimeOffset now, int batchSize)
+    public FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
     {
-        var pgNow = now.ToString("u");
+        var mySqlNow = now.ToString("yyyy-MM-dd HH:mm:ss");
         var c = _jobs.Col;
         return FormattableStringFactory.Create(
             $"""
@@ -26,22 +26,22 @@ public class PostgreSqlProvider : IDatabaseProviderSql
                   AND (
                         ( {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending}
                           AND ( {c[nameof(AtomizerJobEntity.VisibleAt)]} IS NULL
-                                OR {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{pgNow}')
-                          AND {c[nameof(AtomizerJobEntity.ScheduledAt)]} <= '{pgNow}'
+                                OR {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{mySqlNow}')
+                          AND {c[nameof(AtomizerJobEntity.ScheduledAt)]} <= '{mySqlNow}'
                         )
                         OR
                         ( {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing}
-                          AND {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{pgNow}'
+                          AND {c[nameof(AtomizerJobEntity.VisibleAt)]} <= '{mySqlNow}'
                         )
                       )
                 ORDER BY {c[nameof(AtomizerJobEntity.ScheduledAt)]}, {c[nameof(AtomizerJobEntity.Id)]}
                 LIMIT {batchSize}
-                FOR NO KEY UPDATE SKIP LOCKED;
+                FOR UPDATE SKIP LOCKED;
             """
         );
     }
 
-    public FormattableString ReleaseLeasedJobsAsync(LeaseToken leaseToken, DateTimeOffset now)
+    public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
     {
         var c = _jobs.Col;
         return FormattableStringFactory.Create(
@@ -50,28 +50,32 @@ public class PostgreSqlProvider : IDatabaseProviderSql
                 SET {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Pending},
                     {c[nameof(AtomizerJobEntity.LeaseToken)]} = NULL,
                     {c[nameof(AtomizerJobEntity.VisibleAt)]} = NULL,
-                    {c[nameof(AtomizerJobEntity.UpdatedAt)]} = '{now:u}'
+                    {c[nameof(AtomizerJobEntity.UpdatedAt)]} = '{now:yyyy-MM-dd HH:mm:ss}'
                 WHERE {c[nameof(AtomizerJobEntity.LeaseToken)]} = '{leaseToken.Token}'
                   AND {c[nameof(AtomizerJobEntity.Status)]} = {(int)AtomizerEntityJobStatus.Processing};
             """
         );
     }
 
-    public FormattableString GetDueSchedulesAsync(DateTimeOffset now)
+    public FormattableString GetDueSchedules(DateTimeOffset now)
     {
-        var pgNow = now.ToString("u");
+        var mySqlNow = now.ToString("yyyy-MM-dd HH:mm:ss");
         var c = _schedules.Col;
         return FormattableStringFactory.Create(
             $"""
-                SELECT t.*
-                FROM {_schedules.Table} AS t
-                WHERE {c[nameof(AtomizerScheduleEntity.Enabled)]} = TRUE
-                  AND {c[nameof(AtomizerScheduleEntity.NextRunAt)]} <= '{pgNow}'
-                ORDER BY {c[nameof(AtomizerScheduleEntity.NextRunAt)]}, {c[
-                nameof(AtomizerScheduleEntity.Id)
-            ]}
-                FOR NO KEY UPDATE SKIP LOCKED;
+                SELECT *
+                FROM {_schedules.Table}
+                WHERE {c[nameof(AtomizerScheduleEntity.NextRunAt)]} <= '{mySqlNow}'
+                  AND {c[nameof(AtomizerScheduleEntity.Enabled)]} = TRUE
+                ORDER BY {c[nameof(AtomizerScheduleEntity.NextRunAt)]}, {c[nameof(AtomizerScheduleEntity.Id)]}
+                FOR UPDATE SKIP LOCKED;
             """
         );
+    }
+
+    public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule)
+    {
+        // TODO: Implemented in Phase 4
+        throw new NotImplementedException();
     }
 }
