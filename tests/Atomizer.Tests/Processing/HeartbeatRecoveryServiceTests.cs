@@ -56,11 +56,8 @@ public sealed class HeartbeatRecoveryServiceTests
         await recoveryAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
         cts.Cancel();
 
-        try
-        {
-            await run;
-        }
-        catch (OperationCanceledException) { }
+        var awaitRun = async () => await run;
+        await awaitRun.Should().ThrowAsync<OperationCanceledException>();
 
         heartbeat.InstanceId.Should().Be("local");
         heartbeat.LastHeartbeatAt.Should().Be(now);

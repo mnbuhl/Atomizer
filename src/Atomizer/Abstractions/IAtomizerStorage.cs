@@ -1,7 +1,7 @@
 ﻿namespace Atomizer.Abstractions;
 
 /// <summary>
-/// Defines the storage contract for persisting and querying Atomizer jobs and schedules.
+/// Defines the storage contract for Atomizer jobs, schedules, leases, and process heartbeats.
 /// </summary>
 public interface IAtomizerStorage
 {

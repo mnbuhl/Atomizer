@@ -446,7 +446,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
         }
     }
 
-
     private int ReleaseMatchingJobs(Func<AtomizerJob, bool> predicate, DateTimeOffset now)
     {
         var released = 0;
