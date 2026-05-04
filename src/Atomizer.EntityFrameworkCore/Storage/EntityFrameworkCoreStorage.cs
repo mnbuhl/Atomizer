@@ -85,34 +85,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         }
 
         JobEntities.Add(entity);
-
-        try
-        {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException) when (enforceIdempotency)
-        {
-            // A concurrent caller won the unique-index race for this idempotency key.
-            // Re-query to return the winning insert rather than propagating the exception.
-            _dbContext.ChangeTracker.Clear();
-            var winner = await JobEntities
-                .AsNoTracking()
-                .FirstOrDefaultAsync(j => j.IdempotencyKey == job.IdempotencyKey, cancellationToken);
-
-            if (winner != null)
-            {
-                _logger.LogDebug(
-                    "Idempotency key {IdempotencyKey} was inserted concurrently; returning existing ID {JobId}",
-                    job.IdempotencyKey,
-                    winner.Id
-                );
-                job.SequenceNumber = winner.SequenceNumber;
-                return winner.Id;
-            }
-
-            throw;
-        }
-
+        await _dbContext.SaveChangesAsync(cancellationToken);
         return entity.Id;
     }
 
@@ -147,11 +120,22 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         {
             var sql = _providerCache.Dialect.GetDueJobs(queueKey, now, batchSize);
 
+            // FromSqlInterpolated with CTEs is non-composable — Include() is not allowed.
+            // Load entities first, then fetch their errors in a second query by job ID.
             var entities = await JobEntities
                 .FromSqlInterpolated(sql)
-                .Include(j => j.Errors)
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
+
+            var ids = entities.Select(j => j.Id).ToList();
+            var errors = await JobErrorEntities
+                .AsNoTracking()
+                .Where(e => ids.Contains(e.JobId))
+                .ToListAsync(cancellationToken);
+
+            var errorsByJob = errors.GroupBy(e => e.JobId).ToDictionary(g => g.Key, g => g.ToList());
+            foreach (var entity in entities)
+                entity.Errors = errorsByJob.TryGetValue(entity.Id, out var jobErrors) ? jobErrors : [];
 
             return entities.Select(job => job.ToAtomizerJob()).ToList();
         }

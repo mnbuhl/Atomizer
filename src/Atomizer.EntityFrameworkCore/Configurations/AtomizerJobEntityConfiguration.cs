@@ -62,9 +62,5 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
             );
         builder.Property(job => job.PartitionKey).HasMaxLength(255).IsRequired(false);
         builder.Property(job => job.SequenceNumber).IsRequired(false);
-        builder
-            .HasIndex(job => job.IdempotencyKey)
-            .IsUnique()
-            .HasFilter($"{nameof(AtomizerJobEntity.IdempotencyKey)} IS NOT NULL");
     }
 }
