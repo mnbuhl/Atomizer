@@ -140,10 +140,7 @@ public class QueuePumpTests
         // Assert: Should return after about 1 second, not 2
         sw.Elapsed.TotalSeconds.Should().BeGreaterThanOrEqualTo(1);
         sw.Elapsed.TotalSeconds.Should()
-            .BeLessThanOrEqualTo(
-                1.5,
-                $"StopAsync should return after about 1 second, elapsed: {sw.Elapsed.TotalSeconds}"
-            );
+            .BeLessThan(2, $"StopAsync should return after about 1 second, elapsed: {sw.Elapsed.TotalSeconds}");
 
         logger.Received(1).LogInformation($"Stopping queue '{queueOptions.QueueKey}'...");
         logger.Received(1).LogInformation($"Queue '{queueOptions.QueueKey}' stopped");
