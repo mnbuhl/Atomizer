@@ -45,6 +45,12 @@ partition_heads AS (
   WHERE {colQueueKey} = {{1}}
     AND {colPartitionKey} IS NOT NULL
     AND {colPartitionKey} NOT IN (SELECT {colPartitionKey} FROM blocked_partitions)
+    AND (
+      ({colStatus} = {statusPending}
+        AND ({colVisibleAt} IS NULL OR {colVisibleAt} <= {{9}})
+        AND {colScheduledAt} <= {{10}})
+      OR ({colStatus} = {statusProcessing} AND {colVisibleAt} <= {{11}})
+    )
   GROUP BY {colPartitionKey}
 )
 SELECT TOP({batchSize}) t.*
@@ -75,15 +81,18 @@ WHERE t.{colQueueKey} = {{2}}
 ORDER BY t.{colScheduledAt}, t.{colId};";
         return FormattableStringFactory.Create(
             format,
-            queueKey.Key,
-            queueKey.Key,
-            queueKey.Key,
-            now,
-            now,
-            now,
-            now,
-            now,
-            now
+            queueKey.Key,  // {0} blocked_partitions queue filter
+            queueKey.Key,  // {1} partition_heads queue filter
+            queueKey.Key,  // {2} outer SELECT queue filter
+            now,           // {3} unpartitioned VisibleAt
+            now,           // {4} unpartitioned ScheduledAt
+            now,           // {5} unpartitioned Processing VisibleAt
+            now,           // {6} partitioned VisibleAt
+            now,           // {7} partitioned ScheduledAt
+            now,           // {8} partitioned Processing VisibleAt
+            now,           // {9} partition_heads VisibleAt  (batchSize is TOP({batchSize}) inlined, not a placeholder)
+            now,           // {10} partition_heads ScheduledAt
+            now            // {11} partition_heads Processing VisibleAt
         );
     }
 
