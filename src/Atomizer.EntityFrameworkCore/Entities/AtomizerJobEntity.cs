@@ -139,6 +139,9 @@ public static class AtomizerJobEntityMapper
             CompletedAt = entity.CompletedAt,
             FailedAt = entity.FailedAt,
             LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
+            // RetryStrategy.None serializes as [0ms] (length 1), so the normal round-trip for None
+            // is handled by the Intervals path. The length == 0 guard is a defensive fallback for
+            // corrupt rows with an empty RetryIntervals column; without it, Intervals([]) would throw.
             RetryStrategy =
                 entity.RetryIntervals.Length == 0 ? RetryStrategy.None : RetryStrategy.Intervals(entity.RetryIntervals),
             ScheduleJobKey = entity.ScheduleJobKey != null ? new JobKey(entity.ScheduleJobKey) : null,
