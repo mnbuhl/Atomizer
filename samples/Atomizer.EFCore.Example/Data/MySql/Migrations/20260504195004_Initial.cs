@@ -104,6 +104,9 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         MisfirePolicy = table.Column<int>(type: "int", nullable: false),
                         MaxCatchUp = table.Column<int>(type: "int", nullable: false),
                         Enabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                        PartitionKey = table
+                            .Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
                         RetryIntervals = table
                             .Column<string>(type: "varchar(4096)", maxLength: 4096, nullable: false)
                             .Annotation("MySql:CharSet", "utf8mb4"),

@@ -72,6 +72,7 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     MisfirePolicy = table.Column<int>(type: "INTEGER", nullable: false),
                     MaxCatchUp = table.Column<int>(type: "INTEGER", nullable: false),
                     Enabled = table.Column<bool>(type: "INTEGER", nullable: false),
+                    PartitionKey = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
                     RetryIntervals = table.Column<string>(type: "TEXT", maxLength: 4096, nullable: false),
                     NextRunAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),

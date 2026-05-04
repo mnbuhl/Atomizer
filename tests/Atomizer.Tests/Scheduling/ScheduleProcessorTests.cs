@@ -59,6 +59,36 @@ public class ScheduleProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_WhenScheduleHasPartitionKey_ShouldInsertJobWithPartitionKey()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("scheduled-partition");
+        var schedule = AtomizerSchedule.Create(
+            new JobKey("testjob"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            "payload",
+            Schedule.EverySecond,
+            TimeZoneInfo.Utc,
+            _clock.UtcNow,
+            partitionKey: partitionKey
+        );
+        var horizon = _clock.UtcNow.AddSeconds(1);
+        var token = CancellationToken.None;
+
+        // Act
+        await _sut.ProcessAsync(schedule, horizon, token);
+
+        // Assert
+        await _storage
+            .Received()
+            .InsertAsync(
+                Arg.Is<AtomizerJob>(j => j.ScheduleJobKey == schedule.JobKey && j.PartitionKey == partitionKey),
+                token
+            );
+    }
+
+    [Fact]
     public async Task ProcessAsync_WhenInsertJobThrows_ShouldLogErrorAndContinue()
     {
         // Arrange

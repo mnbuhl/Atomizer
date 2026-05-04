@@ -92,6 +92,7 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     MisfirePolicy = table.Column<int>(type: "integer", nullable: false),
                     MaxCatchUp = table.Column<int>(type: "integer", nullable: false),
                     Enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    PartitionKey = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     RetryIntervals = table.Column<string>(
                         type: "character varying(4096)",
                         maxLength: 4096,

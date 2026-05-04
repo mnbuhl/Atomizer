@@ -76,5 +76,6 @@ public sealed class MySqlDialectTests
         var sql = dialect.UpsertSchedule(schedule, DateTimeOffset.UtcNow);
 
         sql.Format.Should().Contain("ON DUPLICATE KEY UPDATE");
+        sql.Format.Should().Contain("PartitionKey");
     }
 }

@@ -146,9 +146,10 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
                 {{_sMisfirePolicy}} = {6},
                 {{_sMaxCatchUp}} = {7},
                 {{_sEnabled}} = {8},
-                {{_sRetryIntervals}} = {9},
-                {{_sNextRunAt}} = {10},
-                {{_sUpdatedAt}} = {11}
+                {{_sPartitionKey}} = {9},
+                {{_sRetryIntervals}} = {10},
+                {{_sNextRunAt}} = {11},
+                {{_sUpdatedAt}} = {12}
             WHEN NOT MATCHED THEN INSERT (
                 {{_sId}},
                 {{_sJobKey}},
@@ -160,13 +161,14 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
                 {{_sMisfirePolicy}},
                 {{_sMaxCatchUp}},
                 {{_sEnabled}},
+                {{_sPartitionKey}},
                 {{_sRetryIntervals}},
                 {{_sNextRunAt}},
                 {{_sLastEnqueueAt}},
                 {{_sCreatedAt}},
                 {{_sUpdatedAt}}
             ) VALUES (
-                {12},
+                {13},
                 {0},
                 {1},
                 {2},
@@ -178,9 +180,10 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
                 {8},
                 {9},
                 {10},
-                {13},
+                {11},
                 {14},
-                {11}
+                {15},
+                {12}
             );
             """;
         return FormattableStringFactory.Create(
@@ -194,12 +197,13 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
             (int)entity.MisfirePolicy, // {6}
             entity.MaxCatchUp, // {7}
             entity.Enabled ? 1 : 0, // {8}
-            retryIntervals, // {9}
-            entity.NextRunAt, // {10}
-            now, // {11}
-            entity.Id, // {12}
-            entity.LastEnqueueAt, // {13}
-            entity.CreatedAt // {14}
+            entity.PartitionKey, // {9}
+            retryIntervals, // {10}
+            entity.NextRunAt, // {11}
+            now, // {12}
+            entity.Id, // {13}
+            entity.LastEnqueueAt, // {14}
+            entity.CreatedAt // {15}
         );
     }
 }

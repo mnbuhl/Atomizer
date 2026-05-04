@@ -87,7 +87,11 @@ await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJobCatchUp",
     Schedule.Cron("0/5 * * * * *"), // Every 5 seconds,
-    options => options.MisfirePolicy = MisfirePolicy.CatchUp
+    options =>
+    {
+        options.MisfirePolicy = MisfirePolicy.CatchUp;
+        options.PartitionKey = new PartitionKey("LoggerJobCatchUp");
+    }
 );
 
 app.MapPost(

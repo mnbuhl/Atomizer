@@ -181,6 +181,10 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("JobKey")
                         .IsRequired()
                         .HasMaxLength(255)

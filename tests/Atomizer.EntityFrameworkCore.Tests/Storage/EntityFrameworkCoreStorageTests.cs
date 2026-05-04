@@ -566,7 +566,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             """{ "message": "New Schedule" }""",
             Schedule.EveryMinute,
             TimeZoneInfo.Utc,
-            now
+            now,
+            partitionKey: new PartitionKey("scheduled-partition")
         );
 
         await using var dbContext = _dbContextFactory();
@@ -583,9 +584,11 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         insertedScheduleEntity.Should().NotBeNull();
         insertedScheduleEntity.JobKey.Should().Be(schedule.JobKey);
         insertedScheduleEntity.Payload.Should().Be(schedule.Payload);
+        insertedScheduleEntity.PartitionKey.Should().Be("scheduled-partition");
 
         var map = () => insertedScheduleEntity.ToAtomizerSchedule();
         map.Should().NotThrow();
+        insertedScheduleEntity.ToAtomizerSchedule().PartitionKey.Should().Be(schedule.PartitionKey);
     }
 
     [Fact]
@@ -654,6 +657,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
 
         // Act
         schedule.Payload = """{ "message": "Updated Schedule" }""";
+        schedule.PartitionKey = new PartitionKey("updated-partition");
         var scheduleId = await storage.UpsertScheduleAsync(schedule, CancellationToken.None);
         var updatedScheduleEntity = await dbContext
             .Set<AtomizerScheduleEntity>()
@@ -663,9 +667,11 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         scheduleId.Should().Be(schedule.Id);
         updatedScheduleEntity.Should().NotBeNull();
         updatedScheduleEntity.Payload.Should().Be("""{ "message": "Updated Schedule" }""");
+        updatedScheduleEntity.PartitionKey.Should().Be("updated-partition");
 
         var map = () => updatedScheduleEntity.ToAtomizerSchedule();
         map.Should().NotThrow();
+        updatedScheduleEntity.ToAtomizerSchedule().PartitionKey.Should().Be(schedule.PartitionKey);
     }
 
     [Fact]
