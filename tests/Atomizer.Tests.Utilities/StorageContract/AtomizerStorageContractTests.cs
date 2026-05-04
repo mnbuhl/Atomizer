@@ -272,6 +272,68 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
     }
 
     // ------------------------------------------------------------------
+    // FIFO-13: terminal-state unblocking
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// FIFO-13: When the head job of a partition completes successfully, the partition
+    /// is unblocked and the next job becomes eligible for processing.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenPartitionHeadCompleted_ShouldUnblockNextJob()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("complete-p");
+        var job1 = CreateJob(partitionKey: partitionKey);
+        var job2 = CreateJob(partitionKey: partitionKey);
+
+        await _sut.InsertAsync(job1, CancellationToken.None);
+        await _sut.InsertAsync(job2, CancellationToken.None);
+
+        // Transition job1 to Completed: Lease → Attempt → MarkAsCompleted
+        job1.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        job1.Attempt();
+        job1.MarkAsCompleted(_now);
+        await _sut.UpdateJobsAsync([job1], CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
+
+        // Assert — job2 is now the partition head and must be returned
+        result.Should().HaveCount(1);
+        result.Single().Id.Should().Be(job2.Id);
+    }
+
+    /// <summary>
+    /// FIFO-13: When the head job of a partition exhausts its retries and is marked Failed,
+    /// the partition is unblocked and the next job becomes eligible for processing.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenPartitionHeadFailed_ShouldUnblockNextJob()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("failed-p");
+        var job1 = CreateJob(partitionKey: partitionKey);
+        var job2 = CreateJob(partitionKey: partitionKey);
+
+        await _sut.InsertAsync(job1, CancellationToken.None);
+        await _sut.InsertAsync(job2, CancellationToken.None);
+
+        // Transition job1 to Failed: Lease → Attempt → MarkAsFailed
+        job1.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        job1.Attempt();
+        job1.MarkAsFailed(_now);
+        await _sut.UpdateJobsAsync([job1], CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
+
+        // Assert — job2 is now the partition head and must be returned
+        result.Should().HaveCount(1);
+        result.Single().Id.Should().Be(job2.Id);
+    }
+
+    // ------------------------------------------------------------------
     // Helper
     // ------------------------------------------------------------------
 
