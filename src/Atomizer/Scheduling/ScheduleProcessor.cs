@@ -46,7 +46,8 @@ internal sealed class ScheduleProcessor : IScheduleProcessor
                 occurrence,
                 schedule.RetryStrategy,
                 idempotencyKey,
-                schedule.JobKey
+                schedule.JobKey,
+                partitionKey: schedule.PartitionKey
             );
 
             try

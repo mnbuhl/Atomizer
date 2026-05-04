@@ -54,7 +54,10 @@ public sealed class InMemoryStorage : IAtomizerStorage
         // 2) FIFO-09 sequence assignment — only for partitioned, non-duplicate jobs
         if (job.PartitionKey != null)
         {
-            var partitionSequences = _partitionSequences.GetOrAdd(job.QueueKey, _ => new ConcurrentDictionary<string, long>());
+            var partitionSequences = _partitionSequences.GetOrAdd(
+                job.QueueKey,
+                _ => new ConcurrentDictionary<string, long>()
+            );
             var seq = partitionSequences.AddOrUpdate(job.PartitionKey.Key, 1L, (_, current) => current + 1L);
             job.SequenceNumber = seq;
         }
