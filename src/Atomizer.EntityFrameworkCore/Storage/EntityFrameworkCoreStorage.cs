@@ -79,7 +79,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             var maxSeq = await JobEntities
                 .AsNoTracking()
                 .Where(j => j.QueueKey == queueKeyStr && j.PartitionKey == partitionKeyStr)
-                .MaxAsync(j => (long?)j.SequenceNumber, cancellationToken);
+                .MaxAsync(j => j.SequenceNumber, cancellationToken);
             entity.SequenceNumber = (maxSeq ?? 0L) + 1L;
             job.SequenceNumber = entity.SequenceNumber;
         }
@@ -120,22 +120,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         {
             var sql = _providerCache.Dialect.GetDueJobs(queueKey, now, batchSize);
 
-            // FromSqlInterpolated with CTEs is non-composable — Include() is not allowed.
-            // Load entities first, then fetch their errors in a second query by job ID.
-            var entities = await JobEntities
-                .FromSqlInterpolated(sql)
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-
-            var ids = entities.Select(j => j.Id).ToList();
-            var errors = await JobErrorEntities
-                .AsNoTracking()
-                .Where(e => ids.Contains(e.JobId))
-                .ToListAsync(cancellationToken);
-
-            var errorsByJob = errors.GroupBy(e => e.JobId).ToDictionary(g => g.Key, g => g.ToList());
-            foreach (var entity in entities)
-                entity.Errors = errorsByJob.TryGetValue(entity.Id, out var jobErrors) ? jobErrors : [];
+            var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
 
             return entities.Select(job => job.ToAtomizerJob()).ToList();
         }
@@ -147,7 +132,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             // AllowUnsafeProviderFallback is only safe with DegreeOfParallelism=1 and
             // a single process instance. It is not safe for production use.
             var allForQueue = await JobEntities
-                .Include(j => j.Errors)
                 .AsNoTracking()
                 .Where(j => j.QueueKey == queueKey.Key)
                 .ToListAsync(cancellationToken);
@@ -188,8 +172,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                             && (j.VisibleAt == null || j.VisibleAt <= now)
                             && j.ScheduledAt <= now
                         || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
-                    )
-                    && (j.PartitionKey == null || partitionHeads.Contains(j.Id))
+                    ) && (j.PartitionKey == null || partitionHeads.Contains(j.Id))
                 )
                 .OrderBy(j => j.ScheduledAt)
                 .Take(batchSize)

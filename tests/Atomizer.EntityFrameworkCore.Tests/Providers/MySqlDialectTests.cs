@@ -1,4 +1,3 @@
-using Atomizer;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
 using Atomizer.EntityFrameworkCore.Providers.Sql;
