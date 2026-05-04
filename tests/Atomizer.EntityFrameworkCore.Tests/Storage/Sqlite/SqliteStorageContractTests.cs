@@ -1,6 +1,5 @@
 using Atomizer.Abstractions;
 using Atomizer.Core;
-using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Storage;
 using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup.Sqlite;
@@ -17,14 +16,8 @@ namespace Atomizer.EntityFrameworkCore.Tests.Storage.Sqlite;
 /// The CTE dialect SQL is verified by the PostgreSQL, SQL Server, and MySQL subclasses.
 /// </summary>
 /// <remarks>
-/// NOTE: The two FIFO-08 partition-blocking tests
-/// (<c>GetDueJobsAsync_WhenPartitionIsBlockedByProcessing_ShouldExcludeEntirePartition</c> and
-/// <c>GetDueJobsAsync_WhenPartitionIsBlockedByPendingWithAttempts_ShouldExcludeEntirePartition</c>)
-/// are expected to FAIL for SQLite. The LINQ fallback path in <c>GetDueJobsAsync</c> does not
-/// enforce FIFO partition blocking — it returns all due jobs without partition exclusion. This is a
-/// known limitation of the LINQ fallback; FIFO enforcement requires the provider-specific CTE SQL
-/// implemented in PostgreSqlDialect, SqlServerDialect, and MySqlDialect. The real providers are
-/// the authoritative FIFO test surface.
+/// The fallback path enforces FIFO semantics in-process, but it is not safe for concurrent
+/// multi-node production use because it does not take provider-level row locks.
 /// </remarks>
 [Collection(nameof(SqliteDatabaseFixture))]
 public sealed class SqliteStorageContractTests(SqliteDatabaseFixture fixture) : AtomizerStorageContractTests
@@ -51,9 +44,6 @@ public sealed class SqliteStorageContractTests(SqliteDatabaseFixture fixture) : 
         // Use a bounded cancellation token so teardown does not hang indefinitely.
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await using var cleanupContext = fixture.CreateNewDbContext();
-        cleanupContext.Set<AtomizerJobErrorEntity>().RemoveRange(cleanupContext.Set<AtomizerJobErrorEntity>());
-        cleanupContext.Set<AtomizerJobEntity>().RemoveRange(cleanupContext.Set<AtomizerJobEntity>());
-        cleanupContext.Set<AtomizerScheduleEntity>().RemoveRange(cleanupContext.Set<AtomizerScheduleEntity>());
-        await cleanupContext.SaveChangesAsync(cts.Token);
+        await StorageTestCleanup.ClearAsync(cleanupContext, cts.Token);
     }
 }

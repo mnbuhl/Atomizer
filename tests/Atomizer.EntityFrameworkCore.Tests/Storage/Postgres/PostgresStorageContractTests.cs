@@ -1,6 +1,5 @@
 using Atomizer.Abstractions;
 using Atomizer.Core;
-using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Storage;
 using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup.Postgres;
@@ -35,9 +34,6 @@ public sealed class PostgresStorageContractTests(PostgreSqlDatabaseFixture fixtu
         // Use a bounded cancellation token so teardown does not hang indefinitely.
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await using var cleanupContext = fixture.CreateNewDbContext();
-        cleanupContext.Set<AtomizerJobErrorEntity>().RemoveRange(cleanupContext.Set<AtomizerJobErrorEntity>());
-        cleanupContext.Set<AtomizerJobEntity>().RemoveRange(cleanupContext.Set<AtomizerJobEntity>());
-        cleanupContext.Set<AtomizerScheduleEntity>().RemoveRange(cleanupContext.Set<AtomizerScheduleEntity>());
-        await cleanupContext.SaveChangesAsync(cts.Token);
+        await StorageTestCleanup.ClearAsync(cleanupContext, cts.Token);
     }
 }

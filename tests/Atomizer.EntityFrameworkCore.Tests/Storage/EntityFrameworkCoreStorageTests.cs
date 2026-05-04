@@ -671,10 +671,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         await using var dbContext = _dbContextFactory();
-        dbContext.Set<AtomizerJobEntity>().RemoveRange(dbContext.Set<AtomizerJobEntity>());
-        dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(dbContext.Set<AtomizerJobErrorEntity>());
-        dbContext.Set<AtomizerScheduleEntity>().RemoveRange(dbContext.Set<AtomizerScheduleEntity>());
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await StorageTestCleanup.ClearAsync(dbContext, TestContext.Current.CancellationToken);
     }
 
     public ValueTask InitializeAsync()

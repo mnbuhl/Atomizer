@@ -40,7 +40,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // 1) CR-01 idempotency check — linear scan is acceptable for in-process storage
         if (job.IdempotencyKey != null)
         {
             var existing = _jobs.Values.FirstOrDefault(j => j.IdempotencyKey == job.IdempotencyKey);
@@ -51,7 +50,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
             }
         }
 
-        // 2) FIFO-09 sequence assignment — only for partitioned, non-duplicate jobs
         if (job.PartitionKey != null)
         {
             var partitionSequences = _partitionSequences.GetOrAdd(
@@ -62,7 +60,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
             job.SequenceNumber = seq;
         }
 
-        // 3) Store + index (unchanged)
         _jobs[job.Id] = job;
         IndexIntoQueue(job);
 
@@ -118,17 +115,12 @@ public sealed class InMemoryStorage : IAtomizerStorage
             now
         );
 
-        List<AtomizerJob> candidates;
-
         if (!_queues.TryGetValue(queueKey, out var ids) || ids.IsEmpty)
         {
             _logger.LogDebug("LeaseBatch: queue {QueueKey} is empty", queueKey);
             return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
         }
 
-        // Pass 1: collect blocked partition keys from the FULL queue snapshot
-        // D-04: blocking check must scan ALL jobs in the queue, not just due-time candidates
-        // A partition is blocked if any job has IsPartitionBlocked == true (Processing OR Pending+Attempts>0)
         var blockedPartitions = new HashSet<string>();
         foreach (var id in ids.Keys)
         {
@@ -136,7 +128,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 blockedPartitions.Add(bj.PartitionKey!.Key);
         }
 
-        // Pass 2: filter eligible candidates (existing status+time logic) and exclude blocked partitions
         var eligible = ids
             .Keys.Select(id => _jobs.TryGetValue(id, out var j) ? j : null)
             .Where(j =>
@@ -152,15 +143,13 @@ public sealed class InMemoryStorage : IAtomizerStorage
             )
             .Select(j => j!);
 
-        // Pass 3: FIFO head-of-partition selection
-        // Use OrderBy().First() not MinBy() — MinBy is .NET 6+ and src/Atomizer targets netstandard2.0
         var unpartitioned = eligible.Where(j => j.PartitionKey == null);
         var partitionHeads = eligible
             .Where(j => j.PartitionKey != null)
             .GroupBy(j => j.PartitionKey!.Key)
             .Select(g => g.OrderBy(j => j.SequenceNumber).First());
 
-        candidates = unpartitioned
+        var candidates = unpartitioned
             .Concat(partitionHeads)
             .OrderBy(j => j.ScheduledAt)
             .ThenBy(j => j.CreatedAt)

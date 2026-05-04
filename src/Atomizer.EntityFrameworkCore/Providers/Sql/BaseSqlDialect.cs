@@ -90,8 +90,7 @@ internal abstract class BaseSqlDialect : ISqlDialect
 
     public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
     {
-        var format =
-            $$"""
+        var format = $$"""
             UPDATE {{_jTable}}
             SET {{_jStatus}} = {{_statusPending}},
                 {{_jLeaseToken}} = NULL,
@@ -106,5 +105,5 @@ internal abstract class BaseSqlDialect : ISqlDialect
     public abstract FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize);
     public abstract FormattableString InsertJobWithSequence(AtomizerJob job);
     public abstract FormattableString GetDueSchedules(DateTimeOffset now);
-    public abstract FormattableString UpsertScheduleAsync(AtomizerSchedule schedule, DateTimeOffset now);
+    public abstract FormattableString UpsertSchedule(AtomizerSchedule schedule, DateTimeOffset now);
 }

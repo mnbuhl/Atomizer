@@ -7,8 +7,7 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
 {
     public override FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
     {
-        var format =
-            $$"""
+        var format = $$"""
             WITH blocked_partitions AS (
               SELECT DISTINCT {{_jPartitionKey}}
               FROM {{_jTable}}
@@ -65,19 +64,19 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
             """;
         return FormattableStringFactory.Create(
             format,
-            queueKey.Key,  // {0} blocked_partitions queue filter
-            queueKey.Key,  // {1} partition_heads queue filter
-            queueKey.Key,  // {2} outer SELECT queue filter
-            now,           // {3} unpartitioned VisibleAt
-            now,           // {4} unpartitioned ScheduledAt
-            now,           // {5} unpartitioned Processing VisibleAt
-            now,           // {6} partitioned VisibleAt
-            now,           // {7} partitioned ScheduledAt
-            now,           // {8} partitioned Processing VisibleAt
-            batchSize,     // {9} LIMIT
-            now,           // {10} partition_heads VisibleAt
-            now,           // {11} partition_heads ScheduledAt
-            now            // {12} partition_heads Processing VisibleAt
+            queueKey.Key, // {0} blocked_partitions queue filter
+            queueKey.Key, // {1} partition_heads queue filter
+            queueKey.Key, // {2} outer SELECT queue filter
+            now, // {3} unpartitioned VisibleAt
+            now, // {4} unpartitioned ScheduledAt
+            now, // {5} unpartitioned Processing VisibleAt
+            now, // {6} partitioned VisibleAt
+            now, // {7} partitioned ScheduledAt
+            now, // {8} partitioned Processing VisibleAt
+            batchSize, // {9} LIMIT
+            now, // {10} partition_heads VisibleAt
+            now, // {11} partition_heads ScheduledAt
+            now // {12} partition_heads Processing VisibleAt
         );
     }
 
@@ -85,8 +84,7 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
     {
         var entity = job.ToEntity();
         var retryIntervals = SerializeIntervals(entity.RetryIntervals);
-        var format =
-            $$"""
+        var format = $$"""
             INSERT INTO {{_jTable}} (
                 {{_jId}}, {{_jQueueKey}}, {{_jPayloadType}}, {{_jPayload}},
                 {{_jScheduledAt}}, {{_jVisibleAt}}, {{_jStatus}}, {{_jAttempts}},
@@ -125,8 +123,7 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
 
     public override FormattableString GetDueSchedules(DateTimeOffset now)
     {
-        var format =
-            $$"""
+        var format = $$"""
             SELECT t.*
             FROM {{_sTable}} AS t
             WHERE {{_sNextRunAt}} <= {0}
@@ -137,12 +134,11 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
         return FormattableStringFactory.Create(format, now);
     }
 
-    public override FormattableString UpsertScheduleAsync(AtomizerSchedule schedule, DateTimeOffset now)
+    public override FormattableString UpsertSchedule(AtomizerSchedule schedule, DateTimeOffset now)
     {
         var entity = schedule.ToEntity();
         var retryIntervals = SerializeIntervals(entity.RetryIntervals);
-        var format =
-            $$"""
+        var format = $$"""
             INSERT INTO {{_sTable}} (
                 {{_sId}},
                 {{_sJobKey}},

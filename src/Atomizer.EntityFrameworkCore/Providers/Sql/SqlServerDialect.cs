@@ -7,8 +7,7 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
 {
     public override FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
     {
-        var format =
-            $$"""
+        var format = $$"""
             WITH blocked_partitions AS (
               SELECT DISTINCT {{_jPartitionKey}}
               FROM {{_jTable}}
@@ -62,18 +61,18 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
             """;
         return FormattableStringFactory.Create(
             format,
-            queueKey.Key,  // {0} blocked_partitions queue filter
-            queueKey.Key,  // {1} partition_heads queue filter
-            queueKey.Key,  // {2} outer SELECT queue filter
-            now,           // {3} unpartitioned VisibleAt
-            now,           // {4} unpartitioned ScheduledAt
-            now,           // {5} unpartitioned Processing VisibleAt
-            now,           // {6} partitioned VisibleAt
-            now,           // {7} partitioned ScheduledAt
-            now,           // {8} partitioned Processing VisibleAt
-            now,           // {9} partition_heads VisibleAt  (batchSize is TOP(batchSize) inlined, not a placeholder)
-            now,           // {10} partition_heads ScheduledAt
-            now            // {11} partition_heads Processing VisibleAt
+            queueKey.Key, // {0} blocked_partitions queue filter
+            queueKey.Key, // {1} partition_heads queue filter
+            queueKey.Key, // {2} outer SELECT queue filter
+            now, // {3} unpartitioned VisibleAt
+            now, // {4} unpartitioned ScheduledAt
+            now, // {5} unpartitioned Processing VisibleAt
+            now, // {6} partitioned VisibleAt
+            now, // {7} partitioned ScheduledAt
+            now, // {8} partitioned Processing VisibleAt
+            now, // {9} partition_heads VisibleAt  (batchSize is TOP(batchSize) inlined, not a placeholder)
+            now, // {10} partition_heads ScheduledAt
+            now // {11} partition_heads Processing VisibleAt
         );
     }
 
@@ -81,8 +80,7 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
     {
         var entity = job.ToEntity();
         var retryIntervals = SerializeIntervals(entity.RetryIntervals);
-        var format =
-            $$"""
+        var format = $$"""
             INSERT INTO {{_jTable}} (
                 {{_jId}}, {{_jQueueKey}}, {{_jPayloadType}}, {{_jPayload}},
                 {{_jScheduledAt}}, {{_jVisibleAt}}, {{_jStatus}}, {{_jAttempts}},
@@ -121,8 +119,7 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
 
     public override FormattableString GetDueSchedules(DateTimeOffset now)
     {
-        var format =
-            $$"""
+        var format = $$"""
             SELECT t.*
             FROM {{_sTable}} AS t WITH (UPDLOCK, READPAST, ROWLOCK)
             WHERE {{_sNextRunAt}} <= {0}
@@ -132,12 +129,11 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
         return FormattableStringFactory.Create(format, now);
     }
 
-    public override FormattableString UpsertScheduleAsync(AtomizerSchedule schedule, DateTimeOffset now)
+    public override FormattableString UpsertSchedule(AtomizerSchedule schedule, DateTimeOffset now)
     {
         var entity = schedule.ToEntity();
         var retryIntervals = SerializeIntervals(entity.RetryIntervals);
-        var format =
-            $$"""
+        var format = $$"""
             MERGE {{_sTable}} WITH (HOLDLOCK) AS target
             USING (SELECT {0}) AS src ({{_sJobKey}})
             ON target.{{_sJobKey}} = src.{{_sJobKey}}
@@ -189,21 +185,21 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
             """;
         return FormattableStringFactory.Create(
             format,
-            entity.JobKey,        // {0}
-            entity.QueueKey,      // {1}
-            entity.PayloadType,   // {2}
-            entity.Payload,       // {3}
-            entity.Schedule,      // {4}
-            entity.TimeZone,      // {5}
+            entity.JobKey, // {0}
+            entity.QueueKey, // {1}
+            entity.PayloadType, // {2}
+            entity.Payload, // {3}
+            entity.Schedule, // {4}
+            entity.TimeZone, // {5}
             (int)entity.MisfirePolicy, // {6}
-            entity.MaxCatchUp,    // {7}
+            entity.MaxCatchUp, // {7}
             entity.Enabled ? 1 : 0, // {8}
-            retryIntervals,       // {9}
-            entity.NextRunAt,     // {10}
-            now,                  // {11}
-            entity.Id,            // {12}
+            retryIntervals, // {9}
+            entity.NextRunAt, // {10}
+            now, // {11}
+            entity.Id, // {12}
             entity.LastEnqueueAt, // {13}
-            entity.CreatedAt      // {14}
+            entity.CreatedAt // {14}
         );
     }
 }

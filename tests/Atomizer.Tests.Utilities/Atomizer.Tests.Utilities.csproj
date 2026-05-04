@@ -5,7 +5,6 @@
         <IsPackable>false</IsPackable>
         <ImplicitUsings>true</ImplicitUsings>
         <LangVersion>12</LangVersion>
-        <IsTestProject>true</IsTestProject>
     </PropertyGroup>
     <ItemGroup>
         <Using Include="Xunit" />

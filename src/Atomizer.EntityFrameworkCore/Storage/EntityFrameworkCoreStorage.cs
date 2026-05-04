@@ -180,11 +180,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 .ToList();
         }
 
-        throw new NotSupportedException(
-            "The current database provider is not supported. "
-                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
-                + "Note that this may lead to unexpected behavior."
-        );
+        throw UnsupportedProviderException();
     }
 
     public async Task<int> ReleaseLeasedAsync(
@@ -230,7 +226,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
             var now = _clock.UtcNow;
-            var sql = _providerCache.Dialect.UpsertScheduleAsync(schedule, now);
+            var sql = _providerCache.Dialect.UpsertSchedule(schedule, now);
             await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
             return await ScheduleEntities
                 .Where(s => s.JobKey == entity.JobKey)
@@ -240,7 +236,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            // Not race-safe - use only with 1 service running
             var existing = await ScheduleEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
@@ -262,16 +257,13 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             catch (DbUpdateException ex)
             {
                 _logger.LogError(ex, "Failed to upsert schedule for job {JobKey}", schedule.JobKey);
+                throw;
             }
 
             return entity.Id;
         }
 
-        throw new NotSupportedException(
-            "The current database provider is not supported. "
-                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
-                + "Note that this may lead to unexpected behavior."
-        );
+        throw UnsupportedProviderException();
     }
 
     public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
@@ -321,11 +313,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 .ToListAsync(cancellationToken);
         }
 
-        throw new NotSupportedException(
-            "The current database provider is not supported. "
-                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
-                + "Note that this may lead to unexpected behavior."
-        );
+        throw UnsupportedProviderException();
     }
 
     public async Task<TResult> ExecuteInLeaseAsync<TResult>(
@@ -382,4 +370,11 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             throw;
         }
     }
+
+    private static NotSupportedException UnsupportedProviderException() =>
+        new(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
+        );
 }
