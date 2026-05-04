@@ -3,7 +3,7 @@ namespace Atomizer.Exceptions;
 /// <summary>
 /// Thrown when a <see cref="PartitionKey"/> is constructed with an invalid value.
 /// </summary>
-public class InvalidPartitionKeyException : ArgumentException
+public sealed class InvalidPartitionKeyException : ArgumentException
 {
     /// <summary>
     /// Initializes a new instance with the specified message.

@@ -7,7 +7,7 @@ namespace Atomizer.Core;
 /// Default implementation of <see cref="IAtomizerClient"/> that serializes payloads
 /// and delegates to the configured <see cref="IAtomizerStorage"/>.
 /// </summary>
-public class AtomizerClient : IAtomizerClient
+public sealed class AtomizerClient : IAtomizerClient
 {
     private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly IAtomizerJobSerializer _jobSerializer;
