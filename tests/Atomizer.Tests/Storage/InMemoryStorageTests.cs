@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Atomizer;
 using Atomizer.Core;
 using Atomizer.Storage;
 
@@ -251,6 +252,98 @@ namespace Atomizer.Tests.Storage
                 _sut
             );
             schedules[schedule.JobKey].JobKey.Should().Be(schedule.JobKey);
+        }
+
+        // ---- FIFO-09: InsertAsync sequence number assignment ----
+
+        [Fact]
+        public async Task InsertAsync_WhenPartitionedJob_ShouldAssignSequenceNumberStartingAtOne()
+        {
+            // Arrange
+            var pk = new PartitionKey("order-1");
+            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, partitionKey: pk);
+            var job2 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p2", _now, _now, partitionKey: pk);
+
+            // Act
+            await _sut.InsertAsync(job1, CancellationToken.None);
+            await _sut.InsertAsync(job2, CancellationToken.None);
+
+            // Assert
+            job1.SequenceNumber.Should().Be(1L);
+            job2.SequenceNumber.Should().Be(2L);
+        }
+
+        [Fact]
+        public async Task InsertAsync_WhenPartitionedJobsInDifferentQueues_ShouldAssignIndependentSequences()
+        {
+            // Arrange
+            var pk = new PartitionKey("shared-key");
+            var queueA = QueueKey.Default;
+            var queueB = new QueueKey("queue-b");
+            var jobA = AtomizerJob.Create(queueA, typeof(string), "pa", _now, _now, partitionKey: pk);
+            var jobB = AtomizerJob.Create(queueB, typeof(string), "pb", _now, _now, partitionKey: pk);
+
+            // Act
+            await _sut.InsertAsync(jobA, CancellationToken.None);
+            await _sut.InsertAsync(jobB, CancellationToken.None);
+
+            // Assert — each queue starts its own sequence at 1
+            jobA.SequenceNumber.Should().Be(1L);
+            jobB.SequenceNumber.Should().Be(1L);
+        }
+
+        [Fact]
+        public async Task InsertAsync_WhenUnpartitionedJob_ShouldLeaveSequenceNumberNull()
+        {
+            // Arrange
+            var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "p", _now, _now);
+
+            // Act
+            await _sut.InsertAsync(job, CancellationToken.None);
+
+            // Assert
+            job.SequenceNumber.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task InsertAsync_WhenIdempotencyKeyCollision_ShouldReturnExistingIdAndAssignExistingSequenceNumber()
+        {
+            // Arrange
+            var pk = new PartitionKey("idem-pk");
+            const string idemKey = "test-idem-key";
+            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+            await _sut.InsertAsync(job1, CancellationToken.None);
+
+            var job2 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p2", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+
+            // Act
+            var returnedId = await _sut.InsertAsync(job2, CancellationToken.None);
+
+            // Assert
+            returnedId.Should().Be(job1.Id);
+            job2.SequenceNumber.Should().Be(job1.SequenceNumber);
+        }
+
+        [Fact]
+        public async Task InsertAsync_WhenIdempotencyKeyCollision_ShouldNotIncreaseJobCount()
+        {
+            // Arrange
+            const string idemKey = "idem-count-key";
+            var pk = new PartitionKey("count-pk");
+            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+            await _sut.InsertAsync(job1, CancellationToken.None);
+
+            var job2 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p2", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+
+            // Act
+            await _sut.InsertAsync(job2, CancellationToken.None);
+
+            // Assert
+            var jobs = NonPublicSpy.GetFieldValue<InMemoryStorage, ConcurrentDictionary<Guid, AtomizerJob>>(
+                "_jobs",
+                _sut
+            );
+            jobs.Count.Should().Be(1);
         }
     }
 }
