@@ -38,7 +38,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         var entity = job.ToEntity();
 
-        // @todo: make idempotency key unique with index
         var enforceIdempotency = job.IdempotencyKey != null;
 
         if (enforceIdempotency)
@@ -54,8 +53,35 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                     job.IdempotencyKey,
                     existing.Id
                 );
+                job.SequenceNumber = existing.SequenceNumber;
                 return existing.Id;
             }
+        }
+
+        if (job.PartitionKey != null && _providerCache is { IsSupportedProvider: true, Dialect: not null })
+        {
+            var sql = _providerCache.Dialect.InsertJobWithSequence(job);
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+
+            var assigned = await JobEntities
+                .Where(j => j.Id == job.Id)
+                .Select(j => j.SequenceNumber)
+                .FirstAsync(cancellationToken);
+            job.SequenceNumber = assigned;
+            return job.Id;
+        }
+
+        if (job.PartitionKey != null && !_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
+        {
+            // LINQ fallback sequence assignment: not atomic under concurrency but safe for single-process use.
+            var partitionKeyStr = job.PartitionKey.ToString();
+            var queueKeyStr = job.QueueKey.Key;
+            var maxSeq = await JobEntities
+                .AsNoTracking()
+                .Where(j => j.QueueKey == queueKeyStr && j.PartitionKey == partitionKeyStr)
+                .MaxAsync(j => j.SequenceNumber, cancellationToken);
+            entity.SequenceNumber = (maxSeq ?? 0L) + 1L;
+            job.SequenceNumber = entity.SequenceNumber;
         }
 
         JobEntities.Add(entity);
@@ -67,6 +93,10 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         try
         {
+            // Clear the change tracker before attaching updated entities to avoid
+            // InvalidOperationException when the same entities were previously
+            // tracked by InsertAsync (or a prior UpdateJobsAsync call) on this context.
+            _dbContext.ChangeTracker.Clear();
             JobEntities.UpdateRange(jobs.Select(j => j.ToEntity()));
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
@@ -101,28 +131,56 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             // on the same process (or any second node) will both receive the same jobs.
             // AllowUnsafeProviderFallback is only safe with DegreeOfParallelism=1 and
             // a single process instance. It is not safe for production use.
-            return await JobEntities
+            var allForQueue = await JobEntities
                 .AsNoTracking()
+                .Where(j => j.QueueKey == queueKey.Key)
+                .ToListAsync(cancellationToken);
+
+            // 1) Collect blocked partitions: any partition key with a Processing job
+            //    or a Pending job with prior attempts (retrying).
+            var blockedPartitions = allForQueue
                 .Where(j =>
-                    j.QueueKey == queueKey.Key
+                    j.PartitionKey != null
                     && (
+                        j.Status == AtomizerEntityJobStatus.Processing
+                        || (j.Status == AtomizerEntityJobStatus.Pending && j.Attempts > 0)
+                    )
+                )
+                .Select(j => j.PartitionKey!)
+                .ToHashSet();
+
+            // 2) Find the lowest sequence number per unblocked partition (partition heads).
+            //    Only consider Pending jobs that are due — Completed and Failed jobs must not
+            //    block the next job from becoming the partition head.
+            var partitionHeads = allForQueue
+                .Where(j =>
+                    j.PartitionKey != null
+                    && !blockedPartitions.Contains(j.PartitionKey)
+                    && j.Status == AtomizerEntityJobStatus.Pending
+                    && (j.VisibleAt == null || j.VisibleAt <= now)
+                    && j.ScheduledAt <= now
+                )
+                .GroupBy(j => j.PartitionKey!)
+                .Select(g => g.OrderBy(j => j.SequenceNumber).First().Id)
+                .ToHashSet();
+
+            // 3) Apply eligibility filter, FIFO partition-head filter, and batch size limit.
+            return allForQueue
+                .Where(j =>
+                    (
                         j.Status == AtomizerEntityJobStatus.Pending
                             && (j.VisibleAt == null || j.VisibleAt <= now)
                             && j.ScheduledAt <= now
                         || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
-                    )
+                    ) && (j.PartitionKey == null || partitionHeads.Contains(j.Id))
                 )
                 .OrderBy(j => j.ScheduledAt)
                 .Take(batchSize)
-                .Select(job => job.ToAtomizerJob())
-                .ToListAsync(cancellationToken);
+                .Select(j => j.ToAtomizerJob())
+                .ToList();
         }
 
-        throw new NotSupportedException(
-            "The current database provider is not supported. "
-                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
-                + "Note that this may lead to unexpected behavior."
-        );
+        throw UnsupportedProviderException();
     }
 
     public async Task<int> ReleaseLeasedAsync(
@@ -168,7 +226,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         if (_providerCache is { IsSupportedProvider: true, Dialect: not null })
         {
             var now = _clock.UtcNow;
-            var sql = _providerCache.Dialect.UpsertScheduleAsync(schedule, now);
+            var sql = _providerCache.Dialect.UpsertSchedule(schedule, now);
             await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
             return await ScheduleEntities
                 .Where(s => s.JobKey == entity.JobKey)
@@ -178,7 +236,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
 
         if (!_providerCache.IsSupportedProvider && _options.AllowUnsafeProviderFallback)
         {
-            // Not race-safe - use only with 1 service running
             var existing = await ScheduleEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.JobKey == entity.JobKey, cancellationToken);
@@ -200,22 +257,23 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             catch (DbUpdateException ex)
             {
                 _logger.LogError(ex, "Failed to upsert schedule for job {JobKey}", schedule.JobKey);
+                throw;
             }
 
             return entity.Id;
         }
 
-        throw new NotSupportedException(
-            "The current database provider is not supported. "
-                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
-                + "Note that this may lead to unexpected behavior."
-        );
+        throw UnsupportedProviderException();
     }
 
     public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
         try
         {
+            // Clear the change tracker before attaching updated entities to avoid
+            // InvalidOperationException when the same entities were previously
+            // tracked by UpsertScheduleAsync (or a prior UpdateSchedulesAsync call) on this context.
+            _dbContext.ChangeTracker.Clear();
             ScheduleEntities.UpdateRange(schedules.Select(s => s.ToEntity()));
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
@@ -255,11 +313,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 .ToListAsync(cancellationToken);
         }
 
-        throw new NotSupportedException(
-            "The current database provider is not supported. "
-                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
-                + "Note that this may lead to unexpected behavior."
-        );
+        throw UnsupportedProviderException();
     }
 
     public async Task<TResult> ExecuteInLeaseAsync<TResult>(
@@ -316,4 +370,11 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             throw;
         }
     }
+
+    private static NotSupportedException UnsupportedProviderException() =>
+        new(
+            "The current database provider is not supported. "
+                + "To bypass this check, set AllowUnsafeProviderFallback to true in EntityFrameworkCoreJobStorageOptions. "
+                + "Note that this may lead to unexpected behavior."
+        );
 }

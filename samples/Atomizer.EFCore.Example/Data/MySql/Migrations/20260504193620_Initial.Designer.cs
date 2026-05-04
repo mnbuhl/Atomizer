@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Atomizer.EFCore.Example.Data.MySql.Migrations
 {
     [DbContext(typeof(ExampleMySqlContext))]
-    [Migration("20260503193358_AddIndexForJobKeyOnSchedulesTable")]
-    partial class AddIndexForJobKeyOnSchedulesTable
+    [Migration("20260504193620_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -75,6 +75,10 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -86,8 +90,8 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("RetryIntervals")
                         .IsRequired()
@@ -95,11 +99,14 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                         .HasColumnType("varchar(4096)");
 
                     b.Property<string>("ScheduleJobKey")
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<DateTimeOffset>("ScheduledAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("SequenceNumber")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

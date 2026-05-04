@@ -30,7 +30,7 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
         builder.ToTable("AtomizerJobs", _schema);
         builder.HasKey(job => job.Id);
         builder.Property(job => job.Id).ValueGeneratedOnAdd();
-        builder.Property(job => job.QueueKey).IsRequired().HasMaxLength(512);
+        builder.Property(job => job.QueueKey).IsRequired().HasMaxLength(100); // QueueKey domain max = 100
         builder.Property(job => job.PayloadType).IsRequired().HasMaxLength(1024);
         builder.Property(job => job.Payload).IsRequired();
         builder.Property(job => job.ScheduledAt).IsRequired();
@@ -40,8 +40,8 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
         builder.Property(job => job.CreatedAt).IsRequired();
         builder.Property(job => job.CompletedAt).IsRequired(false);
         builder.Property(job => job.FailedAt).IsRequired(false);
-        builder.Property(job => job.LeaseToken).HasMaxLength(512);
-        builder.Property(job => job.ScheduleJobKey).HasMaxLength(512);
+        builder.Property(job => job.LeaseToken).HasMaxLength(512); // LeaseToken format: InstanceId:*:QueueKey:*:LeaseId — can be long
+        builder.Property(job => job.ScheduleJobKey).HasMaxLength(255); // JobKey domain max = 255
         builder.Property(job => job.IdempotencyKey).HasMaxLength(512);
         builder.Property(job => job.UpdatedAt).IsRequired();
         builder
@@ -60,5 +60,7 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
                     c => c.ToArray()
                 )
             );
+        builder.Property(job => job.PartitionKey).HasMaxLength(255).IsRequired(false);
+        builder.Property(job => job.SequenceNumber).IsRequired(false);
     }
 }

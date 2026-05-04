@@ -127,6 +127,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         dbContext.ChangeTracker.Clear();
 
         // Act
+        job1.Lease(FakeDataFactory.LeaseToken(), _clock.UtcNow, TimeSpan.FromMinutes(10));
+        job2.Lease(FakeDataFactory.LeaseToken(), _clock.UtcNow, TimeSpan.FromMinutes(10));
         job1.MarkAsCompleted(_clock.UtcNow);
         job2.MarkAsFailed(_clock.UtcNow);
         await storage.UpdateJobsAsync(new[] { job1, job2 }, CancellationToken.None);
@@ -669,10 +671,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         await using var dbContext = _dbContextFactory();
-        dbContext.Set<AtomizerJobEntity>().RemoveRange(dbContext.Set<AtomizerJobEntity>());
-        dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(dbContext.Set<AtomizerJobErrorEntity>());
-        dbContext.Set<AtomizerScheduleEntity>().RemoveRange(dbContext.Set<AtomizerScheduleEntity>());
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await StorageTestCleanup.ClearAsync(dbContext, TestContext.Current.CancellationToken);
     }
 
     public ValueTask InitializeAsync()

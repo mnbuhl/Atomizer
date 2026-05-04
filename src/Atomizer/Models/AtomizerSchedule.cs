@@ -59,6 +59,16 @@ public class AtomizerSchedule : Model
     public RetryStrategy RetryStrategy { get; set; } = RetryStrategy.Default;
 
     /// <summary>
+    /// Gets or sets the partition key applied to each job occurrence enqueued from this schedule,
+    /// or <see langword="null"/> if occurrences participate in no partition.
+    /// </summary>
+    /// <remarks>
+    /// When set, the <see cref="PartitionKey"/> is forwarded to every <see cref="AtomizerJob"/> created
+    /// by <c>ScheduleProcessor</c>, enabling FIFO ordering across recurring job occurrences.
+    /// </remarks>
+    public PartitionKey? PartitionKey { get; set; }
+
+    /// <summary>
     /// Gets or sets the UTC time of the next scheduled occurrence.
     /// </summary>
     public DateTimeOffset NextRunAt { get; set; }
@@ -94,6 +104,7 @@ public class AtomizerSchedule : Model
     /// <param name="maxCatchUp">Maximum missed runs to catch up. Defaults to 5.</param>
     /// <param name="enabled">Whether the schedule is active. Defaults to true.</param>
     /// <param name="retryStrategy">Optional retry strategy; defaults to <see cref="RetryStrategy.Default"/>.</param>
+    /// <param name="partitionKey">Optional partition key forwarded to each job occurrence for FIFO ordering.</param>
     /// <returns>A new <see cref="AtomizerSchedule"/> instance.</returns>
     public static AtomizerSchedule Create(
         JobKey jobKey,
@@ -106,7 +117,8 @@ public class AtomizerSchedule : Model
         MisfirePolicy misfirePolicy = MisfirePolicy.ExecuteNow,
         int maxCatchUp = 5,
         bool enabled = true,
-        RetryStrategy? retryStrategy = null
+        RetryStrategy? retryStrategy = null,
+        PartitionKey? partitionKey = null
     )
     {
         var atomizerSchedule = new AtomizerSchedule
@@ -124,6 +136,7 @@ public class AtomizerSchedule : Model
             RetryStrategy = retryStrategy ?? RetryStrategy.Default,
             CreatedAt = createdAt,
             UpdatedAt = createdAt,
+            PartitionKey = partitionKey,
         };
 
         atomizerSchedule.NextRunAt =

@@ -11,6 +11,13 @@ public interface IAtomizerStorage
     /// <param name="job">The Atomizer job to be inserted.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>The unique identifier of the inserted job.</returns>
+    /// <remarks>
+    /// For partitioned jobs (<see cref="AtomizerJob.PartitionKey"/> is not <see langword="null"/>), implementations
+    /// must assign a monotonically increasing <see cref="AtomizerJob.SequenceNumber"/> scoped to the
+    /// (queue, partition key) before returning. For unpartitioned jobs, <see cref="AtomizerJob.SequenceNumber"/>
+    /// must remain <see langword="null"/>. On an idempotency key collision, the existing job's sequence number
+    /// is assigned to the passed-in job.
+    /// </remarks>
     Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken);
 
     /// <summary>
@@ -29,6 +36,15 @@ public interface IAtomizerStorage
     /// <param name="batchSize">The maximum number of jobs to retrieve in this batch.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of due Atomizer jobs.</returns>
+    /// <remarks>
+    /// When partition keys are in use, this method enforces FIFO ordering:
+    /// <list type="bullet">
+    ///   <item>At most one job per (queue, partition key) is returned — the job with the lowest sequence number.</item>
+    ///   <item>A partition is excluded entirely if any job within it is <see cref="AtomizerJobStatus.Processing"/>
+    ///         or <see cref="AtomizerJobStatus.Pending"/> with prior attempts (<c>Attempts &gt; 0</c>).</item>
+    ///   <item>Jobs without a partition key are unaffected and returned normally alongside partitioned jobs.</item>
+    /// </list>
+    /// </remarks>
     Task<IReadOnlyList<AtomizerJob>> GetDueJobsAsync(
         QueueKey queueKey,
         DateTimeOffset now,
@@ -55,7 +71,7 @@ public interface IAtomizerStorage
     Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Updates a range of existing schedules jobs in the storage.
+    /// Updates a range of existing Atomizer schedules in the storage.
     /// </summary>
     /// <param name="schedules">The collection of Atomizer schedules to be updated.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
@@ -84,6 +100,14 @@ public interface IAtomizerStorage
     /// </param>
     /// <param name="cancellationToken">Cancellation token to cancel the lease acquisition.</param>
     /// <returns>The value returned by <paramref name="callback"/>.</returns>
+    /// <remarks>
+    /// <b>Important:</b> if the lease cannot be acquired (e.g. another worker already holds it),
+    /// the callback is <em>not</em> invoked and this method returns <c>default(TResult)</c>.
+    /// Callers that do not need a return value should prefer the non-generic
+    /// <see cref="ExecuteInLeaseAsync(QueueKey, Func{CancellationToken, Task}, CancellationToken)"/>
+    /// overload, which makes the no-op path explicit. Callers of this generic overload must
+    /// treat a <c>default</c> result as "lease not acquired — no work was done".
+    /// </remarks>
     Task<TResult> ExecuteInLeaseAsync<TResult>(
         QueueKey queue,
         Func<CancellationToken, Task<TResult>> callback,

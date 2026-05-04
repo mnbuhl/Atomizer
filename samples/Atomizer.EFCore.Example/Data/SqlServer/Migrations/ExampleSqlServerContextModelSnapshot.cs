@@ -72,6 +72,10 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -83,8 +87,8 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("RetryIntervals")
                         .IsRequired()
@@ -92,11 +96,14 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ScheduleJobKey")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTimeOffset>("ScheduledAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("SequenceNumber")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

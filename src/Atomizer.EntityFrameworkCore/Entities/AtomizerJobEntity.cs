@@ -53,6 +53,12 @@ public class AtomizerJobEntity
     /// <summary>Gets or sets the idempotency key used to deduplicate job insertions.</summary>
     public string? IdempotencyKey { get; set; }
 
+    /// <summary>Gets or sets the partition key grouping this job for FIFO processing, or null if unpartitioned.</summary>
+    public string? PartitionKey { get; set; }
+
+    /// <summary>Gets or sets the monotonically increasing sequence number within (queue, partition key), or null if unpartitioned.</summary>
+    public long? SequenceNumber { get; set; }
+
     /// <summary>Gets or sets the list of error records from previous failed attempts.</summary>
     public List<AtomizerJobErrorEntity> Errors { get; set; } = new List<AtomizerJobErrorEntity>();
 }
@@ -105,6 +111,8 @@ public static class AtomizerJobEntityMapper
             RetryIntervals = job.RetryStrategy.RetryIntervals,
             ScheduleJobKey = job.ScheduleJobKey?.ToString(),
             IdempotencyKey = job.IdempotencyKey,
+            PartitionKey = job.PartitionKey?.ToString(),
+            SequenceNumber = job.SequenceNumber,
             Errors = job.Errors.Select(err => err.ToEntity()).ToList(),
         };
     }
@@ -131,10 +139,15 @@ public static class AtomizerJobEntityMapper
             CompletedAt = entity.CompletedAt,
             FailedAt = entity.FailedAt,
             LeaseToken = entity.LeaseToken != null ? new LeaseToken(entity.LeaseToken) : null,
+            // RetryStrategy.None serializes as [0ms] (length 1), so the normal round-trip for None
+            // is handled by the Intervals path. The length == 0 guard is a defensive fallback for
+            // corrupt rows with an empty RetryIntervals column; without it, Intervals([]) would throw.
             RetryStrategy =
                 entity.RetryIntervals.Length == 0 ? RetryStrategy.None : RetryStrategy.Intervals(entity.RetryIntervals),
             ScheduleJobKey = entity.ScheduleJobKey != null ? new JobKey(entity.ScheduleJobKey) : null,
             IdempotencyKey = entity.IdempotencyKey,
+            PartitionKey = entity.PartitionKey != null ? new PartitionKey(entity.PartitionKey) : null,
+            SequenceNumber = entity.SequenceNumber,
             Errors = entity.Errors.Select(err => err.ToAtomizerJobError()).ToList(),
         };
     }
