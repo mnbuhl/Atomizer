@@ -155,4 +155,18 @@ app.MapPost(
     }
 );
 
+// FIFO example: stock events for the same product are partitioned by ProductId,
+// guaranteeing they execute one-at-a-time in enqueue order.
+app.MapPost(
+    "/stock-events",
+    async ([FromServices] IAtomizerClient atomizerClient, [FromBody] StockEvent stockEvent) =>
+    {
+        var jobId = await atomizerClient.EnqueueAsync(
+            stockEvent,
+            options => options.PartitionKey = new PartitionKey(stockEvent.ProductId.ToString())
+        );
+        return Results.Accepted($"/jobs/{jobId}");
+    }
+);
+
 app.Run();
