@@ -121,7 +121,11 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         {
             var sql = _providerCache.Dialect.GetDueJobs(queueKey, now, batchSize);
 
-            var entities = await JobEntities.FromSqlInterpolated(sql).AsNoTracking().ToListAsync(cancellationToken);
+            var entities = await JobEntities
+                .FromSqlInterpolated(sql)
+                .Include(j => j.Errors)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
 
             return entities.Select(job => job.ToAtomizerJob()).ToList();
         }
@@ -133,6 +137,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             // AllowUnsafeProviderFallback is only safe with DegreeOfParallelism=1 and
             // a single process instance. It is not safe for production use.
             var allForQueue = await JobEntities
+                .Include(j => j.Errors)
                 .AsNoTracking()
                 .Where(j => j.QueueKey == queueKey.Key)
                 .ToListAsync(cancellationToken);
