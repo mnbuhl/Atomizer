@@ -60,5 +60,7 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
                     c => c.ToArray()
                 )
             );
+        builder.Property(job => job.PartitionKey).HasMaxLength(255).IsRequired(false);
+        builder.Property(job => job.SequenceNumber).IsRequired(false);
     }
 }
