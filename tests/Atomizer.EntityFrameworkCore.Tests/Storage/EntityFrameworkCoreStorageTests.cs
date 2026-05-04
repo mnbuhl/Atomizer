@@ -154,6 +154,40 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateJobsAsync_WhenJobHasNewErrors_ShouldPersistErrorsWithoutConcurrencyException()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var job = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Failing Job" }""",
+            now,
+            now,
+            retryStrategy: RetryStrategy.Intervals(new[] { TimeSpan.FromSeconds(10) })
+        );
+
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        await storage.InsertAsync(job, CancellationToken.None);
+        dbContext.ChangeTracker.Clear();
+
+        job.Lease(FakeDataFactory.LeaseToken(), now, TimeSpan.FromMinutes(10));
+        job.Attempt();
+        job.Errors.Add(AtomizerJobError.Create(job.Id, now, job.Attempts, new InvalidOperationException("boom"), null));
+        job.Reschedule(now.AddSeconds(10), now);
+
+        // Act — must not throw DbUpdateConcurrencyException
+        var act = async () => await storage.UpdateJobsAsync([job], CancellationToken.None);
+        await act.Should().NotThrowAsync();
+
+        // Assert — error was persisted
+        var errors = await dbContext.Set<AtomizerJobErrorEntity>().Where(e => e.JobId == job.Id).ToListAsync(TestContext.Current.CancellationToken);
+        errors.Should().ContainSingle();
+        errors[0].ErrorMessage.Should().Contain("boom");
+    }
+
+    [Fact]
     public async Task GetDueJobsAsync_WhenDueJobsExist_ShouldReturnDueJobs()
     {
         // Arrange

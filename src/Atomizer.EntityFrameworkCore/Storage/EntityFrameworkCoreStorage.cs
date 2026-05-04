@@ -193,7 +193,28 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             // InvalidOperationException when the same entities were previously
             // tracked by InsertAsync (or a prior UpdateJobsAsync call) on this context.
             _dbContext.ChangeTracker.Clear();
-            JobEntities.UpdateRange(jobs.Select(j => j.ToEntity()));
+
+            var newErrors = new List<AtomizerJobErrorEntity>();
+            var jobEntities = jobs
+                .Select(j =>
+                {
+                    var entity = j.ToEntity();
+                    // Errors loaded via GetDueJobsAsync are always empty (no .Include); any errors
+                    // present here are new records added by HandleFailureAsync that have never been
+                    // persisted. UpdateRange would mark them Modified (not Added), producing a
+                    // zero-row UPDATE and a DbUpdateConcurrencyException. Extract them first so
+                    // they can be inserted via AddRange instead.
+                    newErrors.AddRange(entity.Errors);
+                    entity.Errors = [];
+                    return entity;
+                })
+                .ToList();
+
+            JobEntities.UpdateRange(jobEntities);
+
+            if (newErrors.Count > 0)
+                JobErrorEntities.AddRange(newErrors);
+
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex)
