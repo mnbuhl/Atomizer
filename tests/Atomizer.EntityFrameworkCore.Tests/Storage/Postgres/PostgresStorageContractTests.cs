@@ -29,14 +29,15 @@ public sealed class PostgresStorageContractTests(PostgreSqlDatabaseFixture fixtu
     public override async ValueTask DisposeAsync()
     {
         if (_dbContext is not null)
-        {
             await _dbContext.DisposeAsync();
-        }
 
+        // Delete errors before jobs to satisfy the FK constraint, then schedules.
+        // Use a bounded cancellation token so teardown does not hang indefinitely.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await using var cleanupContext = fixture.CreateNewDbContext();
-        cleanupContext.Set<AtomizerJobEntity>().RemoveRange(cleanupContext.Set<AtomizerJobEntity>());
         cleanupContext.Set<AtomizerJobErrorEntity>().RemoveRange(cleanupContext.Set<AtomizerJobErrorEntity>());
+        cleanupContext.Set<AtomizerJobEntity>().RemoveRange(cleanupContext.Set<AtomizerJobEntity>());
         cleanupContext.Set<AtomizerScheduleEntity>().RemoveRange(cleanupContext.Set<AtomizerScheduleEntity>());
-        await cleanupContext.SaveChangesAsync();
+        await cleanupContext.SaveChangesAsync(cts.Token);
     }
 }
