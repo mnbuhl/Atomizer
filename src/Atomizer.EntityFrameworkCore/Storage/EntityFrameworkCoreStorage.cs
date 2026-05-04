@@ -241,8 +241,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 .Where(j => j.QueueKey == queueKey.Key)
                 .ToListAsync(cancellationToken);
 
-            // 1) Collect blocked partitions: any partition key with a Processing job
-            //    or a Pending job with prior attempts (retrying).
             var blockedPartitions = allForQueue
                 .Where(j =>
                     j.PartitionKey != null
@@ -254,9 +252,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 .Select(j => j.PartitionKey!)
                 .ToHashSet();
 
-            // 2) Apply eligibility filter, blocking filter, and batch size limit.
-            //    All jobs from unblocked partitions are eligible; sequence ordering
-            //    ensures FIFO delivery within each partition.
             return allForQueue
                 .Where(j =>
                     (
