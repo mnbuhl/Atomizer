@@ -13,23 +13,22 @@ namespace Atomizer.EntityFrameworkCore.Tests.Providers;
 /// </summary>
 public sealed class SqlServerDialectTests
 {
-    private static (EntityMap jobs, EntityMap schedules, EntityMap activeServers) BuildMaps()
+    private static (EntityMap jobs, EntityMap schedules) BuildMaps()
     {
         var builder = new ModelBuilder();
         builder.AddAtomizerEntities(schema: "atomizer");
         var model = builder.FinalizeModel();
         return (
             EntityMap.Build(model, typeof(AtomizerJobEntity), DatabaseProvider.SqlServer),
-            EntityMap.Build(model, typeof(AtomizerScheduleEntity), DatabaseProvider.SqlServer),
-            EntityMap.Build(model, typeof(AtomizerActiveServerEntity), DatabaseProvider.SqlServer)
+            EntityMap.Build(model, typeof(AtomizerScheduleEntity), DatabaseProvider.SqlServer)
         );
     }
 
     [Fact]
     public void GetDueJobs_WhenCalled_ShouldContainWithUpdlockReadpastRowlock()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new SqlServerDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new SqlServerDialect(jobs, schedules);
 
         var sql = dialect.GetDueJobs(QueueKey.Default, DateTimeOffset.UtcNow, 10);
 
@@ -40,8 +39,8 @@ public sealed class SqlServerDialectTests
     [Fact]
     public void GetDueSchedules_WhenCalled_ShouldContainWithUpdlockReadpastRowlock()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new SqlServerDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new SqlServerDialect(jobs, schedules);
 
         var sql = dialect.GetDueSchedules(DateTimeOffset.UtcNow);
 
@@ -51,8 +50,8 @@ public sealed class SqlServerDialectTests
     [Fact]
     public void ReleaseLeasedJobs_WhenCalled_ShouldContainUpdateStatement()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new SqlServerDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new SqlServerDialect(jobs, schedules);
         var token = new LeaseToken("instance1:*:default:*:aaaaaaaa");
 
         var sql = dialect.ReleaseLeasedJobs(token, DateTimeOffset.UtcNow);
@@ -63,8 +62,8 @@ public sealed class SqlServerDialectTests
     [Fact]
     public void UpsertScheduleAsync_WhenCalled_ShouldContainMergeWithHoldlock()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new SqlServerDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new SqlServerDialect(jobs, schedules);
         var schedule = AtomizerSchedule.Create(
             new JobKey("test-key"),
             QueueKey.Default,
@@ -79,20 +78,6 @@ public sealed class SqlServerDialectTests
 
         sql.Format.Should().Contain("MERGE");
         sql.Format.Should().Contain("WITH (HOLDLOCK)");
-    }
-
-
-    [Fact]
-    public void ReleaseLeasedJobsByInstanceId_WhenCalled_ShouldUseAnchoredEscapedPrefixMatch()
-    {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new SqlServerDialect(jobs, schedules, activeServers);
-
-        var sql = dialect.ReleaseLeasedJobsByInstanceId("foo%_[", DateTimeOffset.UtcNow);
-
-        sql.Format.Should().Contain("LIKE");
-        sql.Format.Should().Contain("ESCAPE '!'");
-        sql.GetArguments().Should().Contain("foo!%!_![:*:%");
     }
 
 }

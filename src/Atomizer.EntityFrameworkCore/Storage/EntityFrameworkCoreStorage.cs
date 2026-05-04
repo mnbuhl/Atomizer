@@ -35,17 +35,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage,
         _providerCache = RelationalProviderCache.Create(dbContext);
     }
 
-
-    public void ValidateHeartbeatRecoverySupport()
-    {
-        if (_providerCache is not { IsSupportedProvider: true, Dialect: not null })
-        {
-            throw new NotSupportedException(
-                "Heartbeat recovery requires a supported relational provider with atomic release-by-instance support. "
-                    + "Supported providers are PostgreSQL, MySQL, and SQL Server."
-            );
-        }
-    }
+    public void ValidateHeartbeatRecoverySupport() { }
 
     public async Task UpsertHeartbeatAsync(AtomizerActiveServer server, CancellationToken cancellationToken)
     {
@@ -92,24 +82,51 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage,
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ValidateHeartbeatRecoverySupport();
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var deleteStaleServerSql = _providerCache.Dialect!.DeleteStaleServer(instanceId, staleBefore);
-        var claimed = await _dbContext.Database.ExecuteSqlInterpolatedAsync(deleteStaleServerSql, cancellationToken);
+        var server = await ActiveServerEntities
+            .Where(activeServer => activeServer.InstanceId == instanceId && activeServer.LastHeartbeatAt < staleBefore)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (claimed == 0)
+        if (server is null)
         {
             await transaction.RollbackAsync(cancellationToken);
             return AtomizerHeartbeatRecoveryResult.NotRecovered(instanceId);
         }
 
-        var releaseJobsSql = _providerCache.Dialect.ReleaseLeasedJobsByInstanceId(instanceId, now);
-        var released = await _dbContext.Database.ExecuteSqlInterpolatedAsync(releaseJobsSql, cancellationToken);
+        ActiveServerEntities.Remove(server);
 
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AtomizerHeartbeatRecoveryResult.NotRecovered(instanceId);
+        }
+
+        var tokenPrefix = instanceId + LeaseToken.Delimiter;
+        var jobs = await JobEntities
+            .Where(job =>
+                job.Status == AtomizerEntityJobStatus.Processing
+                && job.LeaseToken != null
+                && job.LeaseToken.StartsWith(tokenPrefix)
+            )
+            .ToListAsync(cancellationToken);
+
+        foreach (var job in jobs)
+        {
+            job.Status = AtomizerEntityJobStatus.Pending;
+            job.LeaseToken = null;
+            job.VisibleAt = null;
+            job.UpdatedAt = now;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new AtomizerHeartbeatRecoveryResult(instanceId, true, released);
+        return new AtomizerHeartbeatRecoveryResult(instanceId, true, jobs.Count);
     }
 
     public async Task RemoveHeartbeatAsync(string instanceId, CancellationToken cancellationToken)

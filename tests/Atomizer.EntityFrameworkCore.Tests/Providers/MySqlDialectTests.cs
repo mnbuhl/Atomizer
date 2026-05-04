@@ -13,23 +13,22 @@ namespace Atomizer.EntityFrameworkCore.Tests.Providers;
 /// </summary>
 public sealed class MySqlDialectTests
 {
-    private static (EntityMap jobs, EntityMap schedules, EntityMap activeServers) BuildMaps()
+    private static (EntityMap jobs, EntityMap schedules) BuildMaps()
     {
         var builder = new ModelBuilder();
         builder.AddAtomizerEntities(schema: "atomizer");
         var model = builder.FinalizeModel();
         return (
             EntityMap.Build(model, typeof(AtomizerJobEntity), DatabaseProvider.MySql),
-            EntityMap.Build(model, typeof(AtomizerScheduleEntity), DatabaseProvider.MySql),
-            EntityMap.Build(model, typeof(AtomizerActiveServerEntity), DatabaseProvider.MySql)
+            EntityMap.Build(model, typeof(AtomizerScheduleEntity), DatabaseProvider.MySql)
         );
     }
 
     [Fact]
     public void GetDueJobs_WhenCalled_ShouldContainForUpdateSkipLocked()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new MySqlDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new MySqlDialect(jobs, schedules);
 
         var sql = dialect.GetDueJobs(QueueKey.Default, DateTimeOffset.UtcNow, 10);
 
@@ -40,8 +39,8 @@ public sealed class MySqlDialectTests
     [Fact]
     public void GetDueSchedules_WhenCalled_ShouldContainForUpdateSkipLocked()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new MySqlDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new MySqlDialect(jobs, schedules);
 
         var sql = dialect.GetDueSchedules(DateTimeOffset.UtcNow);
 
@@ -51,8 +50,8 @@ public sealed class MySqlDialectTests
     [Fact]
     public void ReleaseLeasedJobs_WhenCalled_ShouldContainUpdateStatement()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new MySqlDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new MySqlDialect(jobs, schedules);
         var token = new LeaseToken("instance1:*:default:*:aaaaaaaa");
 
         var sql = dialect.ReleaseLeasedJobs(token, DateTimeOffset.UtcNow);
@@ -63,8 +62,8 @@ public sealed class MySqlDialectTests
     [Fact]
     public void UpsertScheduleAsync_WhenCalled_ShouldContainOnDuplicateKeyUpdate()
     {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new MySqlDialect(jobs, schedules, activeServers);
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new MySqlDialect(jobs, schedules);
         var schedule = AtomizerSchedule.Create(
             new JobKey("test-key"),
             QueueKey.Default,
@@ -78,20 +77,6 @@ public sealed class MySqlDialectTests
         var sql = dialect.UpsertScheduleAsync(schedule, DateTimeOffset.UtcNow);
 
         sql.Format.Should().Contain("ON DUPLICATE KEY UPDATE");
-    }
-
-
-    [Fact]
-    public void ReleaseLeasedJobsByInstanceId_WhenCalled_ShouldUseAnchoredEscapedPrefixMatch()
-    {
-        var (jobs, schedules, activeServers) = BuildMaps();
-        var dialect = new MySqlDialect(jobs, schedules, activeServers);
-
-        var sql = dialect.ReleaseLeasedJobsByInstanceId("foo%_[", DateTimeOffset.UtcNow);
-
-        sql.Format.Should().Contain("LIKE");
-        sql.Format.Should().Contain("ESCAPE '!'");
-        sql.GetArguments().Should().Contain("foo!%!_![:*:%");
     }
 
 }

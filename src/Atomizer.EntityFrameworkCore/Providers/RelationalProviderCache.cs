@@ -13,14 +13,12 @@ internal sealed class RelationalProviderCache
     private DatabaseProvider DatabaseProvider { get; }
     private readonly EntityMap? _jobs;
     private readonly EntityMap? _schedules;
-    private readonly EntityMap? _activeServers;
 
-    private RelationalProviderCache(DatabaseProvider databaseProvider, EntityMap? jobs, EntityMap? schedules, EntityMap? activeServers)
+    private RelationalProviderCache(DatabaseProvider databaseProvider, EntityMap? jobs, EntityMap? schedules)
     {
         DatabaseProvider = databaseProvider;
         _jobs = jobs;
         _schedules = schedules;
-        _activeServers = activeServers;
 
         if (IsSupportedProvider)
         {
@@ -42,34 +40,32 @@ internal sealed class RelationalProviderCache
             _ =>
             {
                 EntityMap? jobs = null,
-                    schedules = null,
-                    activeServers = null;
+                    schedules = null;
 
                 if (DetermineSupportedProvider(provider))
                 {
                     var model = dbContext.Model; // capture once
                     jobs = EntityMap.Build(model, typeof(AtomizerJobEntity), provider);
                     schedules = EntityMap.Build(model, typeof(AtomizerScheduleEntity), provider);
-                    activeServers = EntityMap.Build(model, typeof(AtomizerActiveServerEntity), provider);
                 }
 
-                return new RelationalProviderCache(provider, jobs, schedules, activeServers);
+                return new RelationalProviderCache(provider, jobs, schedules);
             }
         );
     }
 
     private ISqlDialect CreateDialect()
     {
-        if (!IsSupportedProvider || _jobs is null || _schedules is null || _activeServers is null)
+        if (!IsSupportedProvider || _jobs is null || _schedules is null)
         {
             throw new InvalidOperationException("Database provider is not supported or entity mappings are missing.");
         }
 
         return DatabaseProvider switch
         {
-            DatabaseProvider.PostgreSql => new PostgreSqlDialect(_jobs, _schedules, _activeServers),
-            DatabaseProvider.MySql => new MySqlDialect(_jobs, _schedules, _activeServers),
-            DatabaseProvider.SqlServer => new SqlServerDialect(_jobs, _schedules, _activeServers),
+            DatabaseProvider.PostgreSql => new PostgreSqlDialect(_jobs, _schedules),
+            DatabaseProvider.MySql => new MySqlDialect(_jobs, _schedules),
+            DatabaseProvider.SqlServer => new SqlServerDialect(_jobs, _schedules),
             _ => throw new NotSupportedException($"Database provider {DatabaseProvider} is not supported."),
         };
     }

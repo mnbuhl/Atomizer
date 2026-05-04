@@ -7,13 +7,11 @@ internal sealed class PostgreSqlDialect : ISqlDialect
 {
     private readonly EntityMap _jobs;
     private readonly EntityMap _schedules;
-    private readonly EntityMap _activeServers;
 
-    public PostgreSqlDialect(EntityMap jobs, EntityMap schedules, EntityMap activeServers)
+    public PostgreSqlDialect(EntityMap jobs, EntityMap schedules)
     {
         _jobs = jobs;
         _schedules = schedules;
-        _activeServers = activeServers;
     }
 
     public FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
@@ -67,43 +65,6 @@ SET {colStatus} = {statusPending},
 WHERE {colLeaseToken} = {{1}}
   AND {colStatus} = {statusProcessing};";
         return FormattableStringFactory.Create(format, now, leaseToken.Token);
-    }
-
-
-
-    public FormattableString DeleteStaleServer(string instanceId, DateTimeOffset staleBefore)
-    {
-        var table = _activeServers.Table;
-        var c = _activeServers.Col;
-        var colInstanceId = c[nameof(AtomizerActiveServerEntity.InstanceId)];
-        var colLastHeartbeatAt = c[nameof(AtomizerActiveServerEntity.LastHeartbeatAt)];
-        var format =
-            $@"DELETE FROM {table}
-WHERE {colInstanceId} = {{0}}
-  AND {colLastHeartbeatAt} < {{1}};";
-        return FormattableStringFactory.Create(format, instanceId, staleBefore);
-    }
-
-    public FormattableString ReleaseLeasedJobsByInstanceId(string instanceId, DateTimeOffset now)
-    {
-        var table = _jobs.Table;
-        var c = _jobs.Col;
-        var colStatus = c[nameof(AtomizerJobEntity.Status)];
-        var colLeaseToken = c[nameof(AtomizerJobEntity.LeaseToken)];
-        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
-        var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
-        var statusPending = (int)AtomizerEntityJobStatus.Pending;
-        var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        var escapedPrefix = EscapeLikePattern(instanceId + LeaseToken.Delimiter) + "%";
-        var format =
-            $@"UPDATE {table}
-SET {colStatus} = {statusPending},
-    {colLeaseToken} = NULL,
-    {colVisibleAt} = NULL,
-    {colUpdatedAt} = {{0}}
-WHERE {colLeaseToken} LIKE {{1}} ESCAPE '!'
-  AND {colStatus} = {statusProcessing};";
-        return FormattableStringFactory.Create(format, now, escapedPrefix);
     }
 
     public FormattableString GetDueSchedules(DateTimeOffset now)
@@ -211,13 +172,5 @@ ON CONFLICT ({colJobKey}) DO UPDATE SET
             entity.CreatedAt,
             now
         );
-    }
-    private static string EscapeLikePattern(string value)
-    {
-        return value
-            .Replace("!", "!!")
-            .Replace("%", "!%")
-            .Replace("_", "!_")
-            .Replace("[", "![");
     }
 }
