@@ -39,9 +39,10 @@ public interface IAtomizerStorage
     /// <remarks>
     /// When partition keys are in use, this method enforces FIFO ordering:
     /// <list type="bullet">
-    ///   <item>At most one job per (queue, partition key) is returned — the job with the lowest sequence number.</item>
     ///   <item>A partition is excluded entirely if any job within it is <see cref="AtomizerJobStatus.Processing"/>
     ///         or <see cref="AtomizerJobStatus.Pending"/> with prior attempts (<c>Attempts &gt; 0</c>).</item>
+    ///   <item>All eligible jobs from unblocked partitions are returned (up to <paramref name="batchSize"/>),
+    ///         allowing multiple jobs from the same partition to be leased in a single sweep for higher throughput.</item>
     ///   <item>Jobs without a partition key are unaffected and returned normally alongside partitioned jobs.</item>
     /// </list>
     /// </remarks>

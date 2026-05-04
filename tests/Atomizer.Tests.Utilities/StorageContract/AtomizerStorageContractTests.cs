@@ -108,15 +108,15 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
     }
 
     // ------------------------------------------------------------------
-    // FIFO-07: GetDueJobsAsync returns at most one job per partition
+    // FIFO-07: GetDueJobsAsync returns all eligible jobs from unblocked partitions
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// FIFO-07: When multiple jobs share a partition key, only the lowest-sequence-number
-    /// job is returned by <see cref="IAtomizerStorage.GetDueJobsAsync"/>.
+    /// FIFO-07: When multiple jobs share a partition key, all of them are returned in
+    /// sequence-number order so a single sweep can process the whole partition.
     /// </summary>
     [Fact]
-    public async Task GetDueJobsAsync_WhenMultipleJobsInSamePartition_ShouldReturnOnlyLowestSequenceNumber()
+    public async Task GetDueJobsAsync_WhenMultipleJobsInSamePartition_ShouldReturnAllInSequenceOrder()
     {
         // Arrange
         var partitionKey = new PartitionKey("batch-key");
@@ -129,9 +129,32 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         // Act
         var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
 
-        // Assert
-        result.Should().HaveCount(1);
-        result.Single().Id.Should().Be(job1.Id);
+        // Assert — both jobs are returned; job1 (lower sequence) comes first
+        result.Should().HaveCount(2);
+        result[0].Id.Should().Be(job1.Id);
+        result[1].Id.Should().Be(job2.Id);
+    }
+
+    /// <summary>
+    /// FIFO-07: The batch size cap applies across all eligible jobs regardless of partition.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenBatchSizeSmallerThanPartitionJobs_ShouldRespectBatchSize()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("big-partition");
+        var jobs = Enumerable.Range(0, 5).Select(_ => CreateJob(partitionKey: partitionKey)).ToList();
+        foreach (var job in jobs)
+            await _sut.InsertAsync(job, CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 3, CancellationToken.None);
+
+        // Assert — capped at batchSize, lowest sequence numbers first
+        result.Should().HaveCount(3);
+        result[0].Id.Should().Be(jobs[0].Id);
+        result[1].Id.Should().Be(jobs[1].Id);
+        result[2].Id.Should().Be(jobs[2].Id);
     }
 
     /// <summary>
@@ -267,8 +290,9 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         await _sut.ReleaseLeasedAsync(leaseToken, _now, CancellationToken.None);
 
         var unblocked = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
-        unblocked.Should().HaveCount(1);
-        unblocked.Single().Id.Should().Be(job1.Id);
+        unblocked.Should().HaveCount(2);
+        unblocked[0].Id.Should().Be(job1.Id);
+        unblocked[1].Id.Should().Be(job2.Id);
     }
 
     // ------------------------------------------------------------------
