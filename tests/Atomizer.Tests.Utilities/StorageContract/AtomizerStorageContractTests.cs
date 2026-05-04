@@ -10,24 +10,32 @@ namespace Atomizer.Tests.Utilities.StorageContract;
 /// <summary>
 /// Abstract contract test base that verifies FIFO storage semantics (FIFO-07, FIFO-08, FIFO-09).
 /// Subclass this in each storage backend test project and implement <see cref="CreateStorage"/>.
+/// <para>
+/// <strong>Pre-condition:</strong> The <see cref="IAtomizerStorage"/> returned by
+/// <see cref="CreateStorage"/> must fully implement the FIFO partition-blocking rules
+/// described in <see cref="IAtomizerStorage.GetDueJobsAsync"/>. Tests will fail if the
+/// implementation does not enforce these rules.
+/// </para>
 /// </summary>
 public abstract class AtomizerStorageContractTests : IAsyncLifetime
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
-    protected readonly DateTimeOffset _now = DateTimeOffset.UtcNow;
+    protected DateTimeOffset _now;
     protected IAtomizerStorage _sut = null!;
 
     /// <summary>
     /// Creates a fresh storage instance for the test run.
     /// </summary>
+    /// <param name="clock">The clock instance the storage implementation must use.</param>
     /// <returns>A new <see cref="IAtomizerStorage"/> implementation to test.</returns>
-    protected abstract IAtomizerStorage CreateStorage();
+    protected abstract IAtomizerStorage CreateStorage(IAtomizerClock clock);
 
     /// <inheritdoc />
     public ValueTask InitializeAsync()
     {
+        _now = DateTimeOffset.UtcNow;
         _clock.UtcNow.Returns(_now);
-        _sut = CreateStorage();
+        _sut = CreateStorage(_clock);
         return ValueTask.CompletedTask;
     }
 
@@ -203,6 +211,64 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
 
         // Assert — partition blocked while job1 is Pending with Attempts > 0
         result.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// FIFO-08: Two jobs sharing the same partition key string but in different queues
+    /// are treated as independent partitions.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenSamePartitionKeyInDifferentQueues_ShouldTreatAsIndependent()
+    {
+        var partitionKey = new PartitionKey("shared-key");
+        var queueA = QueueKey.Default;
+        var queueB = new QueueKey("secondary");
+
+        var jobA = CreateJob(partitionKey: partitionKey, queueKey: queueA);
+        var jobB = CreateJob(partitionKey: partitionKey, queueKey: queueB);
+
+        await _sut.InsertAsync(jobA, CancellationToken.None);
+        await _sut.InsertAsync(jobB, CancellationToken.None);
+
+        jobA.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        await _sut.UpdateJobsAsync([jobA], CancellationToken.None);
+
+        var result = await _sut.GetDueJobsAsync(queueB, _now, batchSize: 10, CancellationToken.None);
+
+        result.Should().HaveCount(1);
+        result.Single().Id.Should().Be(jobB.Id);
+    }
+
+    // ------------------------------------------------------------------
+    // ReleaseLeasedAsync: partition unblocking
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Releasing a leased partition head must clear VisibleAt and make the job visible again,
+    /// unblocking the entire partition.
+    /// </summary>
+    [Fact]
+    public async Task ReleaseLeasedAsync_WhenPartitionHeadReleased_ShouldUnblockPartition()
+    {
+        var partitionKey = new PartitionKey("release-p");
+        var job1 = CreateJob(partitionKey: partitionKey);
+        var job2 = CreateJob(partitionKey: partitionKey);
+
+        await _sut.InsertAsync(job1, CancellationToken.None);
+        await _sut.InsertAsync(job2, CancellationToken.None);
+
+        var leaseToken = FakeDataFactory.LeaseToken();
+        job1.Lease(leaseToken, _now, TimeSpan.FromMinutes(10));
+        await _sut.UpdateJobsAsync([job1], CancellationToken.None);
+
+        var blocked = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
+        blocked.Should().BeEmpty();
+
+        await _sut.ReleaseLeasedAsync(leaseToken, _now, CancellationToken.None);
+
+        var unblocked = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
+        unblocked.Should().HaveCount(1);
+        unblocked.Single().Id.Should().Be(job1.Id);
     }
 
     // ------------------------------------------------------------------
