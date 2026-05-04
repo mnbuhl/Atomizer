@@ -100,6 +100,14 @@ public interface IAtomizerStorage
     /// </param>
     /// <param name="cancellationToken">Cancellation token to cancel the lease acquisition.</param>
     /// <returns>The value returned by <paramref name="callback"/>.</returns>
+    /// <remarks>
+    /// <b>Important:</b> if the lease cannot be acquired (e.g. another worker already holds it),
+    /// the callback is <em>not</em> invoked and this method returns <c>default(TResult)</c>.
+    /// Callers that do not need a return value should prefer the non-generic
+    /// <see cref="ExecuteInLeaseAsync(QueueKey, Func{CancellationToken, Task}, CancellationToken)"/>
+    /// overload, which makes the no-op path explicit. Callers of this generic overload must
+    /// treat a <c>default</c> result as "lease not acquired — no work was done".
+    /// </remarks>
     Task<TResult> ExecuteInLeaseAsync<TResult>(
         QueueKey queue,
         Func<CancellationToken, Task<TResult>> callback,
