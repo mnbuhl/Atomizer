@@ -29,33 +29,22 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _options.Validate();
 
         _logger.LogInformation("Atomizer heartbeat recovery service starting for instance {InstanceId}", _identity.InstanceId);
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await BeatAndRecoverAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during Atomizer heartbeat recovery tick");
-            }
-
-            await Task.Delay(_options.EffectiveStaleSweepInterval, stoppingToken);
-        }
+        return Task.WhenAll(
+            RunHeartbeatLoopAsync(stoppingToken),
+            RunSweepLoopAsync(stoppingToken)
+        );
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        await base.StopAsync(cancellationToken);
+
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -66,11 +55,51 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
         {
             _logger.LogWarning(ex, "Failed to remove Atomizer heartbeat for instance {InstanceId}", _identity.InstanceId);
         }
-
-        await base.StopAsync(cancellationToken);
     }
 
-    private async Task BeatAndRecoverAsync(CancellationToken cancellationToken)
+    private async Task RunHeartbeatLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await BeatAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Atomizer heartbeat tick");
+            }
+
+            await Task.Delay(_options.HeartbeatInterval, cancellationToken);
+        }
+    }
+
+    private async Task RunSweepLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await RecoverAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Atomizer stale-server recovery tick");
+            }
+
+            await Task.Delay(_options.EffectiveStaleSweepInterval, cancellationToken);
+        }
+    }
+
+    private async Task BeatAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var storage = ResolveStorage(scope.ServiceProvider);
@@ -80,6 +109,13 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
             new AtomizerActiveServer { InstanceId = _identity.InstanceId, LastHeartbeatAt = now },
             cancellationToken
         );
+    }
+
+    private async Task RecoverAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var storage = ResolveStorage(scope.ServiceProvider);
+        var now = _clock.UtcNow;
 
         var staleBefore = now - _options.StaleServerTimeout;
         var staleServers = await storage.GetStaleServersAsync(staleBefore, cancellationToken);
