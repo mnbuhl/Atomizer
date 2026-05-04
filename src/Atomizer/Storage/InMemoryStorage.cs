@@ -123,7 +123,18 @@ public sealed class InMemoryStorage : IAtomizerStorage
             return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
         }
 
-        candidates = ids
+        // Pass 1: collect blocked partition keys from the FULL queue snapshot
+        // D-04: blocking check must scan ALL jobs in the queue, not just due-time candidates
+        // A partition is blocked if any job has IsPartitionBlocked == true (Processing OR Pending+Attempts>0)
+        var blockedPartitions = new HashSet<string>();
+        foreach (var id in ids.Keys)
+        {
+            if (_jobs.TryGetValue(id, out var bj) && bj.IsPartitionBlocked)
+                blockedPartitions.Add(bj.PartitionKey!.Key);
+        }
+
+        // Pass 2: filter eligible candidates (existing status+time logic) and exclude blocked partitions
+        var eligible = ids
             .Keys.Select(id => _jobs.TryGetValue(id, out var j) ? j : null)
             .Where(j =>
                 j != null
@@ -134,8 +145,20 @@ public sealed class InMemoryStorage : IAtomizerStorage
                         && j.ScheduledAt <= now
                     ) || (j.Status == AtomizerJobStatus.Processing && j.VisibleAt <= now) // expired lease
                 )
+                && (j.PartitionKey == null || !blockedPartitions.Contains(j.PartitionKey.Key))
             )
-            .Select(j => j!)
+            .Select(j => j!);
+
+        // Pass 3: FIFO head-of-partition selection
+        // Use OrderBy().First() not MinBy() — MinBy is .NET 6+ and src/Atomizer targets netstandard2.0
+        var unpartitioned = eligible.Where(j => j.PartitionKey == null);
+        var partitionHeads = eligible
+            .Where(j => j.PartitionKey != null)
+            .GroupBy(j => j.PartitionKey!.Key)
+            .Select(g => g.OrderBy(j => j.SequenceNumber).First());
+
+        candidates = unpartitioned
+            .Concat(partitionHeads)
             .OrderBy(j => j.ScheduledAt)
             .ThenBy(j => j.CreatedAt)
             .Take(Math.Max(0, batchSize))
