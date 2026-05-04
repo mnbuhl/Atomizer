@@ -93,7 +93,7 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
                    {8}, {9}, {10},
                    {11}, {12}, {13},
                    {14},
-                   COALESCE((SELECT MAX({{_jSequenceNumber}}) FROM {{_jTable}} WHERE {{_jQueueKey}} = {15} AND {{_jPartitionKey}} = {16}), 0) + 1;
+                   COALESCE((SELECT MAX({{_jSequenceNumber}}) FROM {{_jTable}} WITH (UPDLOCK, HOLDLOCK) WHERE {{_jQueueKey}} = {15} AND {{_jPartitionKey}} = {16}), 0) + 1;
             """;
         return FormattableStringFactory.Create(
             format,

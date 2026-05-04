@@ -97,7 +97,7 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
                    {8}, {9}, {10},
                    {11}, {12}, {13},
                    {14},
-                   COALESCE((SELECT MAX(max_seq) FROM (SELECT MAX({{_jSequenceNumber}}) AS max_seq FROM {{_jTable}} WHERE {{_jQueueKey}} = {15} AND {{_jPartitionKey}} = {16}) AS sub), 0) + 1;
+                   COALESCE((SELECT MAX(max_seq) FROM (SELECT MAX({{_jSequenceNumber}}) AS max_seq FROM {{_jTable}} WHERE {{_jQueueKey}} = {15} AND {{_jPartitionKey}} = {16} FOR UPDATE) AS sub), 0) + 1;
             """;
         return FormattableStringFactory.Create(
             format,

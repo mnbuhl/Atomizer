@@ -96,7 +96,7 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
                    {8}, {9}, {10},
                    {11}, {12}, {13},
                    {14},
-                   COALESCE((SELECT MAX({{_jSequenceNumber}}) FROM (SELECT {{_jSequenceNumber}} FROM {{_jTable}} WHERE {{_jQueueKey}} = {15} AND {{_jPartitionKey}} = {16}) AS sub), 0) + 1;
+                   COALESCE((SELECT MAX({{_jSequenceNumber}}) FROM (SELECT {{_jSequenceNumber}} FROM {{_jTable}} WHERE {{_jQueueKey}} = {15} AND {{_jPartitionKey}} = {16} FOR NO KEY UPDATE) AS sub), 0) + 1;
             """;
         return FormattableStringFactory.Create(
             format,

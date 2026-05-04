@@ -64,7 +64,9 @@ internal sealed class JobProcessor : IJobProcessor
         {
             _logger.LogWarning("Operation cancelled while processing job {JobId} on '{Queue}'", job.Id, job.QueueKey);
 
-            // Release the job so its partition (if any) is not blocked for the full visibility timeout.
+            // Undo the Attempt() increment before releasing: cancellation is not a failed attempt,
+            // so Pending+Attempts>0 must not leave the partition permanently blocked.
+            job.Attempts -= 1;
             job.Release(_clock.UtcNow);
             using var scope = _serviceScopeFactory.CreateScope();
             await scope.Storage.UpdateJobsAsync(new[] { job }, CancellationToken.None);
