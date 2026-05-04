@@ -63,6 +63,11 @@ internal sealed class JobProcessor : IJobProcessor
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             _logger.LogWarning("Operation cancelled while processing job {JobId} on '{Queue}'", job.Id, job.QueueKey);
+
+            // Release the job so its partition (if any) is not blocked for the full visibility timeout.
+            job.Release(_clock.UtcNow);
+            using var scope = _serviceScopeFactory.CreateScope();
+            await scope.Storage.UpdateJobsAsync(new[] { job }, CancellationToken.None);
         }
         catch (Exception ex)
         {
