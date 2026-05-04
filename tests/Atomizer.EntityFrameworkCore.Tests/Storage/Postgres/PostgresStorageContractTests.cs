@@ -30,11 +30,13 @@ public sealed class PostgresStorageContractTests(PostgreSqlDatabaseFixture fixtu
     {
         if (_dbContext is not null)
         {
-            _dbContext.Set<AtomizerJobEntity>().RemoveRange(_dbContext.Set<AtomizerJobEntity>());
-            _dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(_dbContext.Set<AtomizerJobErrorEntity>());
-            _dbContext.Set<AtomizerScheduleEntity>().RemoveRange(_dbContext.Set<AtomizerScheduleEntity>());
-            await _dbContext.SaveChangesAsync();
             await _dbContext.DisposeAsync();
         }
+
+        await using var cleanupContext = fixture.CreateNewDbContext();
+        cleanupContext.Set<AtomizerJobEntity>().RemoveRange(cleanupContext.Set<AtomizerJobEntity>());
+        cleanupContext.Set<AtomizerJobErrorEntity>().RemoveRange(cleanupContext.Set<AtomizerJobErrorEntity>());
+        cleanupContext.Set<AtomizerScheduleEntity>().RemoveRange(cleanupContext.Set<AtomizerScheduleEntity>());
+        await cleanupContext.SaveChangesAsync();
     }
 }
