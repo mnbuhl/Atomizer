@@ -71,7 +71,7 @@ public interface IAtomizerStorage
     Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Updates a range of existing schedules jobs in the storage.
+    /// Updates a range of existing Atomizer schedules in the storage.
     /// </summary>
     /// <param name="schedules">The collection of Atomizer schedules to be updated.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
