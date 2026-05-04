@@ -666,12 +666,62 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         map.Should().NotThrow();
     }
 
+
+    [Fact]
+    public async Task HeartbeatUpsert_WhenRepeated_ShouldPersistSingleActiveServerRecord()
+    {
+        // Arrange
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        var first = _clock.UtcNow.AddMinutes(-1);
+        var second = _clock.UtcNow;
+
+        // Act
+        await storage.UpsertHeartbeatAsync(
+            new AtomizerActiveServer { InstanceId = "server-a", LastHeartbeatAt = first },
+            CancellationToken.None
+        );
+        await storage.UpsertHeartbeatAsync(
+            new AtomizerActiveServer { InstanceId = "server-a", LastHeartbeatAt = second },
+            CancellationToken.None
+        );
+
+        // Assert
+        var heartbeats = await dbContext
+            .Set<AtomizerActiveServerEntity>()
+            .ToListAsync(TestContext.Current.CancellationToken);
+        heartbeats.Should().ContainSingle(server => server.InstanceId == "server-a");
+        heartbeats.Single().LastHeartbeatAt.Should().Be(second);
+    }
+
+    [Fact]
+    public void HeartbeatRecoverySupport_WhenProviderIsUnsupported_ShouldFailClearly()
+    {
+        // Arrange
+        using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
+        // Act
+        var act = storage.ValidateHeartbeatRecoverySupport;
+
+        // Assert
+        if (dbContext.Database.IsSqlite())
+        {
+            act.Should().Throw<NotSupportedException>().WithMessage("*Heartbeat recovery requires*");
+        }
+        else
+        {
+            act.Should().NotThrow();
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await using var dbContext = _dbContextFactory();
         dbContext.Set<AtomizerJobEntity>().RemoveRange(dbContext.Set<AtomizerJobEntity>());
         dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(dbContext.Set<AtomizerJobErrorEntity>());
         dbContext.Set<AtomizerScheduleEntity>().RemoveRange(dbContext.Set<AtomizerScheduleEntity>());
+        dbContext.Set<AtomizerActiveServerEntity>().RemoveRange(dbContext.Set<AtomizerActiveServerEntity>());
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
