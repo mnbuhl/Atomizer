@@ -84,7 +84,8 @@ public class AtomizerClient : IAtomizerClient
             options.MisfirePolicy,
             options.MaxCatchUp,
             options.Enabled,
-            options.RetryStrategy
+            options.RetryStrategy,
+            options.PartitionKey
         );
 
         using var scope = _serviceScopeFactory.CreateScope();
@@ -107,7 +108,8 @@ public class AtomizerClient : IAtomizerClient
             _clock.UtcNow,
             when,
             options.RetryStrategy,
-            options.IdempotencyKey
+            options.IdempotencyKey,
+            partitionKey: options.PartitionKey
         );
 
         using var scope = _serviceScopeFactory.CreateScope();
