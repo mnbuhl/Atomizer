@@ -14,6 +14,8 @@ public sealed class InMemoryStorage : IAtomizerStorage
     private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<Guid, byte>> _queues = new();
     private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<string, long>> _partitionSequences = new();
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>> _leasesByToken = new();
+    private readonly ConcurrentDictionary<string, AtomizerActiveServer> _activeServers = new(StringComparer.Ordinal);
+    private readonly object _syncRoot = new();
 
     private readonly Dictionary<JobKey, AtomizerSchedule> _schedules = new();
     private readonly ConcurrentDictionary<QueueKey, SemaphoreSlim> _semaphores = new();
@@ -207,6 +209,94 @@ public sealed class InMemoryStorage : IAtomizerStorage
     }
 
     /// <inheritdoc/>
+    public Task UpsertHeartbeatAsync(AtomizerActiveServer server, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(server.InstanceId))
+        {
+            throw new ArgumentException("Active server instance id cannot be null or empty.", nameof(server));
+        }
+
+        lock (_syncRoot)
+        {
+            _activeServers[server.InstanceId] = new AtomizerActiveServer
+            {
+                InstanceId = server.InstanceId,
+                LastHeartbeatAt = server.LastHeartbeatAt,
+            };
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<AtomizerActiveServer>> GetStaleServersAsync(
+        DateTimeOffset staleBefore,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IReadOnlyList<AtomizerActiveServer> staleServers;
+        lock (_syncRoot)
+        {
+            staleServers = _activeServers
+                .Values.Where(server => server.LastHeartbeatAt < staleBefore)
+                .Select(server => new AtomizerActiveServer
+                {
+                    InstanceId = server.InstanceId,
+                    LastHeartbeatAt = server.LastHeartbeatAt,
+                })
+                .OrderBy(server => server.LastHeartbeatAt)
+                .ToList();
+        }
+
+        return Task.FromResult(staleServers);
+    }
+
+    /// <inheritdoc/>
+    public Task<AtomizerHeartbeatRecoveryResult> TryRecoverStaleServerAsync(
+        string instanceId,
+        DateTimeOffset staleBefore,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_syncRoot)
+        {
+            if (
+                !_activeServers.TryGetValue(instanceId, out var server)
+                || server.LastHeartbeatAt >= staleBefore
+                || !_activeServers.TryRemove(instanceId, out _)
+            )
+            {
+                return Task.FromResult(AtomizerHeartbeatRecoveryResult.NotRecovered(instanceId));
+            }
+
+            var prefix = instanceId + LeaseToken.Delimiter;
+            var released = ReleaseMatchingJobs(
+                job =>
+                    job.Status == AtomizerJobStatus.Processing
+                    && job.LeaseToken?.Token.StartsWith(prefix, StringComparison.Ordinal) == true,
+                now
+            );
+
+            return Task.FromResult(new AtomizerHeartbeatRecoveryResult(instanceId, true, released));
+        }
+    }
+
+    /// <inheritdoc/>
+    public Task RemoveHeartbeatAsync(string instanceId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _activeServers.TryRemove(instanceId, out _);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
     public async Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -388,6 +478,32 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 retain
             );
         }
+    }
+
+    private int ReleaseMatchingJobs(Func<AtomizerJob, bool> predicate, DateTimeOffset now)
+    {
+        var released = 0;
+
+        foreach (var job in _jobs.Values.ToList())
+        {
+            var leaseToken = job.LeaseToken?.Token;
+            if (!predicate(job))
+                continue;
+
+            job.Release(now);
+            released++;
+
+            if (leaseToken != null && _leasesByToken.TryGetValue(leaseToken, out var leaseSet))
+            {
+                leaseSet.TryRemove(job.Id, out _);
+                if (leaseSet.IsEmpty)
+                {
+                    _leasesByToken.TryRemove(leaseToken, out _);
+                }
+            }
+        }
+
+        return released;
     }
 
     private void UpdateLease(AtomizerJob job)

@@ -19,6 +19,7 @@ public static class ModelBuilderExtensions
         builder.ApplyConfiguration(new AtomizerJobEntityConfiguration(schema));
         builder.ApplyConfiguration(new AtomizerJobErrorEntityConfiguration(schema));
         builder.ApplyConfiguration(new AtomizerScheduleEntityConfiguration(schema));
+        builder.ApplyConfiguration(new AtomizerActiveServerEntityConfiguration(schema));
         return builder;
     }
 }

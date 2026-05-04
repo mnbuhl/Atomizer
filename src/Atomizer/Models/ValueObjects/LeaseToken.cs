@@ -8,6 +8,9 @@ namespace Atomizer;
 /// </summary>
 public sealed class LeaseToken : ValueObject
 {
+    /// <summary>Delimiter separating lease token components.</summary>
+    public const string Delimiter = ":*:";
+
     /// <summary>
     /// Gets the raw token string.
     /// </summary>
@@ -39,7 +42,7 @@ public sealed class LeaseToken : ValueObject
             throw new InvalidLeaseTokenException("Lease token cannot be null or empty.", nameof(token));
         }
 
-        var parts = token.Split(new[] { ":*:" }, StringSplitOptions.None);
+        var parts = token.Split(new[] { Delimiter }, StringSplitOptions.None);
 
         if (parts.Length != 3)
         {

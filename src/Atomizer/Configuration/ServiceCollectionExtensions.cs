@@ -73,16 +73,11 @@ public static class ServiceCollectionExtensions
         var options = new AtomizerProcessingOptions();
         configure?.Invoke(options);
 
-        if (options.StartupDelay != null && options.StartupDelay < TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(options.StartupDelay),
-                "Startup delay must be a non-negative TimeSpan."
-            );
-        }
+        options.Validate();
 
         services.AddSingleton(options);
         services.AddSingleton<AtomizerRuntimeIdentity>();
+        services.AddHostedService<AtomizerHeartbeatRecoveryService>();
         services.AddHostedService<AtomizerQueueService>();
         services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
         services.AddSingleton<IQueuePumpFactory, QueuePumpFactory>();

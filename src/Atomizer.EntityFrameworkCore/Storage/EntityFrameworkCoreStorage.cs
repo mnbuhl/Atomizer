@@ -19,6 +19,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     private DbSet<AtomizerJobEntity> JobEntities => _dbContext.Set<AtomizerJobEntity>();
     private DbSet<AtomizerJobErrorEntity> JobErrorEntities => _dbContext.Set<AtomizerJobErrorEntity>();
     private DbSet<AtomizerScheduleEntity> ScheduleEntities => _dbContext.Set<AtomizerScheduleEntity>();
+    private DbSet<AtomizerActiveServerEntity> ActiveServerEntities => _dbContext.Set<AtomizerActiveServerEntity>();
 
     public EntityFrameworkCoreStorage(
         TDbContext dbContext,
@@ -32,6 +33,110 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         _logger = logger;
         _clock = clock;
         _providerCache = RelationalProviderCache.Create(dbContext);
+    }
+
+    public async Task UpsertHeartbeatAsync(AtomizerActiveServer server, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var existing = await ActiveServerEntities.FindAsync(new object[] { server.InstanceId }, cancellationToken);
+        if (existing is null)
+        {
+            ActiveServerEntities.Add(server.ToEntity());
+        }
+        else
+        {
+            existing.LastHeartbeatAt = server.LastHeartbeatAt;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AtomizerActiveServer>> GetStaleServersAsync(
+        DateTimeOffset staleBefore,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await ActiveServerEntities
+            .AsNoTracking()
+            .Where(server => server.LastHeartbeatAt < staleBefore)
+            .OrderBy(server => server.LastHeartbeatAt)
+            .Select(server => new AtomizerActiveServer
+            {
+                InstanceId = server.InstanceId,
+                LastHeartbeatAt = server.LastHeartbeatAt,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<AtomizerHeartbeatRecoveryResult> TryRecoverStaleServerAsync(
+        string instanceId,
+        DateTimeOffset staleBefore,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var server = await ActiveServerEntities
+            .Where(activeServer => activeServer.InstanceId == instanceId && activeServer.LastHeartbeatAt < staleBefore)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (server is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AtomizerHeartbeatRecoveryResult.NotRecovered(instanceId);
+        }
+
+        ActiveServerEntities.Remove(server);
+
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AtomizerHeartbeatRecoveryResult.NotRecovered(instanceId);
+        }
+
+        var tokenPrefix = instanceId + LeaseToken.Delimiter;
+        var jobs = await JobEntities
+            .Where(job =>
+                job.Status == AtomizerEntityJobStatus.Processing
+                && job.LeaseToken != null
+                && job.LeaseToken.StartsWith(tokenPrefix)
+            )
+            .ToListAsync(cancellationToken);
+
+        foreach (var job in jobs)
+        {
+            job.Status = AtomizerEntityJobStatus.Pending;
+            job.LeaseToken = null;
+            job.VisibleAt = null;
+            job.UpdatedAt = now;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new AtomizerHeartbeatRecoveryResult(instanceId, true, jobs.Count);
+    }
+
+    public async Task RemoveHeartbeatAsync(string instanceId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var server = await ActiveServerEntities.FindAsync(new object[] { instanceId }, cancellationToken);
+        if (server is null)
+        {
+            return;
+        }
+
+        ActiveServerEntities.Remove(server);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Guid> InsertAsync(AtomizerJob job, CancellationToken cancellationToken)

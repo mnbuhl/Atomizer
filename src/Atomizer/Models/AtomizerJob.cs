@@ -108,9 +108,8 @@ public class AtomizerJob : Model
     /// Jobs without a <see cref="PartitionKey"/> always return <see langword="false"/>.
     /// </remarks>
     public bool IsPartitionBlocked =>
-        PartitionKey != null &&
-        (Status == AtomizerJobStatus.Processing ||
-         (Status == AtomizerJobStatus.Pending && Attempts > 0));
+        PartitionKey != null
+        && (Status == AtomizerJobStatus.Processing || (Status == AtomizerJobStatus.Pending && Attempts > 0));
 
     /// <summary>
     /// Gets or sets the list of error records from previous failed attempts.

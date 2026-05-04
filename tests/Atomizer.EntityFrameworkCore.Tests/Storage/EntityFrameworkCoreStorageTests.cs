@@ -668,6 +668,121 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         map.Should().NotThrow();
     }
 
+    [Fact]
+    public async Task HeartbeatUpsert_WhenRepeated_ShouldPersistSingleActiveServerRecord()
+    {
+        // Arrange
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        var first = _clock.UtcNow.AddMinutes(-1);
+        var second = _clock.UtcNow;
+
+        // Act
+        await storage.UpsertHeartbeatAsync(
+            new AtomizerActiveServer { InstanceId = "server-a", LastHeartbeatAt = first },
+            CancellationToken.None
+        );
+        await storage.UpsertHeartbeatAsync(
+            new AtomizerActiveServer { InstanceId = "server-a", LastHeartbeatAt = second },
+            CancellationToken.None
+        );
+
+        // Assert
+        var heartbeats = await dbContext
+            .Set<AtomizerActiveServerEntity>()
+            .ToListAsync(TestContext.Current.CancellationToken);
+        heartbeats.Should().ContainSingle(server => server.InstanceId == "server-a");
+        heartbeats.Single().LastHeartbeatAt.Should().Be(second);
+    }
+
+    [Fact]
+    public async Task TryRecoverStaleServerAsync_WhenServerIsStale_ShouldReleaseMatchingJobsAndRemoveHeartbeat()
+    {
+        // Arrange
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+        var now = _clock.UtcNow;
+        var staleBefore = now.AddMinutes(-2);
+        const string staleInstanceId = "server-a";
+
+        var matchingJob = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Matching Job" }""",
+            now,
+            now
+        );
+        var otherServerJob = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Other Server Job" }""",
+            now,
+            now
+        );
+        var prefixCollisionJob = AtomizerJob.Create(
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Prefix Collision Job" }""",
+            now,
+            now
+        );
+
+        await storage.InsertAsync(matchingJob, CancellationToken.None);
+        await storage.InsertAsync(otherServerJob, CancellationToken.None);
+        await storage.InsertAsync(prefixCollisionJob, CancellationToken.None);
+
+        matchingJob.Lease(
+            new LeaseToken($"{staleInstanceId}:*:{QueueKey.Default}:*:matching"),
+            now,
+            TimeSpan.FromMinutes(30)
+        );
+        otherServerJob.Lease(new LeaseToken($"server-b:*:{QueueKey.Default}:*:other"), now, TimeSpan.FromMinutes(30));
+        prefixCollisionJob.Lease(
+            new LeaseToken($"{staleInstanceId}-extra:*:{QueueKey.Default}:*:collision"),
+            now,
+            TimeSpan.FromMinutes(30)
+        );
+
+        dbContext.ChangeTracker.Clear();
+        await storage.UpdateJobsAsync([matchingJob, otherServerJob, prefixCollisionJob], CancellationToken.None);
+
+        await storage.UpsertHeartbeatAsync(
+            new AtomizerActiveServer { InstanceId = staleInstanceId, LastHeartbeatAt = now.AddMinutes(-10) },
+            CancellationToken.None
+        );
+
+        dbContext.ChangeTracker.Clear();
+
+        // Act
+        var result = await storage.TryRecoverStaleServerAsync(
+            staleInstanceId,
+            staleBefore,
+            now,
+            CancellationToken.None
+        );
+
+        // Assert
+        result.Should().BeEquivalentTo(new AtomizerHeartbeatRecoveryResult(staleInstanceId, true, 1));
+
+        var jobs = await dbContext
+            .Set<AtomizerJobEntity>()
+            .Where(job => job.Id == matchingJob.Id || job.Id == otherServerJob.Id || job.Id == prefixCollisionJob.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        var recoveredJob = jobs.Single(job => job.Id == matchingJob.Id);
+        recoveredJob.Status.Should().Be(AtomizerEntityJobStatus.Pending);
+        recoveredJob.LeaseToken.Should().BeNull();
+        recoveredJob.VisibleAt.Should().BeNull();
+
+        jobs.Single(job => job.Id == otherServerJob.Id).Status.Should().Be(AtomizerEntityJobStatus.Processing);
+        jobs.Single(job => job.Id == prefixCollisionJob.Id).Status.Should().Be(AtomizerEntityJobStatus.Processing);
+
+        var heartbeats = await dbContext
+            .Set<AtomizerActiveServerEntity>()
+            .ToListAsync(TestContext.Current.CancellationToken);
+        heartbeats.Should().NotContain(server => server.InstanceId == staleInstanceId);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await using var dbContext = _dbContextFactory();

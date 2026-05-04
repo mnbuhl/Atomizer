@@ -10,6 +10,7 @@ internal static class StorageTestCleanup
         dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(dbContext.Set<AtomizerJobErrorEntity>());
         dbContext.Set<AtomizerJobEntity>().RemoveRange(dbContext.Set<AtomizerJobEntity>());
         dbContext.Set<AtomizerScheduleEntity>().RemoveRange(dbContext.Set<AtomizerScheduleEntity>());
+        dbContext.Set<AtomizerActiveServerEntity>().RemoveRange(dbContext.Set<AtomizerActiveServerEntity>());
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

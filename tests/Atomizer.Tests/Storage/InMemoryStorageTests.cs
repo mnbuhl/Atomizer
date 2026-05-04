@@ -311,10 +311,26 @@ namespace Atomizer.Tests.Storage
             // Arrange
             var pk = new PartitionKey("idem-pk");
             const string idemKey = "test-idem-key";
-            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+            var job1 = AtomizerJob.Create(
+                QueueKey.Default,
+                typeof(string),
+                "p1",
+                _now,
+                _now,
+                idempotencyKey: idemKey,
+                partitionKey: pk
+            );
             await _sut.InsertAsync(job1, CancellationToken.None);
 
-            var job2 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p2", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+            var job2 = AtomizerJob.Create(
+                QueueKey.Default,
+                typeof(string),
+                "p2",
+                _now,
+                _now,
+                idempotencyKey: idemKey,
+                partitionKey: pk
+            );
 
             // Act
             var returnedId = await _sut.InsertAsync(job2, CancellationToken.None);
@@ -330,10 +346,26 @@ namespace Atomizer.Tests.Storage
             // Arrange
             const string idemKey = "idem-count-key";
             var pk = new PartitionKey("count-pk");
-            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+            var job1 = AtomizerJob.Create(
+                QueueKey.Default,
+                typeof(string),
+                "p1",
+                _now,
+                _now,
+                idempotencyKey: idemKey,
+                partitionKey: pk
+            );
             await _sut.InsertAsync(job1, CancellationToken.None);
 
-            var job2 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p2", _now, _now, idempotencyKey: idemKey, partitionKey: pk);
+            var job2 = AtomizerJob.Create(
+                QueueKey.Default,
+                typeof(string),
+                "p2",
+                _now,
+                _now,
+                idempotencyKey: idemKey,
+                partitionKey: pk
+            );
 
             // Act
             await _sut.InsertAsync(job2, CancellationToken.None);

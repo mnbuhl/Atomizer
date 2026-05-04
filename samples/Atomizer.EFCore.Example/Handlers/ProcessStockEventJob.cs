@@ -9,10 +9,7 @@ public class ProcessStockEventJob(ExamplePostgresContext dbContext, ILogger<Proc
 {
     public async Task HandleAsync(StockEvent payload, JobContext context)
     {
-        var product = await dbContext.Products.FindAsync(
-            [payload.ProductId],
-            context.CancellationToken
-        );
+        var product = await dbContext.Products.FindAsync([payload.ProductId], context.CancellationToken);
 
         if (product == null)
         {

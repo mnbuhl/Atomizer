@@ -24,10 +24,7 @@ public class PartitionKeyTests
         Action act = () => new PartitionKey("");
 
         // Assert
-        act.Should()
-            .Throw<InvalidPartitionKeyException>()
-            .And.ParamName.Should()
-            .Be("key");
+        act.Should().Throw<InvalidPartitionKeyException>().And.ParamName.Should().Be("key");
     }
 
     [Fact]
@@ -37,10 +34,7 @@ public class PartitionKeyTests
         Action act = () => new PartitionKey("   ");
 
         // Assert
-        act.Should()
-            .Throw<InvalidPartitionKeyException>()
-            .And.ParamName.Should()
-            .Be("key");
+        act.Should().Throw<InvalidPartitionKeyException>().And.ParamName.Should().Be("key");
     }
 
     [Fact]
@@ -50,10 +44,7 @@ public class PartitionKeyTests
         Action act = () => new PartitionKey(null!);
 
         // Assert
-        act.Should()
-            .Throw<InvalidPartitionKeyException>()
-            .And.ParamName.Should()
-            .Be("key");
+        act.Should().Throw<InvalidPartitionKeyException>().And.ParamName.Should().Be("key");
     }
 
     [Fact]
@@ -66,10 +57,7 @@ public class PartitionKeyTests
         Action act = () => new PartitionKey(longKey);
 
         // Assert
-        act.Should()
-            .Throw<InvalidPartitionKeyException>()
-            .And.ParamName.Should()
-            .Be("key");
+        act.Should().Throw<InvalidPartitionKeyException>().And.ParamName.Should().Be("key");
     }
 
     [Fact]

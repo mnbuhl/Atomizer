@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
 {
     [DbContext(typeof(ExampleSqliteContext))]
-    [Migration("20260504193615_Initial")]
+    [Migration("20260504195000_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -42,6 +42,20 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerActiveServerEntity", b =>
+                {
+                    b.Property<string>("InstanceId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("LastHeartbeatAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("InstanceId");
+
+                    b.ToTable("AtomizerActiveServers", "Atomizer");
                 });
 
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobEntity", b =>

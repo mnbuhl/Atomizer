@@ -46,6 +46,20 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerActiveServerEntity", b =>
+                {
+                    b.Property<string>("InstanceId")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<DateTimeOffset>("LastHeartbeatAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("InstanceId");
+
+                    b.ToTable("AtomizerActiveServers", (string)null);
+                });
+
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobEntity", b =>
                 {
                     b.Property<Guid>("Id")
