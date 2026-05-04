@@ -71,6 +71,34 @@ public interface IAtomizerStorage
     Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(DateTimeOffset now, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Inserts or refreshes the current process heartbeat.
+    /// </summary>
+    Task UpsertHeartbeatAsync(AtomizerActiveServer server, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns active server records whose last heartbeat is older than <paramref name="staleBefore"/>.
+    /// </summary>
+    Task<IReadOnlyList<AtomizerActiveServer>> GetStaleServersAsync(
+        DateTimeOffset staleBefore,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>
+    /// Atomically claims a stale server and releases all processing jobs leased by that exact instance.
+    /// </summary>
+    Task<AtomizerHeartbeatRecoveryResult> TryRecoverStaleServerAsync(
+        string instanceId,
+        DateTimeOffset staleBefore,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>
+    /// Removes a server heartbeat record when the current process shuts down cleanly.
+    /// </summary>
+    Task RemoveHeartbeatAsync(string instanceId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Executes the specified callback within an exclusive lease for the given queue.
     /// The backend acquires its lock or transaction before invoking the callback and
     /// releases or commits it after the callback completes. If the callback throws,

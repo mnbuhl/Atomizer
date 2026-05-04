@@ -1,4 +1,3 @@
-using Atomizer.Abstractions;
 using Atomizer.Core;
 using Atomizer.Storage;
 
@@ -23,7 +22,7 @@ public sealed class InMemoryHeartbeatRecoveryTests
     [Fact]
     public async Task HeartbeatUpsert_WhenRepeated_ShouldUpdateSingleActiveServerRecord()
     {
-        var recovery = (IAtomizerHeartbeatRecoveryStorage)_storage;
+        var recovery = _storage;
         var first = _now.AddMinutes(-10);
         var second = _now;
 
@@ -45,7 +44,7 @@ public sealed class InMemoryHeartbeatRecoveryTests
     [Fact]
     public async Task TryRecoverStaleServerAsync_WhenServerRevived_ShouldNoopAndReleaseNoJobs()
     {
-        var recovery = (IAtomizerHeartbeatRecoveryStorage)_storage;
+        var recovery = _storage;
         await recovery.UpsertHeartbeatAsync(
             new AtomizerActiveServer { InstanceId = "server-a", LastHeartbeatAt = _now },
             CancellationToken.None
@@ -65,7 +64,7 @@ public sealed class InMemoryHeartbeatRecoveryTests
     [Fact]
     public async Task TryRecoverStaleServerAsync_WhenStale_ShouldReleaseOnlyExactInstanceProcessingJobsAcrossQueues()
     {
-        var recovery = (IAtomizerHeartbeatRecoveryStorage)_storage;
+        var recovery = _storage;
         var staleHeartbeat = _now.AddMinutes(-10);
         var staleBefore = _now.AddMinutes(-3);
         await recovery.UpsertHeartbeatAsync(
@@ -93,7 +92,7 @@ public sealed class InMemoryHeartbeatRecoveryTests
     [Fact]
     public async Task TryRecoverStaleServerAsync_WhenTwoSweepersRace_ShouldHaveOneWinner()
     {
-        var recovery = (IAtomizerHeartbeatRecoveryStorage)_storage;
+        var recovery = _storage;
         await recovery.UpsertHeartbeatAsync(
             new AtomizerActiveServer { InstanceId = "stale", LastHeartbeatAt = _now.AddMinutes(-10) },
             CancellationToken.None

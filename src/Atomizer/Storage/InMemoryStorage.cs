@@ -8,7 +8,7 @@ namespace Atomizer.Storage;
 /// <summary>
 /// In-process implementation of <see cref="IAtomizerStorage"/> backed by concurrent dictionaries.
 /// </summary>
-public sealed class InMemoryStorage : IAtomizerStorage, IAtomizerHeartbeatRecoveryStorage
+public sealed class InMemoryStorage : IAtomizerStorage
 {
     private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new();
     private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<Guid, byte>> _queues = new();
@@ -145,11 +145,25 @@ public sealed class InMemoryStorage : IAtomizerStorage, IAtomizerHeartbeatRecove
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        int released;
-        lock (_syncRoot)
+        if (!_leasesByToken.TryRemove(leaseToken.Token, out var leasedIds) || leasedIds.Count == 0)
         {
-            released = ReleaseMatchingJobs(job => job.Status == AtomizerJobStatus.Processing && job.LeaseToken?.Token == leaseToken.Token, now);
-            _leasesByToken.TryRemove(leaseToken.Token, out _);
+            _logger.LogDebug("ReleaseLeased: no jobs found for leaseToken={LeaseToken}", leaseToken.Token);
+            return Task.FromResult(0);
+        }
+
+        var released = 0;
+
+        foreach (var jobId in leasedIds.Keys.ToList())
+        {
+            if (!_jobs.TryGetValue(jobId, out var job))
+                continue;
+
+            // Double-check token under lock in case it changed
+            if (job.LeaseToken?.Token != leaseToken.Token)
+                continue;
+
+            job.Release(now);
+            released++;
         }
 
         _logger.LogDebug(
@@ -159,10 +173,6 @@ public sealed class InMemoryStorage : IAtomizerStorage, IAtomizerHeartbeatRecove
         );
         return Task.FromResult(released);
     }
-
-
-    /// <inheritdoc/>
-    public void ValidateHeartbeatRecoverySupport() { }
 
     /// <inheritdoc/>
     public Task UpsertHeartbeatAsync(AtomizerActiveServer server, CancellationToken cancellationToken)

@@ -769,20 +769,6 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         heartbeats.Should().NotContain(server => server.InstanceId == staleInstanceId);
     }
 
-    [Fact]
-    public void HeartbeatRecoverySupport_WhenUsingEfRecoveryPath_ShouldNotRequireProviderDialect()
-    {
-        // Arrange
-        using var dbContext = _dbContextFactory();
-        var storage = _storageFactory(dbContext);
-
-        // Act
-        var act = storage.ValidateHeartbeatRecoverySupport;
-
-        // Assert
-        act.Should().NotThrow();
-    }
-
     public async ValueTask DisposeAsync()
     {
         await using var dbContext = _dbContextFactory();

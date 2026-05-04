@@ -1,6 +1,5 @@
 using Atomizer.Abstractions;
 using Atomizer.Core;
-using Atomizer.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -34,11 +33,6 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
     {
         _options.Validate();
 
-        using (var scope = _scopeFactory.CreateScope())
-        {
-            ResolveRecoveryStorage(scope.ServiceProvider).ValidateHeartbeatRecoverySupport();
-        }
-
         _logger.LogInformation("Atomizer heartbeat recovery service starting for instance {InstanceId}", _identity.InstanceId);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -65,7 +59,7 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var storage = ResolveRecoveryStorage(scope.ServiceProvider);
+            var storage = ResolveStorage(scope.ServiceProvider);
             await storage.RemoveHeartbeatAsync(_identity.InstanceId, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -79,7 +73,7 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
     private async Task BeatAndRecoverAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var storage = ResolveRecoveryStorage(scope.ServiceProvider);
+        var storage = ResolveStorage(scope.ServiceProvider);
         var now = _clock.UtcNow;
 
         await storage.UpsertHeartbeatAsync(
@@ -110,12 +104,6 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
         }
     }
 
-    private static IAtomizerHeartbeatRecoveryStorage ResolveRecoveryStorage(IServiceProvider serviceProvider)
-    {
-        var storage = serviceProvider.GetRequiredService<IAtomizerStorage>();
-        return storage as IAtomizerHeartbeatRecoveryStorage
-            ?? throw new InvalidAtomizerConfigurationException(
-                $"The configured Atomizer storage backend must implement {nameof(IAtomizerHeartbeatRecoveryStorage)} to use processing heartbeat recovery."
-            );
-    }
+    private static IAtomizerStorage ResolveStorage(IServiceProvider serviceProvider) =>
+        serviceProvider.GetRequiredService<IAtomizerStorage>();
 }

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Atomizer.EntityFrameworkCore.Storage;
 
-internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage, IAtomizerHeartbeatRecoveryStorage
+internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
@@ -35,8 +35,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage,
         _providerCache = RelationalProviderCache.Create(dbContext);
     }
 
-    public void ValidateHeartbeatRecoverySupport() { }
-
     public async Task UpsertHeartbeatAsync(AtomizerActiveServer server, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -60,8 +58,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage,
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ValidateHeartbeatRecoverySupport();
-
         return await ActiveServerEntities
             .AsNoTracking()
             .Where(server => server.LastHeartbeatAt < staleBefore)

@@ -41,6 +41,20 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerActiveServerEntity", b =>
+                {
+                    b.Property<string>("InstanceId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("LastHeartbeatAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("InstanceId");
+
+                    b.ToTable("AtomizerActiveServers", "Atomizer");
+                });
+
             modelBuilder.Entity("Atomizer.EntityFrameworkCore.Entities.AtomizerJobEntity", b =>
                 {
                     b.Property<Guid>("Id")
