@@ -39,6 +39,7 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
         builder.Property(e => e.MisfirePolicy).IsRequired();
         builder.Property(e => e.MaxCatchUp).IsRequired();
         builder.Property(e => e.Enabled).IsRequired();
+        builder.Property(e => e.PartitionKey).HasMaxLength(255).IsRequired(false);
         builder.Property(e => e.NextRunAt).IsRequired();
         builder.Property(e => e.LastEnqueueAt);
         builder.Property(e => e.CreatedAt).IsRequired();

@@ -186,6 +186,10 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("JobKey")
                         .IsRequired()
                         .HasMaxLength(255)

@@ -78,5 +78,6 @@ public sealed class PostgreSqlDialectTests
 
         sql.Format.Should().Contain("ON CONFLICT");
         sql.Format.Should().Contain("DO UPDATE SET");
+        sql.Format.Should().Contain("PartitionKey");
     }
 }

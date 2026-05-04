@@ -78,5 +78,6 @@ public sealed class SqlServerDialectTests
 
         sql.Format.Should().Contain("MERGE");
         sql.Format.Should().Contain("WITH (HOLDLOCK)");
+        sql.Format.Should().Contain("PartitionKey");
     }
 }

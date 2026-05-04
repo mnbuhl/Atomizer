@@ -35,6 +35,9 @@ public class AtomizerScheduleEntity
     /// <summary>Gets or sets whether this schedule is currently active.</summary>
     public bool Enabled { get; set; } = true;
 
+    /// <summary>Gets or sets the partition key forwarded to generated jobs, if any.</summary>
+    public string? PartitionKey { get; set; }
+
     /// <summary>Gets or sets the serialized retry intervals for generated jobs.</summary>
     public TimeSpan[] RetryIntervals { get; set; } = [];
 
@@ -90,6 +93,7 @@ public static class AtomizerScheduleEntityMapper
             MisfirePolicy = (MisfirePolicyEntity)(int)schedule.MisfirePolicy,
             MaxCatchUp = schedule.MaxCatchUp,
             Enabled = schedule.Enabled,
+            PartitionKey = schedule.PartitionKey?.Key,
             RetryIntervals = schedule.RetryStrategy.RetryIntervals,
             NextRunAt = schedule.NextRunAt,
             LastEnqueueAt = schedule.LastEnqueueAt,
@@ -117,6 +121,7 @@ public static class AtomizerScheduleEntityMapper
             MisfirePolicy = (MisfirePolicy)(int)entity.MisfirePolicy,
             MaxCatchUp = entity.MaxCatchUp,
             Enabled = entity.Enabled,
+            PartitionKey = entity.PartitionKey is null ? null : new PartitionKey(entity.PartitionKey),
             RetryStrategy =
                 entity.RetryIntervals.Length == 0 ? RetryStrategy.None : RetryStrategy.Intervals(entity.RetryIntervals),
             NextRunAt = entity.NextRunAt,

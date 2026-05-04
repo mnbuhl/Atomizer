@@ -72,6 +72,7 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     MisfirePolicy = table.Column<int>(type: "int", nullable: false),
                     MaxCatchUp = table.Column<int>(type: "int", nullable: false),
                     Enabled = table.Column<bool>(type: "bit", nullable: false),
+                    PartitionKey = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     RetryIntervals = table.Column<string>(type: "nvarchar(max)", maxLength: 4096, nullable: false),
                     NextRunAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),

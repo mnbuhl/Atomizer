@@ -150,6 +150,7 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
                 {{_sMisfirePolicy}},
                 {{_sMaxCatchUp}},
                 {{_sEnabled}},
+                {{_sPartitionKey}},
                 {{_sRetryIntervals}},
                 {{_sNextRunAt}},
                 {{_sLastEnqueueAt}},
@@ -170,7 +171,8 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
                 {11},
                 {12},
                 {13},
-                {14}
+                {14},
+                {15}
             )
             ON DUPLICATE KEY UPDATE
                 {{_sQueueKey}} = VALUES({{_sQueueKey}}),
@@ -181,9 +183,10 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
                 {{_sMisfirePolicy}} = VALUES({{_sMisfirePolicy}}),
                 {{_sMaxCatchUp}} = VALUES({{_sMaxCatchUp}}),
                 {{_sEnabled}} = VALUES({{_sEnabled}}),
+                {{_sPartitionKey}} = VALUES({{_sPartitionKey}}),
                 {{_sRetryIntervals}} = VALUES({{_sRetryIntervals}}),
                 {{_sNextRunAt}} = VALUES({{_sNextRunAt}}),
-                {{_sUpdatedAt}} = {14};
+                {{_sUpdatedAt}} = {15};
             """;
         return FormattableStringFactory.Create(
             format,
@@ -197,6 +200,7 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
             (int)entity.MisfirePolicy,
             entity.MaxCatchUp,
             entity.Enabled,
+            entity.PartitionKey,
             retryIntervals,
             entity.NextRunAt,
             entity.LastEnqueueAt,

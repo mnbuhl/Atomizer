@@ -135,8 +135,9 @@ public class JobWorkerTests
         var ioCts = new CancellationTokenSource();
         var executionCts = new CancellationTokenSource();
 
-        var nextJob = _job; // the job that should be processed after the read failure
-        var reader = new ThrowThenReturnReader(nextJob);
+        var maxReadAttempts = NonPublicSpy.GetConstant<JobWorker, int>("MaxReadAttempts");
+        var nextJob = _job; // the job that should be processed after the read failures are skipped
+        var reader = new ThrowThenReturnReader(nextJob, maxReadAttempts);
 
         var processor = Substitute.For<IJobProcessor>();
         var processedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -164,7 +165,6 @@ public class JobWorkerTests
         (await WaitOrTimeout(run, Timeout)).Should().BeTrue();
 
         // Assert
-        var maxReadAttempts = NonPublicSpy.GetConstant<JobWorker, int>("MaxReadAttempts");
         _logger
             .Received(maxReadAttempts)
             .LogWarning(Arg.Any<Exception>(), $"Worker {_workerId} channel read operation failed");
@@ -286,34 +286,36 @@ public class JobWorkerTests
     private sealed class ThrowThenReturnReader : ChannelReader<AtomizerJob>
     {
         private readonly AtomizerJob _next;
-        private int _reads;
+        private readonly int _failuresBeforeJob;
+        private int _readAttempts;
+        private int _returned;
 
-        private readonly List<object> _items = new();
-
-        public ThrowThenReturnReader(AtomizerJob next)
+        public ThrowThenReturnReader(AtomizerJob next, int failuresBeforeJob)
         {
             _next = next;
-
-            _items.Add(new Exception("unexpected read error"));
-            _items.Add(next);
+            _failuresBeforeJob = failuresBeforeJob;
         }
 
         public override async ValueTask<AtomizerJob> ReadAsync(CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            var attempt = Interlocked.Increment(ref _readAttempts);
 
-            await Task.Delay(50, cancellationToken); // simulate some delay
-
-            return _items[_reads] switch
+            if (attempt <= _failuresBeforeJob)
             {
-                Exception ex => throw ex,
-                _ => _next,
-            };
+                throw new InvalidOperationException("unexpected read error");
+            }
+
+            if (Interlocked.Exchange(ref _returned, 1) == 0)
+            {
+                return _next;
+            }
+
+            await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new OperationCanceledException(cancellationToken);
         }
 
         public override bool TryRead(out AtomizerJob item)
         {
-            Interlocked.Increment(ref _reads);
             item = default!;
             return false;
         }

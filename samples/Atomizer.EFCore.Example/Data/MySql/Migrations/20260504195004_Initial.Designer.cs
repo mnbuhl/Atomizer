@@ -186,6 +186,10 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<string>("JobKey")
                         .IsRequired()
                         .HasMaxLength(255)

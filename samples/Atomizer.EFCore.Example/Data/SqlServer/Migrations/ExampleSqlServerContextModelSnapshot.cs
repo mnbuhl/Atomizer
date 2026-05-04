@@ -183,6 +183,10 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("bit");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("JobKey")
                         .IsRequired()
                         .HasMaxLength(255)

@@ -36,6 +36,7 @@ internal abstract class BaseSqlDialect : ISqlDialect
     protected readonly string _sMisfirePolicy;
     protected readonly string _sMaxCatchUp;
     protected readonly string _sEnabled;
+    protected readonly string _sPartitionKey;
     protected readonly string _sRetryIntervals;
     protected readonly string _sNextRunAt;
     protected readonly string _sLastEnqueueAt;
@@ -78,6 +79,7 @@ internal abstract class BaseSqlDialect : ISqlDialect
         _sMisfirePolicy = sc[nameof(AtomizerScheduleEntity.MisfirePolicy)];
         _sMaxCatchUp = sc[nameof(AtomizerScheduleEntity.MaxCatchUp)];
         _sEnabled = sc[nameof(AtomizerScheduleEntity.Enabled)];
+        _sPartitionKey = sc[nameof(AtomizerScheduleEntity.PartitionKey)];
         _sRetryIntervals = sc[nameof(AtomizerScheduleEntity.RetryIntervals)];
         _sNextRunAt = sc[nameof(AtomizerScheduleEntity.NextRunAt)];
         _sLastEnqueueAt = sc[nameof(AtomizerScheduleEntity.LastEnqueueAt)];

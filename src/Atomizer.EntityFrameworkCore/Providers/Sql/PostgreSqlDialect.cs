@@ -149,6 +149,7 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
                 {{_sMisfirePolicy}},
                 {{_sMaxCatchUp}},
                 {{_sEnabled}},
+                {{_sPartitionKey}},
                 {{_sRetryIntervals}},
                 {{_sNextRunAt}},
                 {{_sLastEnqueueAt}},
@@ -169,7 +170,8 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
                 {11},
                 {12},
                 {13},
-                {14}
+                {14},
+                {15}
             )
             ON CONFLICT ({{_sJobKey}}) DO UPDATE SET
                 {{_sQueueKey}} = EXCLUDED.{{_sQueueKey}},
@@ -180,6 +182,7 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
                 {{_sMisfirePolicy}} = EXCLUDED.{{_sMisfirePolicy}},
                 {{_sMaxCatchUp}} = EXCLUDED.{{_sMaxCatchUp}},
                 {{_sEnabled}} = EXCLUDED.{{_sEnabled}},
+                {{_sPartitionKey}} = EXCLUDED.{{_sPartitionKey}},
                 {{_sRetryIntervals}} = EXCLUDED.{{_sRetryIntervals}},
                 {{_sNextRunAt}} = EXCLUDED.{{_sNextRunAt}},
                 {{_sUpdatedAt}} = EXCLUDED.{{_sUpdatedAt}};
@@ -196,6 +199,7 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
             (int)entity.MisfirePolicy,
             entity.MaxCatchUp,
             entity.Enabled,
+            entity.PartitionKey,
             retryIntervals,
             entity.NextRunAt,
             entity.LastEnqueueAt,
