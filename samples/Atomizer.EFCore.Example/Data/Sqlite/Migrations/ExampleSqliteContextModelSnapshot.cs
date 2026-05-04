@@ -67,6 +67,10 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -78,7 +82,7 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(512)
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("RetryIntervals")
@@ -87,11 +91,14 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ScheduleJobKey")
-                        .HasMaxLength(512)
+                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("ScheduledAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("SequenceNumber")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
