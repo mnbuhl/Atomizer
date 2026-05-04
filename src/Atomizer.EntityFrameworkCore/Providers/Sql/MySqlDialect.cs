@@ -23,27 +23,133 @@ internal sealed class MySqlDialect : ISqlDialect
         var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
         var colScheduledAt = c[nameof(AtomizerJobEntity.ScheduledAt)];
         var colId = c[nameof(AtomizerJobEntity.Id)];
+        var colPartitionKey = c[nameof(AtomizerJobEntity.PartitionKey)];
+        var colSequenceNumber = c[nameof(AtomizerJobEntity.SequenceNumber)];
+        var colAttempts = c[nameof(AtomizerJobEntity.Attempts)];
         var statusPending = (int)AtomizerEntityJobStatus.Pending;
         var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
         var format =
-            $@"SELECT t.*
+            $@"WITH blocked_partitions AS (
+  SELECT DISTINCT {colPartitionKey}
+  FROM {table}
+  WHERE {colQueueKey} = {{0}}
+    AND {colPartitionKey} IS NOT NULL
+    AND (
+      {colStatus} = {statusProcessing}
+      OR ({colStatus} = {statusPending} AND {colAttempts} > 0)
+    )
+),
+partition_heads AS (
+  SELECT j.{colPartitionKey}, MIN(j.{colSequenceNumber}) AS min_seq
+  FROM {table} AS j
+  LEFT JOIN blocked_partitions bp ON j.{colPartitionKey} = bp.{colPartitionKey}
+  WHERE j.{colQueueKey} = {{1}}
+    AND j.{colPartitionKey} IS NOT NULL
+    AND bp.{colPartitionKey} IS NULL
+  GROUP BY j.{colPartitionKey}
+)
+SELECT t.*
 FROM {table} AS t
-WHERE {colQueueKey} = {{0}}
+LEFT JOIN partition_heads ph
+  ON t.{colPartitionKey} = ph.{colPartitionKey}
+  AND t.{colSequenceNumber} = ph.min_seq
+WHERE t.{colQueueKey} = {{2}}
   AND (
-        ( {colStatus} = {statusPending}
-          AND ( {colVisibleAt} IS NULL
-                OR {colVisibleAt} <= {{1}})
-          AND {colScheduledAt} <= {{2}}
-        )
-        OR
-        ( {colStatus} = {statusProcessing}
-          AND {colVisibleAt} <= {{3}}
-        )
+    (t.{colPartitionKey} IS NULL
+      AND (
+        ({colStatus} = {statusPending}
+          AND ({colVisibleAt} IS NULL OR {colVisibleAt} <= {{3}})
+          AND {colScheduledAt} <= {{4}})
+        OR ({colStatus} = {statusProcessing} AND {colVisibleAt} <= {{5}})
       )
-ORDER BY {colScheduledAt}, {colId}
-LIMIT {{4}}
+    )
+    OR
+    (t.{colPartitionKey} IS NOT NULL AND ph.min_seq IS NOT NULL
+      AND (
+        ({colStatus} = {statusPending}
+          AND ({colVisibleAt} IS NULL OR {colVisibleAt} <= {{6}})
+          AND {colScheduledAt} <= {{7}})
+        OR ({colStatus} = {statusProcessing} AND {colVisibleAt} <= {{8}})
+      )
+    )
+  )
+ORDER BY t.{colScheduledAt}, t.{colId}
+LIMIT {{9}}
 FOR UPDATE SKIP LOCKED;";
-        return FormattableStringFactory.Create(format, queueKey.Key, now, now, now, batchSize);
+        return FormattableStringFactory.Create(
+            format,
+            queueKey.Key,
+            queueKey.Key,
+            queueKey.Key,
+            now,
+            now,
+            now,
+            now,
+            now,
+            now,
+            batchSize
+        );
+    }
+
+    public FormattableString InsertJobWithSequence(AtomizerJob job)
+    {
+        var entity = job.ToEntity();
+        var table = _jobs.Table;
+        var c = _jobs.Col;
+        var colId = c[nameof(AtomizerJobEntity.Id)];
+        var colQueueKey = c[nameof(AtomizerJobEntity.QueueKey)];
+        var colPayloadType = c[nameof(AtomizerJobEntity.PayloadType)];
+        var colPayload = c[nameof(AtomizerJobEntity.Payload)];
+        var colScheduledAt = c[nameof(AtomizerJobEntity.ScheduledAt)];
+        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
+        var colStatus = c[nameof(AtomizerJobEntity.Status)];
+        var colAttempts = c[nameof(AtomizerJobEntity.Attempts)];
+        var colRetryIntervals = c[nameof(AtomizerJobEntity.RetryIntervals)];
+        var colCreatedAt = c[nameof(AtomizerJobEntity.CreatedAt)];
+        var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
+        var colLeaseToken = c[nameof(AtomizerJobEntity.LeaseToken)];
+        var colScheduleJobKey = c[nameof(AtomizerJobEntity.ScheduleJobKey)];
+        var colIdempotencyKey = c[nameof(AtomizerJobEntity.IdempotencyKey)];
+        var colPartitionKey = c[nameof(AtomizerJobEntity.PartitionKey)];
+        var colSequenceNumber = c[nameof(AtomizerJobEntity.SequenceNumber)];
+        var retryIntervals = string.Join(
+            ";",
+            Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds)
+        );
+        var format =
+            $@"INSERT INTO {table} (
+    {colId}, {colQueueKey}, {colPayloadType}, {colPayload},
+    {colScheduledAt}, {colVisibleAt}, {colStatus}, {colAttempts},
+    {colRetryIntervals}, {colCreatedAt}, {colUpdatedAt},
+    {colLeaseToken}, {colScheduleJobKey}, {colIdempotencyKey},
+    {colPartitionKey}, {colSequenceNumber}
+)
+SELECT {{0}}, {{1}}, {{2}}, {{3}},
+       {{4}}, {{5}}, {{6}}, {{7}},
+       {{8}}, {{9}}, {{10}},
+       {{11}}, {{12}}, {{13}},
+       {{14}},
+       COALESCE((SELECT MAX(max_seq) FROM (SELECT MAX({colSequenceNumber}) AS max_seq FROM {table} WHERE {colQueueKey} = {{15}} AND {colPartitionKey} = {{16}}) AS sub), 0) + 1;";
+        return FormattableStringFactory.Create(
+            format,
+            entity.Id,
+            entity.QueueKey,
+            entity.PayloadType,
+            entity.Payload,
+            entity.ScheduledAt,
+            entity.VisibleAt,
+            (int)entity.Status,
+            entity.Attempts,
+            retryIntervals,
+            entity.CreatedAt,
+            entity.UpdatedAt,
+            entity.LeaseToken,
+            entity.ScheduleJobKey,
+            entity.IdempotencyKey,
+            entity.PartitionKey,
+            entity.QueueKey,
+            entity.PartitionKey
+        );
     }
 
     public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
