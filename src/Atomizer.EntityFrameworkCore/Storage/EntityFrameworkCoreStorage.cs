@@ -54,8 +54,22 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                     job.IdempotencyKey,
                     existing.Id
                 );
+                job.SequenceNumber = existing.SequenceNumber;
                 return existing.Id;
             }
+        }
+
+        if (job.PartitionKey != null && _providerCache is { IsSupportedProvider: true, Dialect: not null })
+        {
+            var sql = _providerCache.Dialect.InsertJobWithSequence(job);
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+
+            var assigned = await JobEntities
+                .Where(j => j.Id == job.Id)
+                .Select(j => j.SequenceNumber)
+                .FirstAsync(cancellationToken);
+            job.SequenceNumber = assigned;
+            return job.Id;
         }
 
         JobEntities.Add(entity);
