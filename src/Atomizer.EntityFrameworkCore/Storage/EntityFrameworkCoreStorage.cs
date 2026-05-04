@@ -285,6 +285,10 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         try
         {
+            // Clear the change tracker before attaching updated entities to avoid
+            // InvalidOperationException when the same entities were previously
+            // tracked by UpsertScheduleAsync (or a prior UpdateSchedulesAsync call) on this context.
+            _dbContext.ChangeTracker.Clear();
             ScheduleEntities.UpdateRange(schedules.Select(s => s.ToEntity()));
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
