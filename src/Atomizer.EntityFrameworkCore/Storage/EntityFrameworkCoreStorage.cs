@@ -38,7 +38,6 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         var entity = job.ToEntity();
 
-        // @todo: make idempotency key unique with index
         var enforceIdempotency = job.IdempotencyKey != null;
 
         if (enforceIdempotency)
@@ -86,7 +85,34 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         }
 
         JobEntities.Add(entity);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (enforceIdempotency)
+        {
+            // A concurrent caller won the unique-index race for this idempotency key.
+            // Re-query to return the winning insert rather than propagating the exception.
+            _dbContext.ChangeTracker.Clear();
+            var winner = await JobEntities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(j => j.IdempotencyKey == job.IdempotencyKey, cancellationToken);
+
+            if (winner != null)
+            {
+                _logger.LogDebug(
+                    "Idempotency key {IdempotencyKey} was inserted concurrently; returning existing ID {JobId}",
+                    job.IdempotencyKey,
+                    winner.Id
+                );
+                job.SequenceNumber = winner.SequenceNumber;
+                return winner.Id;
+            }
+
+            throw;
+        }
+
         return entity.Id;
     }
 
