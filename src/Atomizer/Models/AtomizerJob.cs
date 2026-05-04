@@ -83,6 +83,36 @@ public class AtomizerJob : Model
     public string? IdempotencyKey { get; set; }
 
     /// <summary>
+    /// Gets or sets the partition key that groups this job for ordered (FIFO) processing,
+    /// or <see langword="null"/> if the job participates in no partition.
+    /// </summary>
+    public PartitionKey? PartitionKey { get; set; }
+
+    /// <summary>
+    /// Gets or sets the monotonically increasing sequence number within the job's
+    /// (queue, partition key) group, or <see langword="null"/> for unpartitioned jobs.
+    /// </summary>
+    /// <remarks>
+    /// Assigned atomically by storage at insert time. A value of <see langword="null"/>
+    /// indicates either an unpartitioned job or a job not yet inserted into storage.
+    /// </remarks>
+    public long? SequenceNumber { get; set; }
+
+    /// <summary>
+    /// Gets whether this job is currently holding its partition, preventing
+    /// later jobs in the same partition from being picked up.
+    /// </summary>
+    /// <remarks>
+    /// A job holds its partition when it is actively <see cref="AtomizerJobStatus.Processing"/>,
+    /// or when it is <see cref="AtomizerJobStatus.Pending"/> with prior attempts (retrying).
+    /// Jobs without a <see cref="PartitionKey"/> always return <see langword="false"/>.
+    /// </remarks>
+    public bool IsPartitionBlocked =>
+        PartitionKey != null &&
+        (Status == AtomizerJobStatus.Processing ||
+         (Status == AtomizerJobStatus.Pending && Attempts > 0));
+
+    /// <summary>
     /// Gets or sets the list of error records from previous failed attempts.
     /// </summary>
     public List<AtomizerJobError> Errors { get; set; } = new List<AtomizerJobError>();
@@ -98,6 +128,7 @@ public class AtomizerJob : Model
     /// <param name="retryStrategy">Optional retry strategy; defaults to <see cref="RetryStrategy.Default"/>.</param>
     /// <param name="idempotencyKey">Optional key used to deduplicate identical jobs.</param>
     /// <param name="scheduleJobKey">Optional key linking this job to a recurring schedule.</param>
+    /// <param name="partitionKey">Optional partition key for ordered (FIFO) processing within the queue.</param>
     /// <returns>A new <see cref="AtomizerJob"/> instance.</returns>
     public static AtomizerJob Create(
         QueueKey queueKey,
@@ -107,7 +138,8 @@ public class AtomizerJob : Model
         DateTimeOffset scheduledAt,
         RetryStrategy? retryStrategy = null,
         string? idempotencyKey = null,
-        JobKey? scheduleJobKey = null
+        JobKey? scheduleJobKey = null,
+        PartitionKey? partitionKey = null
     )
     {
         return new AtomizerJob
@@ -124,6 +156,8 @@ public class AtomizerJob : Model
             UpdatedAt = createdAt,
             IdempotencyKey = idempotencyKey,
             ScheduleJobKey = scheduleJobKey,
+            PartitionKey = partitionKey,
+            SequenceNumber = null,
         };
     }
 

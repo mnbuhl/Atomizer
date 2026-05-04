@@ -75,6 +75,15 @@ public sealed class EnqueueOptions
     /// <remarks>Defaults to 3 attempts with 15 seconds delays</remarks>
     /// </summary>
     public RetryStrategy RetryStrategy { get; set; } = RetryStrategy.Default;
+
+    /// <summary>
+    /// The partition key used to enforce ordered (FIFO) processing within this queue.
+    /// </summary>
+    /// <remarks>
+    /// When set, jobs sharing the same <see cref="PartitionKey"/> and queue are processed one at a time
+    /// in sequence-number order. Defaults to <see langword="null"/>, meaning the job participates in no partition.
+    /// </remarks>
+    public PartitionKey? PartitionKey { get; set; }
 }
 
 /// <summary>
@@ -116,4 +125,14 @@ public sealed class RecurringOptions
     /// <remarks>Defaults to true.</remarks>
     /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// The partition key used to enforce ordered (FIFO) processing of recurring job occurrences.
+    /// </summary>
+    /// <remarks>
+    /// When set, each occurrence enqueued from this schedule carries the same <see cref="PartitionKey"/>,
+    /// preventing overlapping occurrences of the same recurring job from processing concurrently.
+    /// Defaults to <see langword="null"/>, meaning occurrences participate in no partition.
+    /// </remarks>
+    public PartitionKey? PartitionKey { get; set; }
 }
