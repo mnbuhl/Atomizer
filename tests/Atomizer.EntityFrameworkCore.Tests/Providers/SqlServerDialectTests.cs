@@ -60,7 +60,7 @@ public sealed class SqlServerDialectTests
     }
 
     [Fact]
-    public void UpsertScheduleAsync_WhenCalled_ShouldContainMergeWithHoldlock()
+    public void UpsertSchedule_WhenCalled_ShouldContainMergeWithHoldlock()
     {
         var (jobs, schedules) = BuildMaps();
         var dialect = new SqlServerDialect(jobs, schedules);
@@ -74,10 +74,9 @@ public sealed class SqlServerDialectTests
             DateTimeOffset.UtcNow
         );
 
-        var sql = dialect.UpsertScheduleAsync(schedule, DateTimeOffset.UtcNow);
+        var sql = dialect.UpsertSchedule(schedule, DateTimeOffset.UtcNow);
 
         sql.Format.Should().Contain("MERGE");
         sql.Format.Should().Contain("WITH (HOLDLOCK)");
     }
-
 }

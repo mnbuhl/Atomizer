@@ -3,157 +3,187 @@ using Atomizer.EntityFrameworkCore.Entities;
 
 namespace Atomizer.EntityFrameworkCore.Providers.Sql;
 
-internal sealed class PostgreSqlDialect : ISqlDialect
+internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : BaseSqlDialect(jobs, schedules)
 {
-    private readonly EntityMap _jobs;
-    private readonly EntityMap _schedules;
-
-    public PostgreSqlDialect(EntityMap jobs, EntityMap schedules)
+    public override FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
     {
-        _jobs = jobs;
-        _schedules = schedules;
+        var format = $$"""
+            WITH blocked_partitions AS (
+              SELECT DISTINCT {{_jPartitionKey}}
+              FROM {{_jTable}}
+              WHERE {{_jQueueKey}} = {0}
+                AND {{_jPartitionKey}} IS NOT NULL
+                AND (
+                  {{_jStatus}} = {{_statusProcessing}}
+                  OR ({{_jStatus}} = {{_statusPending}} AND {{_jAttempts}} > 0)
+                )
+            ),
+            partition_heads AS (
+              SELECT {{_jPartitionKey}}, MIN({{_jSequenceNumber}}) AS min_seq
+              FROM {{_jTable}}
+              WHERE {{_jQueueKey}} = {1}
+                AND {{_jPartitionKey}} IS NOT NULL
+                AND {{_jPartitionKey}} NOT IN (SELECT {{_jPartitionKey}} FROM blocked_partitions)
+                AND (
+                  ({{_jStatus}} = {{_statusPending}}
+                    AND ({{_jVisibleAt}} IS NULL OR {{_jVisibleAt}} <= {10})
+                    AND {{_jScheduledAt}} <= {11})
+                  OR ({{_jStatus}} = {{_statusProcessing}} AND {{_jVisibleAt}} <= {12})
+                )
+              GROUP BY {{_jPartitionKey}}
+            )
+            SELECT t.*
+            FROM {{_jTable}} AS t
+            LEFT JOIN partition_heads ph
+              ON t.{{_jPartitionKey}} = ph.{{_jPartitionKey}}
+              AND t.{{_jSequenceNumber}} = ph.min_seq
+            WHERE t.{{_jQueueKey}} = {2}
+              AND (
+                (t.{{_jPartitionKey}} IS NULL
+                  AND (
+                    (t.{{_jStatus}} = {{_statusPending}}
+                      AND (t.{{_jVisibleAt}} IS NULL OR t.{{_jVisibleAt}} <= {3})
+                      AND t.{{_jScheduledAt}} <= {4})
+                    OR (t.{{_jStatus}} = {{_statusProcessing}} AND t.{{_jVisibleAt}} <= {5})
+                  )
+                )
+                OR
+                (t.{{_jPartitionKey}} IS NOT NULL AND ph.min_seq IS NOT NULL
+                  AND (
+                    (t.{{_jStatus}} = {{_statusPending}}
+                      AND (t.{{_jVisibleAt}} IS NULL OR t.{{_jVisibleAt}} <= {6})
+                      AND t.{{_jScheduledAt}} <= {7})
+                    OR (t.{{_jStatus}} = {{_statusProcessing}} AND t.{{_jVisibleAt}} <= {8})
+                  )
+                )
+              )
+            ORDER BY t.{{_jScheduledAt}}, t.{{_jId}}
+            LIMIT {9}
+            FOR NO KEY UPDATE SKIP LOCKED;
+            """;
+        return FormattableStringFactory.Create(
+            format,
+            queueKey.Key, // {0} blocked_partitions queue filter
+            queueKey.Key, // {1} partition_heads queue filter
+            queueKey.Key, // {2} outer SELECT queue filter
+            now, // {3} unpartitioned VisibleAt
+            now, // {4} unpartitioned ScheduledAt
+            now, // {5} unpartitioned Processing VisibleAt
+            now, // {6} partitioned VisibleAt
+            now, // {7} partitioned ScheduledAt
+            now, // {8} partitioned Processing VisibleAt
+            batchSize, // {9} LIMIT
+            now, // {10} partition_heads VisibleAt
+            now, // {11} partition_heads ScheduledAt
+            now // {12} partition_heads Processing VisibleAt
+        );
     }
 
-    public FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize)
+    public override FormattableString InsertJobWithSequence(AtomizerJob job)
     {
-        var table = _jobs.Table;
-        var c = _jobs.Col;
-        var colStatus = c[nameof(AtomizerJobEntity.Status)];
-        var colQueueKey = c[nameof(AtomizerJobEntity.QueueKey)];
-        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
-        var colScheduledAt = c[nameof(AtomizerJobEntity.ScheduledAt)];
-        var colId = c[nameof(AtomizerJobEntity.Id)];
-        var statusPending = (int)AtomizerEntityJobStatus.Pending;
-        var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        var format =
-            $@"SELECT t.*
-FROM {table} AS t
-WHERE {colQueueKey} = {{0}}
-  AND (
-        ( {colStatus} = {statusPending}
-          AND ( {colVisibleAt} IS NULL
-                OR {colVisibleAt} <= {{1}})
-          AND {colScheduledAt} <= {{2}}
-        )
-        OR
-        ( {colStatus} = {statusProcessing}
-          AND {colVisibleAt} <= {{3}}
-        )
-      )
-ORDER BY {colScheduledAt}, {colId}
-LIMIT {{4}}
-FOR NO KEY UPDATE SKIP LOCKED;";
-        return FormattableStringFactory.Create(format, queueKey.Key, now, now, now, batchSize);
+        var entity = job.ToEntity();
+        var retryIntervals = SerializeIntervals(entity.RetryIntervals);
+        var format = $$"""
+            INSERT INTO {{_jTable}} (
+                {{_jId}}, {{_jQueueKey}}, {{_jPayloadType}}, {{_jPayload}},
+                {{_jScheduledAt}}, {{_jVisibleAt}}, {{_jStatus}}, {{_jAttempts}},
+                {{_jRetryIntervals}}, {{_jCreatedAt}}, {{_jUpdatedAt}},
+                {{_jLeaseToken}}, {{_jScheduleJobKey}}, {{_jIdempotencyKey}},
+                {{_jPartitionKey}}, {{_jSequenceNumber}}
+            )
+            SELECT {0}, {1}, {2}, {3},
+                   {4}, {5}, {6}, {7},
+                   {8}, {9}, {10},
+                   {11}, {12}, {13},
+                   {14},
+                   COALESCE((SELECT MAX({{_jSequenceNumber}}) FROM (SELECT {{_jSequenceNumber}} FROM {{_jTable}} WHERE {{_jQueueKey}} = {15} AND {{_jPartitionKey}} = {16} FOR NO KEY UPDATE) AS sub), 0) + 1;
+            """;
+        return FormattableStringFactory.Create(
+            format,
+            entity.Id,
+            entity.QueueKey,
+            entity.PayloadType,
+            entity.Payload,
+            entity.ScheduledAt,
+            entity.VisibleAt,
+            (int)entity.Status,
+            entity.Attempts,
+            retryIntervals,
+            entity.CreatedAt,
+            entity.UpdatedAt,
+            entity.LeaseToken,
+            entity.ScheduleJobKey,
+            entity.IdempotencyKey,
+            entity.PartitionKey,
+            entity.QueueKey,
+            entity.PartitionKey
+        );
     }
 
-    public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
+    public override FormattableString GetDueSchedules(DateTimeOffset now)
     {
-        var table = _jobs.Table;
-        var c = _jobs.Col;
-        var colStatus = c[nameof(AtomizerJobEntity.Status)];
-        var colLeaseToken = c[nameof(AtomizerJobEntity.LeaseToken)];
-        var colVisibleAt = c[nameof(AtomizerJobEntity.VisibleAt)];
-        var colUpdatedAt = c[nameof(AtomizerJobEntity.UpdatedAt)];
-        var statusPending = (int)AtomizerEntityJobStatus.Pending;
-        var statusProcessing = (int)AtomizerEntityJobStatus.Processing;
-        var format =
-            $@"UPDATE {table}
-SET {colStatus} = {statusPending},
-    {colLeaseToken} = NULL,
-    {colVisibleAt} = NULL,
-    {colUpdatedAt} = {{0}}
-WHERE {colLeaseToken} = {{1}}
-  AND {colStatus} = {statusProcessing};";
-        return FormattableStringFactory.Create(format, now, leaseToken.Token);
-    }
-
-    public FormattableString GetDueSchedules(DateTimeOffset now)
-    {
-        var table = _schedules.Table;
-        var c = _schedules.Col;
-        var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
-        var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
-        var colId = c[nameof(AtomizerScheduleEntity.Id)];
-        var format =
-            $@"SELECT t.*
-FROM {table} AS t
-WHERE {colEnabled} = TRUE
-  AND {colNextRunAt} <= {{0}}
-ORDER BY {colNextRunAt}, {colId}
-FOR NO KEY UPDATE SKIP LOCKED;";
+        var format = $$"""
+            SELECT t.*
+            FROM {{_sTable}} AS t
+            WHERE {{_sEnabled}} = TRUE
+              AND {{_sNextRunAt}} <= {0}
+            ORDER BY {{_sNextRunAt}}, {{_sId}}
+            FOR NO KEY UPDATE SKIP LOCKED;
+            """;
         return FormattableStringFactory.Create(format, now);
     }
 
-    public FormattableString UpsertScheduleAsync(AtomizerSchedule schedule, DateTimeOffset now)
+    public override FormattableString UpsertSchedule(AtomizerSchedule schedule, DateTimeOffset now)
     {
         var entity = schedule.ToEntity();
-        var table = _schedules.Table;
-        var c = _schedules.Col;
-        var colId = c[nameof(AtomizerScheduleEntity.Id)];
-        var colJobKey = c[nameof(AtomizerScheduleEntity.JobKey)];
-        var colQueueKey = c[nameof(AtomizerScheduleEntity.QueueKey)];
-        var colPayloadType = c[nameof(AtomizerScheduleEntity.PayloadType)];
-        var colPayload = c[nameof(AtomizerScheduleEntity.Payload)];
-        var colSchedule = c[nameof(AtomizerScheduleEntity.Schedule)];
-        var colTimeZone = c[nameof(AtomizerScheduleEntity.TimeZone)];
-        var colMisfirePolicy = c[nameof(AtomizerScheduleEntity.MisfirePolicy)];
-        var colMaxCatchUp = c[nameof(AtomizerScheduleEntity.MaxCatchUp)];
-        var colEnabled = c[nameof(AtomizerScheduleEntity.Enabled)];
-        var colRetryIntervals = c[nameof(AtomizerScheduleEntity.RetryIntervals)];
-        var colNextRunAt = c[nameof(AtomizerScheduleEntity.NextRunAt)];
-        var colLastEnqueueAt = c[nameof(AtomizerScheduleEntity.LastEnqueueAt)];
-        var colCreatedAt = c[nameof(AtomizerScheduleEntity.CreatedAt)];
-        var colUpdatedAt = c[nameof(AtomizerScheduleEntity.UpdatedAt)];
-        var retryIntervals = string.Join(
-            ";",
-            Array.ConvertAll(entity.RetryIntervals, ts => (long)ts.TotalMilliseconds)
-        );
-        var format =
-            $@"INSERT INTO {table} (
-    {colId},
-    {colJobKey},
-    {colQueueKey},
-    {colPayloadType},
-    {colPayload},
-    {colSchedule},
-    {colTimeZone},
-    {colMisfirePolicy},
-    {colMaxCatchUp},
-    {colEnabled},
-    {colRetryIntervals},
-    {colNextRunAt},
-    {colLastEnqueueAt},
-    {colCreatedAt},
-    {colUpdatedAt}
-) VALUES (
-    {{0}},
-    {{1}},
-    {{2}},
-    {{3}},
-    {{4}},
-    {{5}},
-    {{6}},
-    {{7}},
-    {{8}},
-    {{9}},
-    {{10}},
-    {{11}},
-    {{12}},
-    {{13}},
-    {{14}}
-)
-ON CONFLICT ({colJobKey}) DO UPDATE SET
-    {colQueueKey} = EXCLUDED.{colQueueKey},
-    {colPayloadType} = EXCLUDED.{colPayloadType},
-    {colPayload} = EXCLUDED.{colPayload},
-    {colSchedule} = EXCLUDED.{colSchedule},
-    {colTimeZone} = EXCLUDED.{colTimeZone},
-    {colMisfirePolicy} = EXCLUDED.{colMisfirePolicy},
-    {colMaxCatchUp} = EXCLUDED.{colMaxCatchUp},
-    {colEnabled} = EXCLUDED.{colEnabled},
-    {colRetryIntervals} = EXCLUDED.{colRetryIntervals},
-    {colNextRunAt} = EXCLUDED.{colNextRunAt},
-    {colUpdatedAt} = EXCLUDED.{colUpdatedAt};";
+        var retryIntervals = SerializeIntervals(entity.RetryIntervals);
+        var format = $$"""
+            INSERT INTO {{_sTable}} (
+                {{_sId}},
+                {{_sJobKey}},
+                {{_sQueueKey}},
+                {{_sPayloadType}},
+                {{_sPayload}},
+                {{_sSchedule}},
+                {{_sTimeZone}},
+                {{_sMisfirePolicy}},
+                {{_sMaxCatchUp}},
+                {{_sEnabled}},
+                {{_sRetryIntervals}},
+                {{_sNextRunAt}},
+                {{_sLastEnqueueAt}},
+                {{_sCreatedAt}},
+                {{_sUpdatedAt}}
+            ) VALUES (
+                {0},
+                {1},
+                {2},
+                {3},
+                {4},
+                {5},
+                {6},
+                {7},
+                {8},
+                {9},
+                {10},
+                {11},
+                {12},
+                {13},
+                {14}
+            )
+            ON CONFLICT ({{_sJobKey}}) DO UPDATE SET
+                {{_sQueueKey}} = EXCLUDED.{{_sQueueKey}},
+                {{_sPayloadType}} = EXCLUDED.{{_sPayloadType}},
+                {{_sPayload}} = EXCLUDED.{{_sPayload}},
+                {{_sSchedule}} = EXCLUDED.{{_sSchedule}},
+                {{_sTimeZone}} = EXCLUDED.{{_sTimeZone}},
+                {{_sMisfirePolicy}} = EXCLUDED.{{_sMisfirePolicy}},
+                {{_sMaxCatchUp}} = EXCLUDED.{{_sMaxCatchUp}},
+                {{_sEnabled}} = EXCLUDED.{{_sEnabled}},
+                {{_sRetryIntervals}} = EXCLUDED.{{_sRetryIntervals}},
+                {{_sNextRunAt}} = EXCLUDED.{{_sNextRunAt}},
+                {{_sUpdatedAt}} = EXCLUDED.{{_sUpdatedAt}};
+            """;
         return FormattableStringFactory.Create(
             format,
             entity.Id,

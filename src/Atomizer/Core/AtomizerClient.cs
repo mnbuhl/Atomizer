@@ -7,7 +7,7 @@ namespace Atomizer.Core;
 /// Default implementation of <see cref="IAtomizerClient"/> that serializes payloads
 /// and delegates to the configured <see cref="IAtomizerStorage"/>.
 /// </summary>
-public class AtomizerClient : IAtomizerClient
+public sealed class AtomizerClient : IAtomizerClient
 {
     private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly IAtomizerJobSerializer _jobSerializer;
@@ -84,7 +84,8 @@ public class AtomizerClient : IAtomizerClient
             options.MisfirePolicy,
             options.MaxCatchUp,
             options.Enabled,
-            options.RetryStrategy
+            options.RetryStrategy,
+            options.PartitionKey
         );
 
         using var scope = _serviceScopeFactory.CreateScope();
@@ -107,7 +108,8 @@ public class AtomizerClient : IAtomizerClient
             _clock.UtcNow,
             when,
             options.RetryStrategy,
-            options.IdempotencyKey
+            options.IdempotencyKey,
+            partitionKey: options.PartitionKey
         );
 
         using var scope = _serviceScopeFactory.CreateScope();
@@ -116,7 +118,7 @@ public class AtomizerClient : IAtomizerClient
         _logger.LogDebug(
             "Enqueuing job {JobId} with payload type {PayloadType} to queue {QueueKey} at {ScheduledAt}",
             jobId,
-            job.PayloadType!.FullName,
+            job.PayloadType?.FullName,
             job.QueueKey,
             job.ScheduledAt
         );

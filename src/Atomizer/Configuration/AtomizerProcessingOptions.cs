@@ -47,7 +47,10 @@ public class AtomizerProcessingOptions
     {
         if (StartupDelay != null && StartupDelay < TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(StartupDelay), "Startup delay must be a non-negative TimeSpan.");
+            throw new ArgumentOutOfRangeException(
+                nameof(StartupDelay),
+                "Startup delay must be a non-negative TimeSpan."
+            );
         }
 
         if (HeartbeatInterval <= TimeSpan.Zero)

@@ -60,7 +60,7 @@ public sealed class PostgreSqlDialectTests
     }
 
     [Fact]
-    public void UpsertScheduleAsync_WhenCalled_ShouldContainOnConflict()
+    public void UpsertSchedule_WhenCalled_ShouldContainOnConflict()
     {
         var (jobs, schedules) = BuildMaps();
         var dialect = new PostgreSqlDialect(jobs, schedules);
@@ -74,10 +74,9 @@ public sealed class PostgreSqlDialectTests
             DateTimeOffset.UtcNow
         );
 
-        var sql = dialect.UpsertScheduleAsync(schedule, DateTimeOffset.UtcNow);
+        var sql = dialect.UpsertSchedule(schedule, DateTimeOffset.UtcNow);
 
         sql.Format.Should().Contain("ON CONFLICT");
         sql.Format.Should().Contain("DO UPDATE SET");
     }
-
 }

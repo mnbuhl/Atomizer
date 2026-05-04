@@ -21,12 +21,12 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - 🛑 **Graceful Shutdown** — Ensure in-flight jobs finish and pending batched jobs are safely released for re-processing during shutdowns.
 - 📦 **Batch Processing** — Tune throughput with batch size and parallelism settings per queue.
 - ⏳ **Visibility Timeout** — Prevent job duplication by locking jobs during processing.
+- 🕒 **FIFO Partitioned Processing** — Guarantee strict in-order, one-at-a-time execution per partition key (e.g. per customer, per entity).
 - 🧪 **In-Memory Driver** — Perfect for local development and testing; spin up queues instantly with zero setup.
 - 🔔 **ASP.NET Core Integration** — Works with DI, logging, and modern C# idioms.
 
 ## Planned Features
 - 📈 **Dashboard** — Live monitoring, retry/dead-letter management, and operational insights.
-- 🕒 **FIFO Processing** — Guarantee jobs are processed in strict order, without overlap.
 - ⚡ **Redis Driver** — Lightning-fast, distributed, in-memory queues for massive scale.
 
 ## Quick Start
@@ -130,7 +130,20 @@ app.MapPost(
 );
 ```
 
-### 5. Schedule Recurring Jobs
+### 5. FIFO Processing (Partitioned Jobs)
+To guarantee jobs for the same entity execute one-at-a-time in enqueue order, assign a `PartitionKey`:
+
+```csharp
+// All stock events for the same product are processed in strict FIFO order.
+await atomizerClient.EnqueueAsync(
+    new StockEvent(productId, "restock", delta: 50),
+    options => options.PartitionKey = new PartitionKey(productId.ToString())
+);
+```
+
+Jobs sharing the same `PartitionKey` and queue are serialized: the next job in the partition only starts after the previous one completes (or fails and is rescheduled). Unpartitioned jobs in the same queue are unaffected and continue to process in parallel.
+
+### 6. Schedule Recurring Jobs
 in Program.cs:
 ```csharp
 ...

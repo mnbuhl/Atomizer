@@ -15,7 +15,9 @@ public sealed class HeartbeatRecoveryServiceTests
         clock.UtcNow.Returns(now);
 
         var storage = Substitute.For<IAtomizerStorage>();
-        var heartbeatWritten = new TaskCompletionSource<AtomizerActiveServer>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var heartbeatWritten = new TaskCompletionSource<AtomizerActiveServer>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
         var recoveryAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         storage
@@ -52,7 +54,10 @@ public sealed class HeartbeatRecoveryServiceTests
 
         var run = executeAsync(service, cts.Token);
 
-        var heartbeat = await heartbeatWritten.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        var heartbeat = await heartbeatWritten.Task.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TestContext.Current.CancellationToken
+        );
         await recoveryAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
         cts.Cancel();
 
@@ -61,12 +66,9 @@ public sealed class HeartbeatRecoveryServiceTests
 
         heartbeat.InstanceId.Should().Be("local");
         heartbeat.LastHeartbeatAt.Should().Be(now);
-        await storage.Received(1).TryRecoverStaleServerAsync(
-            "stale",
-            now - TimeSpan.FromMinutes(3),
-            now,
-            Arg.Any<CancellationToken>()
-        );
+        await storage
+            .Received(1)
+            .TryRecoverStaleServerAsync("stale", now - TimeSpan.FromMinutes(3), now, Arg.Any<CancellationToken>());
     }
 
     private sealed class TestServiceScopeFactory : IServiceScopeFactory

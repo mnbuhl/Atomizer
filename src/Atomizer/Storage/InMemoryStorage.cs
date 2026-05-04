@@ -12,6 +12,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
 {
     private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new();
     private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<Guid, byte>> _queues = new();
+    private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<string, long>> _partitionSequences = new();
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>> _leasesByToken = new();
     private readonly ConcurrentDictionary<string, AtomizerActiveServer> _activeServers = new(StringComparer.Ordinal);
     private readonly object _syncRoot = new();
@@ -41,8 +42,27 @@ public sealed class InMemoryStorage : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        _jobs[job.Id] = job;
+        if (job.IdempotencyKey != null)
+        {
+            var existing = _jobs.Values.FirstOrDefault(j => j.IdempotencyKey == job.IdempotencyKey);
+            if (existing != null)
+            {
+                job.SequenceNumber = existing.SequenceNumber;
+                return Task.FromResult(existing.Id);
+            }
+        }
 
+        if (job.PartitionKey != null)
+        {
+            var partitionSequences = _partitionSequences.GetOrAdd(
+                job.QueueKey,
+                _ => new ConcurrentDictionary<string, long>()
+            );
+            var seq = partitionSequences.AddOrUpdate(job.PartitionKey.Key, 1L, (_, current) => current + 1L);
+            job.SequenceNumber = seq;
+        }
+
+        _jobs[job.Id] = job;
         IndexIntoQueue(job);
 
         _logger.LogDebug(
@@ -53,7 +73,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
         );
 
         EvictCompletedAndFailed();
-
         return Task.FromResult(job.Id);
     }
 
@@ -98,15 +117,20 @@ public sealed class InMemoryStorage : IAtomizerStorage
             now
         );
 
-        List<AtomizerJob> candidates;
-
         if (!_queues.TryGetValue(queueKey, out var ids) || ids.IsEmpty)
         {
             _logger.LogDebug("LeaseBatch: queue {QueueKey} is empty", queueKey);
             return Task.FromResult((IReadOnlyList<AtomizerJob>)Array.Empty<AtomizerJob>());
         }
 
-        candidates = ids
+        var blockedPartitions = new HashSet<string>();
+        foreach (var id in ids.Keys)
+        {
+            if (_jobs.TryGetValue(id, out var bj) && bj.IsPartitionBlocked)
+                blockedPartitions.Add(bj.PartitionKey!.Key);
+        }
+
+        var eligible = ids
             .Keys.Select(id => _jobs.TryGetValue(id, out var j) ? j : null)
             .Where(j =>
                 j != null
@@ -117,8 +141,18 @@ public sealed class InMemoryStorage : IAtomizerStorage
                         && j.ScheduledAt <= now
                     ) || (j.Status == AtomizerJobStatus.Processing && j.VisibleAt <= now) // expired lease
                 )
+                && (j.PartitionKey == null || !blockedPartitions.Contains(j.PartitionKey.Key))
             )
-            .Select(j => j!)
+            .Select(j => j!);
+
+        var unpartitioned = eligible.Where(j => j.PartitionKey == null);
+        var partitionHeads = eligible
+            .Where(j => j.PartitionKey != null)
+            .GroupBy(j => j.PartitionKey!.Key)
+            .Select(g => g.OrderBy(j => j.SequenceNumber).First());
+
+        var candidates = unpartitioned
+            .Concat(partitionHeads)
             .OrderBy(j => j.ScheduledAt)
             .ThenBy(j => j.CreatedAt)
             .Take(Math.Max(0, batchSize))

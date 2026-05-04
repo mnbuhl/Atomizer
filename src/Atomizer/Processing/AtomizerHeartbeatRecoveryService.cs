@@ -33,12 +33,12 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
     {
         _options.Validate();
 
-        _logger.LogInformation("Atomizer heartbeat recovery service starting for instance {InstanceId}", _identity.InstanceId);
-
-        return Task.WhenAll(
-            RunHeartbeatLoopAsync(stoppingToken),
-            RunSweepLoopAsync(stoppingToken)
+        _logger.LogInformation(
+            "Atomizer heartbeat recovery service starting for instance {InstanceId}",
+            _identity.InstanceId
         );
+
+        return Task.WhenAll(RunHeartbeatLoopAsync(stoppingToken), RunSweepLoopAsync(stoppingToken));
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
@@ -53,7 +53,11 @@ internal sealed class AtomizerHeartbeatRecoveryService : BackgroundService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Failed to remove Atomizer heartbeat for instance {InstanceId}", _identity.InstanceId);
+            _logger.LogWarning(
+                ex,
+                "Failed to remove Atomizer heartbeat for instance {InstanceId}",
+                _identity.InstanceId
+            );
         }
     }
 

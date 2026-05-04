@@ -12,8 +12,7 @@ public class AtomizerRuntimeIdentity
         : this(
             Environment.GetEnvironmentVariable("ATOMIZER_INSTANCE_ID")
                 ?? Environment.MachineName + "+" + Guid.NewGuid().ToString("N").Substring(0, 8)
-        )
-    { }
+        ) { }
 
     /// <summary>
     /// Initializes a new <see cref="AtomizerRuntimeIdentity"/> with the supplied process instance identifier.

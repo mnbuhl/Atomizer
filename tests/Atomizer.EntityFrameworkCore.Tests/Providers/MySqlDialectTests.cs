@@ -1,4 +1,3 @@
-using Atomizer;
 using Atomizer.EntityFrameworkCore.Entities;
 using Atomizer.EntityFrameworkCore.Providers;
 using Atomizer.EntityFrameworkCore.Providers.Sql;
@@ -60,7 +59,7 @@ public sealed class MySqlDialectTests
     }
 
     [Fact]
-    public void UpsertScheduleAsync_WhenCalled_ShouldContainOnDuplicateKeyUpdate()
+    public void UpsertSchedule_WhenCalled_ShouldContainOnDuplicateKeyUpdate()
     {
         var (jobs, schedules) = BuildMaps();
         var dialect = new MySqlDialect(jobs, schedules);
@@ -74,9 +73,8 @@ public sealed class MySqlDialectTests
             DateTimeOffset.UtcNow
         );
 
-        var sql = dialect.UpsertScheduleAsync(schedule, DateTimeOffset.UtcNow);
+        var sql = dialect.UpsertSchedule(schedule, DateTimeOffset.UtcNow);
 
         sql.Format.Should().Contain("ON DUPLICATE KEY UPDATE");
     }
-
 }

@@ -127,6 +127,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         dbContext.ChangeTracker.Clear();
 
         // Act
+        job1.Lease(FakeDataFactory.LeaseToken(), _clock.UtcNow, TimeSpan.FromMinutes(10));
+        job2.Lease(FakeDataFactory.LeaseToken(), _clock.UtcNow, TimeSpan.FromMinutes(10));
         job1.MarkAsCompleted(_clock.UtcNow);
         job2.MarkAsFailed(_clock.UtcNow);
         await storage.UpdateJobsAsync(new[] { job1, job2 }, CancellationToken.None);
@@ -666,7 +668,6 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         map.Should().NotThrow();
     }
 
-
     [Fact]
     public async Task HeartbeatUpsert_WhenRepeated_ShouldPersistSingleActiveServerRecord()
     {
@@ -730,9 +731,17 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         await storage.InsertAsync(otherServerJob, CancellationToken.None);
         await storage.InsertAsync(prefixCollisionJob, CancellationToken.None);
 
-        matchingJob.Lease(new LeaseToken($"{staleInstanceId}:*:{QueueKey.Default}:*:matching"), now, TimeSpan.FromMinutes(30));
+        matchingJob.Lease(
+            new LeaseToken($"{staleInstanceId}:*:{QueueKey.Default}:*:matching"),
+            now,
+            TimeSpan.FromMinutes(30)
+        );
         otherServerJob.Lease(new LeaseToken($"server-b:*:{QueueKey.Default}:*:other"), now, TimeSpan.FromMinutes(30));
-        prefixCollisionJob.Lease(new LeaseToken($"{staleInstanceId}-extra:*:{QueueKey.Default}:*:collision"), now, TimeSpan.FromMinutes(30));
+        prefixCollisionJob.Lease(
+            new LeaseToken($"{staleInstanceId}-extra:*:{QueueKey.Default}:*:collision"),
+            now,
+            TimeSpan.FromMinutes(30)
+        );
 
         dbContext.ChangeTracker.Clear();
         await storage.UpdateJobsAsync([matchingJob, otherServerJob, prefixCollisionJob], CancellationToken.None);
@@ -745,7 +754,12 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         dbContext.ChangeTracker.Clear();
 
         // Act
-        var result = await storage.TryRecoverStaleServerAsync(staleInstanceId, staleBefore, now, CancellationToken.None);
+        var result = await storage.TryRecoverStaleServerAsync(
+            staleInstanceId,
+            staleBefore,
+            now,
+            CancellationToken.None
+        );
 
         // Assert
         result.Should().BeEquivalentTo(new AtomizerHeartbeatRecoveryResult(staleInstanceId, true, 1));
@@ -772,11 +786,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         await using var dbContext = _dbContextFactory();
-        dbContext.Set<AtomizerJobEntity>().RemoveRange(dbContext.Set<AtomizerJobEntity>());
-        dbContext.Set<AtomizerJobErrorEntity>().RemoveRange(dbContext.Set<AtomizerJobErrorEntity>());
-        dbContext.Set<AtomizerScheduleEntity>().RemoveRange(dbContext.Set<AtomizerScheduleEntity>());
-        dbContext.Set<AtomizerActiveServerEntity>().RemoveRange(dbContext.Set<AtomizerActiveServerEntity>());
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await StorageTestCleanup.ClearAsync(dbContext, TestContext.Current.CancellationToken);
     }
 
     public ValueTask InitializeAsync()

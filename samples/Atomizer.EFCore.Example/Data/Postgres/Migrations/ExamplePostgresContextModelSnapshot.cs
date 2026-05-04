@@ -86,6 +86,10 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("text");
@@ -97,8 +101,8 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
 
                     b.Property<string>("QueueKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("RetryIntervals")
                         .IsRequired()
@@ -106,11 +110,14 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .HasColumnType("character varying(4096)");
 
                     b.Property<string>("ScheduleJobKey")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<DateTimeOffset>("ScheduledAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("SequenceNumber")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

@@ -99,7 +99,8 @@ public sealed class InMemoryHeartbeatRecoveryTests
         );
         await InsertLeasedJobAsync("stale:*:default:*:lease", QueueKey.Default);
 
-        var attempts = Enumerable.Range(0, 2)
+        var attempts = Enumerable
+            .Range(0, 2)
             .Select(_ =>
                 recovery.TryRecoverStaleServerAsync("stale", _now.AddMinutes(-3), _now, CancellationToken.None)
             )
