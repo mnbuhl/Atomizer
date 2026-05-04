@@ -127,6 +127,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         dbContext.ChangeTracker.Clear();
 
         // Act
+        job1.Lease(FakeDataFactory.LeaseToken(), _clock.UtcNow, TimeSpan.FromMinutes(10));
+        job2.Lease(FakeDataFactory.LeaseToken(), _clock.UtcNow, TimeSpan.FromMinutes(10));
         job1.MarkAsCompleted(_clock.UtcNow);
         job2.MarkAsFailed(_clock.UtcNow);
         await storage.UpdateJobsAsync(new[] { job1, job2 }, CancellationToken.None);
