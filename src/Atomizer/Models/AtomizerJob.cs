@@ -216,6 +216,11 @@ public class AtomizerJob : Model
     /// <param name="completedAt">The UTC time the job completed.</param>
     public void MarkAsCompleted(DateTimeOffset completedAt)
     {
+        if (Status != AtomizerJobStatus.Processing)
+        {
+            throw new InvalidOperationException("Job must be in Processing status to mark as completed.");
+        }
+
         CompletedAt = completedAt;
         UpdatedAt = completedAt;
         Status = AtomizerJobStatus.Completed;
@@ -229,6 +234,11 @@ public class AtomizerJob : Model
     /// <param name="failedAt">The UTC time the job was permanently failed.</param>
     public void MarkAsFailed(DateTimeOffset failedAt)
     {
+        if (Status != AtomizerJobStatus.Processing)
+        {
+            throw new InvalidOperationException("Job must be in Processing status to mark as failed.");
+        }
+
         FailedAt = failedAt;
         UpdatedAt = failedAt;
         Status = AtomizerJobStatus.Failed;
