@@ -345,5 +345,125 @@ namespace Atomizer.Tests.Storage
             );
             jobs.Count.Should().Be(1);
         }
+
+        // ---- FIFO-07/FIFO-08: GetDueJobsAsync partition blocking ----
+
+        [Fact]
+        public async Task GetDueJobsAsync_WhenTwoJobsSharePartition_ShouldReturnOnlyLowestSequenceNumber()
+        {
+            // Arrange
+            var pk = new PartitionKey("fifo-batch");
+            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, partitionKey: pk);
+            var job2 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p2", _now, _now, partitionKey: pk);
+            await _sut.InsertAsync(job1, CancellationToken.None);
+            await _sut.InsertAsync(job2, CancellationToken.None);
+
+            // Act
+            var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 10, CancellationToken.None);
+
+            // Assert — only head of partition returned
+            result.Should().HaveCount(1);
+            result[0].Id.Should().Be(job1.Id);
+        }
+
+        [Fact]
+        public async Task GetDueJobsAsync_WhenPartitionHeadAndUnpartitionedJobExist_ShouldReturnBoth()
+        {
+            // Arrange
+            var pk = new PartitionKey("mixed-pk");
+            var partitioned = AtomizerJob.Create(QueueKey.Default, typeof(string), "pp", _now, _now, partitionKey: pk);
+            var unpartitioned = AtomizerJob.Create(QueueKey.Default, typeof(string), "up", _now, _now);
+            await _sut.InsertAsync(partitioned, CancellationToken.None);
+            await _sut.InsertAsync(unpartitioned, CancellationToken.None);
+
+            // Act
+            var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 10, CancellationToken.None);
+
+            // Assert — both returned
+            result.Should().HaveCount(2);
+            result.Should().Contain(j => j.Id == partitioned.Id);
+            result.Should().Contain(j => j.Id == unpartitioned.Id);
+        }
+
+        [Fact]
+        public async Task GetDueJobsAsync_WhenPartitionJobIsProcessing_ShouldReturnEmpty()
+        {
+            // Arrange
+            var pk = new PartitionKey("blocked-pk");
+            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, partitionKey: pk);
+            await _sut.InsertAsync(job1, CancellationToken.None);
+            var leaseToken = new LeaseToken("inst:*:default:*:lease1");
+            job1.Lease(leaseToken, _now, TimeSpan.FromMinutes(10));
+            await _sut.UpdateJobsAsync([job1], CancellationToken.None);
+
+            // Act
+            var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 10, CancellationToken.None);
+
+            // Assert — partition blocked while job is Processing
+            result.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task GetDueJobsAsync_WhenPartitionJobIsPendingWithAttempts_ShouldReturnEmpty()
+        {
+            // Arrange
+            var pk = new PartitionKey("retry-pk");
+            var job1 = AtomizerJob.Create(QueueKey.Default, typeof(string), "p1", _now, _now, partitionKey: pk);
+            await _sut.InsertAsync(job1, CancellationToken.None);
+            // Simulate retry state: Lease → Attempt → Reschedule (Pending with Attempts = 1)
+            var leaseToken = new LeaseToken("inst:*:default:*:lease2");
+            job1.Lease(leaseToken, _now, TimeSpan.FromMinutes(10));
+            job1.Attempt();
+            job1.Reschedule(_now, _now);
+            await _sut.UpdateJobsAsync([job1], CancellationToken.None);
+
+            // Act
+            var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 10, CancellationToken.None);
+
+            // Assert — partition blocked while job is Pending with Attempts > 0
+            result.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task GetDueJobsAsync_WhenQueueABlockedPartitionSameKeyAsQueueB_ShouldReturnQueueBJobUnaffected()
+        {
+            // Arrange
+            var pk = new PartitionKey("cross-queue-pk");
+            var queueB = new QueueKey("queue-b-test");
+            var jobA = AtomizerJob.Create(QueueKey.Default, typeof(string), "pa", _now, _now, partitionKey: pk);
+            var jobB = AtomizerJob.Create(queueB, typeof(string), "pb", _now, _now, partitionKey: pk);
+            await _sut.InsertAsync(jobA, CancellationToken.None);
+            await _sut.InsertAsync(jobB, CancellationToken.None);
+            // Block partition in queue A
+            var leaseToken = new LeaseToken("inst:*:default:*:lease3");
+            jobA.Lease(leaseToken, _now, TimeSpan.FromMinutes(10));
+            await _sut.UpdateJobsAsync([jobA], CancellationToken.None);
+
+            // Act — query queue B
+            var result = await _sut.GetDueJobsAsync(queueB, _now, 10, CancellationToken.None);
+
+            // Assert — queue B is unaffected
+            result.Should().HaveCount(1);
+            result[0].Id.Should().Be(jobB.Id);
+        }
+
+        [Fact]
+        public async Task GetDueJobsAsync_WhenProcessingJobHasExpiredVisibleAt_ShouldReturnIt()
+        {
+            // Arrange — Processing job with VisibleAt in the past (expired lease)
+            var job = AtomizerJob.Create(QueueKey.Default, typeof(string), "p", _now, _now);
+            await _sut.InsertAsync(job, CancellationToken.None);
+            var expiredNow = _now.AddMinutes(-10);
+            var leaseToken = new LeaseToken("inst:*:default:*:lease4");
+            job.Lease(leaseToken, expiredNow, TimeSpan.FromMinutes(1)); // VisibleAt = expiredNow + 1min = _now - 9min
+            await _sut.UpdateJobsAsync([job], CancellationToken.None);
+
+            // Act — query at _now (VisibleAt is in the past)
+            var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 10, CancellationToken.None);
+
+            // Assert — expired lease job is still returned (existing behavior must not regress)
+            result.Should().HaveCount(1);
+            result[0].Id.Should().Be(job.Id);
+        }
     }
 }
