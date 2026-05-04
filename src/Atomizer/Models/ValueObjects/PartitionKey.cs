@@ -45,11 +45,11 @@ public sealed class PartitionKey : ValueObject
     public static implicit operator string(PartitionKey partitionKey) => partitionKey.Key;
 
     /// <summary>
-    /// Implicitly converts a string to a <see cref="PartitionKey"/>.
+    /// Explicitly converts a string to a <see cref="PartitionKey"/>.
     /// </summary>
     /// <param name="key">The partition key string to convert.</param>
     /// <returns>A new <see cref="PartitionKey"/> wrapping the string.</returns>
-    public static implicit operator PartitionKey(string key) => new PartitionKey(key);
+    public static explicit operator PartitionKey(string key) => new PartitionKey(key);
 
     /// <summary>
     /// Returns the partition key string as the sole equality component.

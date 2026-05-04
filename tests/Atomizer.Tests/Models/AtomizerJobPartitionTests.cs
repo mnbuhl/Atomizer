@@ -31,7 +31,7 @@ public class AtomizerJobPartitionTests
     public void IsPartitionBlocked_WhenStatusIsPendingAndAttemptsIsZero_ShouldReturnFalse()
     {
         // Arrange
-        var job = CreateJob(partitionKey: "orders");
+        var job = CreateJob(partitionKey: new PartitionKey("orders"));
         // Create() already sets Status=Pending, Attempts=0
 
         // Assert
@@ -42,7 +42,7 @@ public class AtomizerJobPartitionTests
     public void IsPartitionBlocked_WhenStatusIsProcessing_ShouldReturnTrue()
     {
         // Arrange
-        var job = CreateJob(partitionKey: "orders");
+        var job = CreateJob(partitionKey: new PartitionKey("orders"));
         job.Lease(
             new LeaseToken($"worker:*:default:*:{Guid.NewGuid()}"),
             DateTimeOffset.UtcNow,
@@ -58,7 +58,7 @@ public class AtomizerJobPartitionTests
     public void IsPartitionBlocked_WhenStatusIsPendingAndAttemptsGreaterThanZero_ShouldReturnTrue()
     {
         // Arrange
-        var job = CreateJob(partitionKey: "orders");
+        var job = CreateJob(partitionKey: new PartitionKey("orders"));
         job.Lease(
             new LeaseToken($"worker:*:default:*:{Guid.NewGuid()}"),
             DateTimeOffset.UtcNow,

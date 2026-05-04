@@ -86,10 +86,10 @@ public class PartitionKeyTests
     }
 
     [Fact]
-    public void ImplicitConversionFromString_ShouldCreatePartitionKey()
+    public void ExplicitConversionFromString_ShouldCreatePartitionKey()
     {
         // Arrange & Act
-        PartitionKey pk = "orders";
+        var pk = (PartitionKey)"orders";
 
         // Assert
         pk.Key.Should().Be("orders");
