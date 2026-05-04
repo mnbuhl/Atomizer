@@ -7,16 +7,23 @@ namespace Atomizer.EntityFrameworkCore.Providers;
 
 internal sealed class RelationalProviderCache
 {
-    public bool IsSupportedProvider => DetermineSupportedProvider(DatabaseProvider);
+    public bool IsSupportedProvider => _databaseProvider is not null;
+    public string ProviderName { get; }
     public ISqlDialect? Dialect { get; }
 
-    private DatabaseProvider DatabaseProvider { get; }
+    private readonly DatabaseProvider? _databaseProvider;
     private readonly EntityMap? _jobs;
     private readonly EntityMap? _schedules;
 
-    private RelationalProviderCache(DatabaseProvider databaseProvider, EntityMap? jobs, EntityMap? schedules)
+    private RelationalProviderCache(
+        string providerName,
+        DatabaseProvider? databaseProvider,
+        EntityMap? jobs,
+        EntityMap? schedules
+    )
     {
-        DatabaseProvider = databaseProvider;
+        ProviderName = providerName;
+        _databaseProvider = databaseProvider;
         _jobs = jobs;
         _schedules = schedules;
 
@@ -26,30 +33,29 @@ internal sealed class RelationalProviderCache
         }
     }
 
-    private static readonly ConcurrentDictionary<DatabaseProvider, RelationalProviderCache> Instances = new();
+    private static readonly ConcurrentDictionary<string, RelationalProviderCache> Instances = new();
 
     public static RelationalProviderCache Create<TDbContext>(TDbContext dbContext)
         where TDbContext : DbContext
     {
-        // Determine provider for this DbContext
-        var provider = DetectProvider(dbContext.Database.ProviderName ?? string.Empty);
+        var providerName = dbContext.Database.ProviderName ?? string.Empty;
+        var provider = DetectProvider(providerName);
 
-        // Freeze Unknown per-provider as well (same semantics as before, but keyed).
         return Instances.GetOrAdd(
-            provider,
+            providerName,
             _ =>
             {
                 EntityMap? jobs = null,
                     schedules = null;
 
-                if (DetermineSupportedProvider(provider))
+                if (provider is not null)
                 {
                     var model = dbContext.Model; // capture once
-                    jobs = EntityMap.Build(model, typeof(AtomizerJobEntity), provider);
-                    schedules = EntityMap.Build(model, typeof(AtomizerScheduleEntity), provider);
+                    jobs = EntityMap.Build(model, typeof(AtomizerJobEntity), provider.Value);
+                    schedules = EntityMap.Build(model, typeof(AtomizerScheduleEntity), provider.Value);
                 }
 
-                return new RelationalProviderCache(provider, jobs, schedules);
+                return new RelationalProviderCache(providerName, provider, jobs, schedules);
             }
         );
     }
@@ -61,34 +67,27 @@ internal sealed class RelationalProviderCache
             throw new InvalidOperationException("Database provider is not supported or entity mappings are missing.");
         }
 
-        return DatabaseProvider switch
+        return _databaseProvider switch
         {
             DatabaseProvider.PostgreSql => new PostgreSqlDialect(_jobs, _schedules),
             DatabaseProvider.MySql => new MySqlDialect(_jobs, _schedules),
             DatabaseProvider.SqlServer => new SqlServerDialect(_jobs, _schedules),
-            _ => throw new NotSupportedException($"Database provider {DatabaseProvider} is not supported."),
+            _ => throw new NotSupportedException($"Database provider {_databaseProvider} is not supported."),
         };
     }
 
-    private static DatabaseProvider DetectProvider(string name) =>
+    private static DatabaseProvider? DetectProvider(string name) =>
         name switch
         {
             "Microsoft.EntityFrameworkCore.SqlServer" => DatabaseProvider.SqlServer,
             "Npgsql.EntityFrameworkCore.PostgreSQL" => DatabaseProvider.PostgreSql,
             "Pomelo.EntityFrameworkCore.MySql" or "MySql.EntityFrameworkCore" => DatabaseProvider.MySql,
-            "Oracle.EntityFrameworkCore" => DatabaseProvider.Oracle,
-            "Microsoft.EntityFrameworkCore.Sqlite" => DatabaseProvider.Sqlite,
-            _ => DatabaseProvider.Unknown,
+            _ => null,
         };
-
-    private static bool DetermineSupportedProvider(DatabaseProvider provider)
-    {
-        return provider is DatabaseProvider.PostgreSql or DatabaseProvider.MySql or DatabaseProvider.SqlServer;
-    }
 
     // Testing helpers
     internal static bool TryGet(DatabaseProvider provider, out RelationalProviderCache? cache) =>
-        Instances.TryGetValue(provider, out cache);
+        Instances.TryGetValue(GetProviderName(provider), out cache);
 
     internal static void ResetInstanceForTests(DatabaseProvider? provider = null)
     {
@@ -98,6 +97,15 @@ internal sealed class RelationalProviderCache
             return;
         }
 
-        Instances.TryRemove(provider.Value, out _);
+        Instances.TryRemove(GetProviderName(provider.Value), out _);
     }
+
+    private static string GetProviderName(DatabaseProvider provider) =>
+        provider switch
+        {
+            DatabaseProvider.SqlServer => "Microsoft.EntityFrameworkCore.SqlServer",
+            DatabaseProvider.PostgreSql => "Npgsql.EntityFrameworkCore.PostgreSQL",
+            DatabaseProvider.MySql => "Pomelo.EntityFrameworkCore.MySql",
+            _ => throw new NotSupportedException($"Database provider {provider} is not supported."),
+        };
 }

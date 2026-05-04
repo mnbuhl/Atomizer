@@ -48,8 +48,6 @@ public class EntityMap
             DatabaseProvider.SqlServer => name => $"[{name}]",
             DatabaseProvider.PostgreSql => name => $"\"{name}\"",
             DatabaseProvider.MySql => name => $"`{name}`",
-            DatabaseProvider.Oracle => name => $"\"{name}\"",
-            DatabaseProvider.Unknown => name => name,
             _ => throw new NotSupportedException($"Database provider {provider} is not supported."),
         };
 

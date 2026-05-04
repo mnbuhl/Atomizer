@@ -225,12 +225,6 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
 
         await using var dbContext1 = _dbContextFactory();
 
-        if (dbContext1.Database.IsSqlite())
-        {
-            // SQLite does not support "FOR UPDATE SKIP LOCKED" behavior, so we skip this test for SQLite.
-            return;
-        }
-
         var storage1 = _storageFactory(dbContext1);
 
         await using var dbContext2 = _dbContextFactory();
@@ -460,12 +454,6 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         );
 
         await using var dbContext1 = _dbContextFactory();
-
-        if (dbContext1.Database.IsSqlite())
-        {
-            // SQLite does not support "FOR UPDATE SKIP LOCKED" behavior, so we skip this test for SQLite.
-            return;
-        }
 
         var storage1 = _storageFactory(dbContext1);
 
@@ -814,10 +802,3 @@ public class MySqlStorageTestsExecutor(MySqlDatabaseFixture fixture)
 [Collection(nameof(SqlServerDatabaseFixture))]
 public class SqlServerStorageTestsExecutor(SqlServerDatabaseFixture fixture)
     : EntityFrameworkCoreStorageTests(fixture.CreateNewDbContext);
-
-[Collection(nameof(SqliteDatabaseFixture))]
-public class SqliteStorageTestsExecutor(SqliteDatabaseFixture fixture)
-    : EntityFrameworkCoreStorageTests(
-        fixture.CreateNewDbContext,
-        new EntityFrameworkCoreJobStorageOptions { AllowUnsafeProviderFallback = true }
-    );

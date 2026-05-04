@@ -13,13 +13,4 @@ public enum DatabaseProvider
 
     /// <summary>Microsoft SQL Server.</summary>
     SqlServer,
-
-    /// <summary>Oracle Database.</summary>
-    Oracle,
-
-    /// <summary>SQLite (unsafe fallback; not recommended for production).</summary>
-    Sqlite,
-
-    /// <summary>An unrecognized or unsupported provider.</summary>
-    Unknown,
 }
