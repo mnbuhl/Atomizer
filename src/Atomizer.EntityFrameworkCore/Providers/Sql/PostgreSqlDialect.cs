@@ -62,19 +62,19 @@ WHERE t.{colQueueKey} = {{2}}
   AND (
     (t.{colPartitionKey} IS NULL
       AND (
-        ({colStatus} = {statusPending}
-          AND ({colVisibleAt} IS NULL OR {colVisibleAt} <= {{3}})
-          AND {colScheduledAt} <= {{4}})
-        OR ({colStatus} = {statusProcessing} AND {colVisibleAt} <= {{5}})
+        (t.{colStatus} = {statusPending}
+          AND (t.{colVisibleAt} IS NULL OR t.{colVisibleAt} <= {{3}})
+          AND t.{colScheduledAt} <= {{4}})
+        OR (t.{colStatus} = {statusProcessing} AND t.{colVisibleAt} <= {{5}})
       )
     )
     OR
     (t.{colPartitionKey} IS NOT NULL AND ph.min_seq IS NOT NULL
       AND (
-        ({colStatus} = {statusPending}
-          AND ({colVisibleAt} IS NULL OR {colVisibleAt} <= {{6}})
-          AND {colScheduledAt} <= {{7}})
-        OR ({colStatus} = {statusProcessing} AND {colVisibleAt} <= {{8}})
+        (t.{colStatus} = {statusPending}
+          AND (t.{colVisibleAt} IS NULL OR t.{colVisibleAt} <= {{6}})
+          AND t.{colScheduledAt} <= {{7}})
+        OR (t.{colStatus} = {statusProcessing} AND t.{colVisibleAt} <= {{8}})
       )
     )
   )
