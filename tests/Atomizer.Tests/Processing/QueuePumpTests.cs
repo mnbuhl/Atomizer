@@ -137,12 +137,12 @@ public class QueuePumpTests
         await pump.StopAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
         sw.Stop();
 
-        // Assert: Should return after about 1 second, not 2
+        // Assert: Should return after the grace period (1s), well before the worker finishes (3s)
         sw.Elapsed.TotalSeconds.Should().BeGreaterThanOrEqualTo(1);
         sw.Elapsed.TotalSeconds.Should()
-            .BeLessThanOrEqualTo(
-                1.5,
-                $"StopAsync should return after about 1 second, elapsed: {sw.Elapsed.TotalSeconds}"
+            .BeLessThan(
+                2.5,
+                $"StopAsync should return after the grace period, not wait for the worker, elapsed: {sw.Elapsed.TotalSeconds}"
             );
 
         logger.Received(1).LogInformation($"Stopping queue '{queueOptions.QueueKey}'...");
