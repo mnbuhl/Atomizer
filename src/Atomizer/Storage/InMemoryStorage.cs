@@ -12,6 +12,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
 {
     private readonly ConcurrentDictionary<Guid, AtomizerJob> _jobs = new();
     private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<Guid, byte>> _queues = new();
+    private readonly ConcurrentDictionary<QueueKey, ConcurrentDictionary<string, long>> _partitionSequences = new();
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, byte>> _leasesByToken = new();
 
     private readonly Dictionary<JobKey, AtomizerSchedule> _schedules = new();
@@ -39,8 +40,27 @@ public sealed class InMemoryStorage : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        _jobs[job.Id] = job;
+        // 1) CR-01 idempotency check — linear scan is acceptable for in-process storage
+        if (job.IdempotencyKey != null)
+        {
+            var existing = _jobs.Values.FirstOrDefault(j => j.IdempotencyKey == job.IdempotencyKey);
+            if (existing != null)
+            {
+                job.SequenceNumber = existing.SequenceNumber;
+                return Task.FromResult(existing.Id);
+            }
+        }
 
+        // 2) FIFO-09 sequence assignment — only for partitioned, non-duplicate jobs
+        if (job.PartitionKey != null)
+        {
+            var partitionSequences = _partitionSequences.GetOrAdd(job.QueueKey, _ => new ConcurrentDictionary<string, long>());
+            var seq = partitionSequences.AddOrUpdate(job.PartitionKey.Key, 1L, (_, current) => current + 1L);
+            job.SequenceNumber = seq;
+        }
+
+        // 3) Store + index (unchanged)
+        _jobs[job.Id] = job;
         IndexIntoQueue(job);
 
         _logger.LogDebug(
@@ -51,7 +71,6 @@ public sealed class InMemoryStorage : IAtomizerStorage
         );
 
         EvictCompletedAndFailed();
-
         return Task.FromResult(job.Id);
     }
 
