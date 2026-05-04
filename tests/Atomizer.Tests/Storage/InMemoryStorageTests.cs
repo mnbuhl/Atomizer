@@ -381,7 +381,7 @@ namespace Atomizer.Tests.Storage
         // ---- FIFO-07/FIFO-08: GetDueJobsAsync partition blocking ----
 
         [Fact]
-        public async Task GetDueJobsAsync_WhenTwoJobsSharePartition_ShouldReturnBothInSequenceOrder()
+        public async Task GetDueJobsAsync_WhenTwoJobsSharePartition_ShouldReturnOnlyLowestSequenceNumber()
         {
             // Arrange
             var pk = new PartitionKey("fifo-batch");
@@ -393,10 +393,9 @@ namespace Atomizer.Tests.Storage
             // Act
             var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, 10, CancellationToken.None);
 
-            // Assert — all partition jobs returned in sequence order
-            result.Should().HaveCount(2);
+            // Assert — only head of partition returned
+            result.Should().HaveCount(1);
             result[0].Id.Should().Be(job1.Id);
-            result[1].Id.Should().Be(job2.Id);
         }
 
         [Fact]

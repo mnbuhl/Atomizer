@@ -241,6 +241,8 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 .Where(j => j.QueueKey == queueKey.Key)
                 .ToListAsync(cancellationToken);
 
+            // 1) Collect blocked partitions: any partition key with a Processing job
+            //    or a Pending job with prior attempts (retrying).
             var blockedPartitions = allForQueue
                 .Where(j =>
                     j.PartitionKey != null
@@ -252,18 +254,32 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 .Select(j => j.PartitionKey!)
                 .ToHashSet();
 
+            // 2) Find the lowest sequence number per unblocked partition (partition heads).
+            //    Only consider Pending jobs that are due — Completed and Failed jobs must not
+            //    block the next job from becoming the partition head.
+            var partitionHeads = allForQueue
+                .Where(j =>
+                    j.PartitionKey != null
+                    && !blockedPartitions.Contains(j.PartitionKey)
+                    && j.Status == AtomizerEntityJobStatus.Pending
+                    && (j.VisibleAt == null || j.VisibleAt <= now)
+                    && j.ScheduledAt <= now
+                )
+                .GroupBy(j => j.PartitionKey!)
+                .Select(g => g.OrderBy(j => j.SequenceNumber).First().Id)
+                .ToHashSet();
+
+            // 3) Apply eligibility filter, FIFO partition-head filter, and batch size limit.
             return allForQueue
                 .Where(j =>
                     (
-                        (
-                            j.Status == AtomizerEntityJobStatus.Pending
+                        j.Status == AtomizerEntityJobStatus.Pending
                             && (j.VisibleAt == null || j.VisibleAt <= now)
                             && j.ScheduledAt <= now
-                        ) || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
-                    ) && (j.PartitionKey == null || !blockedPartitions.Contains(j.PartitionKey))
+                        || (j.Status == AtomizerEntityJobStatus.Processing && j.VisibleAt <= now) // lease expired
+                    ) && (j.PartitionKey == null || partitionHeads.Contains(j.Id))
                 )
                 .OrderBy(j => j.ScheduledAt)
-                .ThenBy(j => j.SequenceNumber)
                 .Take(batchSize)
                 .Select(j => j.ToAtomizerJob())
                 .ToList();
