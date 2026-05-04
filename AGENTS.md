@@ -19,7 +19,8 @@ dotnet test tests/Atomizer.EntityFrameworkCore.Tests/Atomizer.EntityFrameworkCor
 dotnet test --filter "FullyQualifiedName~MethodName_WhenScenario_ShouldBehavior"
 
 # Format
-dotnet csharpier .
+dotnet csharpier check .
+dotnet csharpier format .
 ```
 
 ## Project Overview
