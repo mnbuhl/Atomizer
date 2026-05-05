@@ -182,7 +182,10 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         await act.Should().NotThrowAsync();
 
         // Assert — error was persisted
-        var errors = await dbContext.Set<AtomizerJobErrorEntity>().Where(e => e.JobId == job.Id).ToListAsync(TestContext.Current.CancellationToken);
+        var errors = await dbContext
+            .Set<AtomizerJobErrorEntity>()
+            .Where(e => e.JobId == job.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
         errors.Should().ContainSingle();
         errors[0].ErrorMessage.Should().Contain("boom");
     }

@@ -2,10 +2,24 @@
 on:
   push:
     branches: [ main ]
-    paths: [ 'src/**', 'tests/**' ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - '.config/dotnet-tools.json'
+      - '.csharpierrc'
+      - '.csharpierignore'
+      - '.github/workflows/verify.yml'
   pull_request:
     branches: [ main ]
-    paths: [ 'src/**', 'tests/**' ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - '.config/dotnet-tools.json'
+      - '.csharpierrc'
+      - '.csharpierignore'
+      - '.github/workflows/verify.yml'
   workflow_dispatch:
   workflow_call:
 
@@ -26,6 +40,12 @@ jobs:
             6.0.x
           cache: true
           cache-dependency-path: '**/packages.lock.json'
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Check formatting
+        run: dotnet csharpier check .
 
       - name: Restore dependencies
         run: dotnet restore --locked-mode
