@@ -57,6 +57,9 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
 
                     b.HasKey("InstanceId");
 
+                    b.HasIndex("LastHeartbeatAt", "InstanceId")
+                        .HasDatabaseName("IX_AtomizerActiveServers_LastHeartbeatAt_InstanceId");
+
                     b.ToTable("AtomizerActiveServers", "Atomizer");
                 });
 
@@ -130,6 +133,21 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("IdempotencyKey")
+                        .HasDatabaseName("IX_AtomizerJobs_IdempotencyKey");
+
+                    b.HasIndex("Status", "LeaseToken")
+                        .HasDatabaseName("IX_AtomizerJobs_Status_LeaseToken");
+
+                    b.HasIndex("QueueKey", "PartitionKey", "SequenceNumber")
+                        .HasDatabaseName("IX_AtomizerJobs_QueueKey_PartitionKey_SequenceNumber");
+
+                    b.HasIndex("QueueKey", "Status", "Attempts", "PartitionKey")
+                        .HasDatabaseName("IX_AtomizerJobs_QueueKey_Status_Attempts_PartitionKey");
+
+                    b.HasIndex("QueueKey", "Status", "ScheduledAt", "Id")
+                        .HasDatabaseName("IX_AtomizerJobs_QueueKey_Status_ScheduledAt_Id");
+
                     b.ToTable("AtomizerJobs", "Atomizer");
                 });
 
@@ -183,10 +201,6 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("PartitionKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
                     b.Property<string>("JobKey")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -203,6 +217,10 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
 
                     b.Property<DateTimeOffset>("NextRunAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PartitionKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("Payload")
                         .IsRequired()
@@ -239,7 +257,11 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("JobKey")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_AtomizerSchedules_JobKey");
+
+                    b.HasIndex("Enabled", "NextRunAt", "Id")
+                        .HasDatabaseName("IX_AtomizerSchedules_Enabled_NextRunAt_Id");
 
                     b.ToTable("AtomizerSchedules", "Atomizer");
                 });

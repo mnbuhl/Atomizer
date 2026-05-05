@@ -179,9 +179,51 @@ namespace Atomizer.EFCore.Example.Data.MySql.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AtomizerActiveServers_LastHeartbeatAt_InstanceId",
+                table: "AtomizerActiveServers",
+                columns: new[] { "LastHeartbeatAt", "InstanceId" }
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobErrors_JobId",
                 table: "AtomizerJobErrors",
                 column: "JobId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_IdempotencyKey",
+                table: "AtomizerJobs",
+                column: "IdempotencyKey"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_QueueKey_PartitionKey_SequenceNumber",
+                table: "AtomizerJobs",
+                columns: new[] { "QueueKey", "PartitionKey", "SequenceNumber" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_QueueKey_Status_Attempts_PartitionKey",
+                table: "AtomizerJobs",
+                columns: new[] { "QueueKey", "Status", "Attempts", "PartitionKey" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_QueueKey_Status_ScheduledAt_Id",
+                table: "AtomizerJobs",
+                columns: new[] { "QueueKey", "Status", "ScheduledAt", "Id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_Status_LeaseToken",
+                table: "AtomizerJobs",
+                columns: new[] { "Status", "LeaseToken" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerSchedules_Enabled_NextRunAt_Id",
+                table: "AtomizerSchedules",
+                columns: new[] { "Enabled", "NextRunAt", "Id" }
             );
 
             migrationBuilder.CreateIndex(
