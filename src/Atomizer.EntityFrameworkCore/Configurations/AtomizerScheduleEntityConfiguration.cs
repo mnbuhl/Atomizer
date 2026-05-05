@@ -61,6 +61,14 @@ public class AtomizerScheduleEntityConfiguration : IEntityTypeConfiguration<Atom
                 )
             );
 
-        builder.HasIndex(e => e.JobKey).IsUnique();
+        builder
+            .HasIndex(e => new
+            {
+                e.Enabled,
+                e.NextRunAt,
+                e.Id,
+            })
+            .HasDatabaseName("IX_AtomizerSchedules_Enabled_NextRunAt_Id");
+        builder.HasIndex(e => e.JobKey).IsUnique().HasDatabaseName("IX_AtomizerSchedules_JobKey");
     }
 }

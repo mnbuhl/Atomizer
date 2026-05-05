@@ -130,10 +130,59 @@ namespace Atomizer.EFCore.Example.Data.Sqlite.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_AtomizerActiveServers_LastHeartbeatAt_InstanceId",
+                schema: "Atomizer",
+                table: "AtomizerActiveServers",
+                columns: new[] { "LastHeartbeatAt", "InstanceId" }
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobErrors_JobId",
                 schema: "Atomizer",
                 table: "AtomizerJobErrors",
                 column: "JobId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_IdempotencyKey",
+                schema: "Atomizer",
+                table: "AtomizerJobs",
+                column: "IdempotencyKey"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_QueueKey_PartitionKey_SequenceNumber",
+                schema: "Atomizer",
+                table: "AtomizerJobs",
+                columns: new[] { "QueueKey", "PartitionKey", "SequenceNumber" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_QueueKey_Status_Attempts_PartitionKey",
+                schema: "Atomizer",
+                table: "AtomizerJobs",
+                columns: new[] { "QueueKey", "Status", "Attempts", "PartitionKey" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_QueueKey_Status_ScheduledAt_Id",
+                schema: "Atomizer",
+                table: "AtomizerJobs",
+                columns: new[] { "QueueKey", "Status", "ScheduledAt", "Id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_Status_LeaseToken",
+                schema: "Atomizer",
+                table: "AtomizerJobs",
+                columns: new[] { "Status", "LeaseToken" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerSchedules_Enabled_NextRunAt_Id",
+                schema: "Atomizer",
+                table: "AtomizerSchedules",
+                columns: new[] { "Enabled", "NextRunAt", "Id" }
             );
 
             migrationBuilder.CreateIndex(

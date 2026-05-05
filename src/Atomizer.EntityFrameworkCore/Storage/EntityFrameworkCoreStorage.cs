@@ -195,8 +195,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             _dbContext.ChangeTracker.Clear();
 
             var newErrors = new List<AtomizerJobErrorEntity>();
-            var jobEntities = jobs
-                .Select(j =>
+            var jobEntities = jobs.Select(j =>
                 {
                     var entity = j.ToEntity();
                     // Errors loaded via GetDueJobsAsync are always empty (no .Include); any errors
