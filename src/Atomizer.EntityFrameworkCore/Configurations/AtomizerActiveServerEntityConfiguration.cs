@@ -28,5 +28,8 @@ public class AtomizerActiveServerEntityConfiguration : IEntityTypeConfiguration<
         builder.HasKey(server => server.InstanceId);
         builder.Property(server => server.InstanceId).IsRequired().HasMaxLength(512).ValueGeneratedNever();
         builder.Property(server => server.LastHeartbeatAt).IsRequired();
+        builder
+            .HasIndex(server => new { server.LastHeartbeatAt, server.InstanceId })
+            .HasDatabaseName("IX_AtomizerActiveServers_LastHeartbeatAt_InstanceId");
     }
 }

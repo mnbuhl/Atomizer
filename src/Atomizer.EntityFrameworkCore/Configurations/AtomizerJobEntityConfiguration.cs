@@ -62,5 +62,36 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
             );
         builder.Property(job => job.PartitionKey).HasMaxLength(255).IsRequired(false);
         builder.Property(job => job.SequenceNumber).IsRequired(false);
+
+        builder
+            .HasIndex(job => new
+            {
+                job.QueueKey,
+                job.Status,
+                job.ScheduledAt,
+                job.Id,
+            })
+            .HasDatabaseName("IX_AtomizerJobs_QueueKey_Status_ScheduledAt_Id");
+        builder
+            .HasIndex(job => new
+            {
+                job.QueueKey,
+                job.PartitionKey,
+                job.SequenceNumber,
+            })
+            .HasDatabaseName("IX_AtomizerJobs_QueueKey_PartitionKey_SequenceNumber");
+        builder
+            .HasIndex(job => new
+            {
+                job.QueueKey,
+                job.Status,
+                job.Attempts,
+                job.PartitionKey,
+            })
+            .HasDatabaseName("IX_AtomizerJobs_QueueKey_Status_Attempts_PartitionKey");
+        builder
+            .HasIndex(job => new { job.Status, job.LeaseToken })
+            .HasDatabaseName("IX_AtomizerJobs_Status_LeaseToken");
+        builder.HasIndex(job => job.IdempotencyKey).HasDatabaseName("IX_AtomizerJobs_IdempotencyKey");
     }
 }
