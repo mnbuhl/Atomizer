@@ -417,6 +417,26 @@ public sealed class InMemoryStorage : IAtomizerStorage
             cancellationToken
         );
 
+    // ---- dashboard snapshot accessors ----
+
+    internal IReadOnlyList<AtomizerJob> GetAllJobs() => _jobs.Values.ToList();
+
+    internal IReadOnlyList<AtomizerSchedule> GetAllSchedules()
+    {
+        lock (_syncRoot)
+        {
+            return _schedules.Values.ToList();
+        }
+    }
+
+    internal IReadOnlyList<AtomizerActiveServer> GetAllServers()
+    {
+        lock (_syncRoot)
+        {
+            return _activeServers.Values.ToList();
+        }
+    }
+
     // ---- helpers ----
 
     private void IndexIntoQueue(AtomizerJob job)

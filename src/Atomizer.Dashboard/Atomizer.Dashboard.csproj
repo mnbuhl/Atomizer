@@ -12,6 +12,11 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
     <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+            <_Parameter1>Atomizer.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+    <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
         <ProjectReference Include="..\Atomizer\Atomizer.csproj" />
     </ItemGroup>
