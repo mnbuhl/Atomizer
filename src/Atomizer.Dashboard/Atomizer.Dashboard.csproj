@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFrameworks>net6.0;net8.0;net10.0</TargetFrameworks>
+        <PackageId>Atomizer.Dashboard</PackageId>
+        <Description>Atomizer.Dashboard provides a real-time monitoring dashboard for Atomizer background jobs and schedules</Description>
+        <PackageTags>jobs;queue;scheduler;dashboard;monitoring</PackageTags>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>14</LangVersion>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <EnablePackageValidation>true</EnablePackageValidation>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <ProjectReference Include="..\Atomizer\Atomizer.csproj" />
+    </ItemGroup>
+</Project>
