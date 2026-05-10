@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
         services.AddSingleton<IAtomizerJobSerializer, DefaultJobSerializer>();
         services.AddSingleton<IAtomizerServiceScopeFactory, ServiceProviderServiceScopeFactory>();
+        services.TryAddSingleton<IAtomizerEventSink, NullAtomizerEventSink>();
 
         services.Add(
             ServiceDescriptor.Describe(
