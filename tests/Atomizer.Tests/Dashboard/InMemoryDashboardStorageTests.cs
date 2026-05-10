@@ -21,7 +21,7 @@ public class InMemoryDashboardStorageTests
             _clock,
             _storageLogger
         );
-        _sut = new InMemoryDashboardStorage(_inMemoryStorage, _clock);
+        _sut = new InMemoryDashboardStorage(_inMemoryStorage);
     }
 
     private async Task<AtomizerJob> InsertJobAsync(
@@ -40,17 +40,17 @@ public class InMemoryDashboardStorageTests
             created
         );
 
-        var leaseToken = new LeaseToken($"server-1:*:{job.QueueKey.Key}:*:{Guid.NewGuid()}");
+        await _inMemoryStorage.InsertAsync(job, CancellationToken.None);
 
         if (status == AtomizerJobStatus.Processing)
         {
-            await _inMemoryStorage.InsertAsync(job, CancellationToken.None);
+            var leaseToken = new LeaseToken($"server-1:*:{job.QueueKey.Key}:*:{Guid.NewGuid()}");
             job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
             await _inMemoryStorage.UpdateJobsAsync([job], CancellationToken.None);
         }
         else if (status == AtomizerJobStatus.Completed)
         {
-            await _inMemoryStorage.InsertAsync(job, CancellationToken.None);
+            var leaseToken = new LeaseToken($"server-1:*:{job.QueueKey.Key}:*:{Guid.NewGuid()}");
             job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
             job.Attempt();
             job.MarkAsCompleted(_now);
@@ -58,15 +58,11 @@ public class InMemoryDashboardStorageTests
         }
         else if (status == AtomizerJobStatus.Failed)
         {
-            await _inMemoryStorage.InsertAsync(job, CancellationToken.None);
+            var leaseToken = new LeaseToken($"server-1:*:{job.QueueKey.Key}:*:{Guid.NewGuid()}");
             job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
             job.Attempt();
             job.MarkAsFailed(_now);
             await _inMemoryStorage.UpdateJobsAsync([job], CancellationToken.None);
-        }
-        else
-        {
-            await _inMemoryStorage.InsertAsync(job, CancellationToken.None);
         }
 
         return job;
@@ -235,7 +231,7 @@ public class InMemoryDashboardStorageTests
     }
 
     [Fact]
-    public async Task GetActiveServersAsync_ShouldReturnOnlyServersWithRecentHeartbeat()
+    public async Task GetActiveServersAsync_ShouldReturnAllRegisteredServers()
     {
         var server1 = new AtomizerActiveServer { InstanceId = "server-1", LastHeartbeatAt = _now };
         var server2 = new AtomizerActiveServer { InstanceId = "server-2", LastHeartbeatAt = _now.AddMinutes(-1) };

@@ -1,4 +1,3 @@
-using Atomizer.Core;
 using Atomizer.Storage;
 
 namespace Atomizer.Dashboard.Storage;
@@ -6,12 +5,10 @@ namespace Atomizer.Dashboard.Storage;
 internal sealed class InMemoryDashboardStorage : IAtomizerDashboardStorage
 {
     private readonly InMemoryStorage _storage;
-    private readonly IAtomizerClock _clock;
 
-    public InMemoryDashboardStorage(InMemoryStorage storage, IAtomizerClock clock)
+    public InMemoryDashboardStorage(InMemoryStorage storage)
     {
         _storage = storage;
-        _clock = clock;
     }
 
     public Task<PagedResult<AtomizerJob>> GetJobsAsync(JobQuery query, CancellationToken cancellationToken)
