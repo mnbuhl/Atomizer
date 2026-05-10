@@ -22,5 +22,6 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\Atomizer\Atomizer.csproj" />
+        <ProjectReference Include="..\Atomizer.Dashboard\Atomizer.Dashboard.csproj" />
     </ItemGroup>
 </Project>

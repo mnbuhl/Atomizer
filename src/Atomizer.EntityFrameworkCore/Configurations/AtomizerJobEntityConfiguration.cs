@@ -93,5 +93,6 @@ public class AtomizerJobEntityConfiguration : IEntityTypeConfiguration<AtomizerJ
             .HasIndex(job => new { job.Status, job.LeaseToken })
             .HasDatabaseName("IX_AtomizerJobs_Status_LeaseToken");
         builder.HasIndex(job => job.IdempotencyKey).HasDatabaseName("IX_AtomizerJobs_IdempotencyKey");
+        builder.HasIndex(job => job.CreatedAt).HasDatabaseName("IX_AtomizerJobs_CreatedAt");
     }
 }
