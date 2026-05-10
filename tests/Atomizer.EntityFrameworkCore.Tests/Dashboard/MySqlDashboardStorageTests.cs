@@ -2,7 +2,6 @@ using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.Storage;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup.MySql;
 using AwesomeAssertions;
-using NSubstitute;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Dashboard;
 
@@ -24,9 +23,6 @@ public sealed class MySqlDashboardStorageTests(MySqlDatabaseFixture fixture)
     [Fact]
     public async Task GetJobsAsync_WhenUsingMySql_ShouldReturnPagedResults()
     {
-        var now = DateTimeOffset.UtcNow;
-        Clock.UtcNow.Returns(now);
-
         var result = await CreateStorage().GetJobsAsync(new JobQuery { Skip = 0, Take = 10 }, CancellationToken.None);
 
         result.Should().NotBeNull();

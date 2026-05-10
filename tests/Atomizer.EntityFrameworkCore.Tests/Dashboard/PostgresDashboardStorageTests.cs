@@ -2,7 +2,6 @@ using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.Storage;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup.Postgres;
 using AwesomeAssertions;
-using NSubstitute;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Dashboard;
 
@@ -24,9 +23,6 @@ public sealed class PostgresDashboardStorageTests(PostgreSqlDatabaseFixture fixt
     [Fact]
     public async Task GetJobsAsync_WhenUsingPostgres_ShouldReturnPagedResults()
     {
-        var now = DateTimeOffset.UtcNow;
-        Clock.UtcNow.Returns(now);
-
         var result = await CreateStorage().GetJobsAsync(new JobQuery { Skip = 0, Take = 10 }, CancellationToken.None);
 
         result.Should().NotBeNull();
