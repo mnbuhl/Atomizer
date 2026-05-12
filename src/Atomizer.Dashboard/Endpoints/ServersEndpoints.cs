@@ -13,9 +13,9 @@ internal static class ServersEndpoints
         var clock = context.RequestServices.GetRequiredService<IAtomizerClock>();
         var servers = await storage.GetActiveServersAsync(context.RequestAborted);
         var now = clock.UtcNow;
-        await context.Response.WriteAsJsonAsync(
+        await DashboardJsonResponse.WriteAsync(
+            context,
             servers.Select(s => ServerDto.From(s, now)).ToList(),
-            DashboardJsonOptions.CamelCase,
             context.RequestAborted
         );
     }

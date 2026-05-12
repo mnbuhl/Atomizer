@@ -10,10 +10,14 @@
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <EnablePackageValidation>true</EnablePackageValidation>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
     </PropertyGroup>
     <ItemGroup>
         <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
             <_Parameter1>Atomizer.Tests</_Parameter1>
+        </AssemblyAttribute>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+            <_Parameter1>Atomizer.Dashboard.Tests</_Parameter1>
         </AssemblyAttribute>
     </ItemGroup>
     <ItemGroup>

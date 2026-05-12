@@ -10,9 +10,9 @@ internal static class SchedulesEndpoints
     {
         var storage = context.RequestServices.GetRequiredService<IAtomizerDashboardStorage>();
         var schedules = await storage.GetSchedulesAsync(context.RequestAborted);
-        await context.Response.WriteAsJsonAsync(
+        await DashboardJsonResponse.WriteAsync(
+            context,
             schedules.Select(ScheduleDto.From).ToList(),
-            DashboardJsonOptions.CamelCase,
             context.RequestAborted
         );
     }

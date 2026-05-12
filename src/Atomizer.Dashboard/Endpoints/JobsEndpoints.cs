@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Contracts;
 using Microsoft.AspNetCore.Http;
@@ -49,7 +50,7 @@ internal static class JobsEndpoints
             Take = result.Take,
         };
 
-        await context.Response.WriteAsJsonAsync(response, DashboardJsonOptions.CamelCase, context.RequestAborted);
+        await DashboardJsonResponse.WriteAsync(context, response, context.RequestAborted);
     }
 
     internal static async Task GetByIdAsync(HttpContext context)
@@ -69,10 +70,6 @@ internal static class JobsEndpoints
             return;
         }
 
-        await context.Response.WriteAsJsonAsync(
-            JobDetailDto.FromDetail(job),
-            DashboardJsonOptions.CamelCase,
-            context.RequestAborted
-        );
+        await DashboardJsonResponse.WriteAsync(context, JobDetailDto.FromDetail(job), context.RequestAborted);
     }
 }

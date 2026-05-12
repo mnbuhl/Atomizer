@@ -11,6 +11,6 @@ internal static class QueueStatsEndpoints
         var storage = context.RequestServices.GetRequiredService<IAtomizerDashboardStorage>();
         var stats = await storage.GetQueueStatsAsync(context.RequestAborted);
         var response = new QueueStatsResponse { Queues = stats.Select(QueueStatsDto.From).ToList() };
-        await context.Response.WriteAsJsonAsync(response, DashboardJsonOptions.CamelCase, context.RequestAborted);
+        await DashboardJsonResponse.WriteAsync(context, response, context.RequestAborted);
     }
 }

@@ -42,6 +42,10 @@ builder.Services.AddAtomizer(options =>
     options.UseInMemoryStorage();
 });
 builder.Services.AddAtomizerProcessing();
+builder.Services.AddAtomizerDashboard(options =>
+{
+    options.Title = "Atomizer Example Dashboard";
+});
 
 var app = builder.Build();
 
@@ -121,5 +125,7 @@ app.MapPost(
         await atomizerClient.EnqueueAsync(new LongRunningJobPayload(durationInSeconds));
     }
 );
+
+app.MapAtomizerDashboard();
 
 app.Run();
