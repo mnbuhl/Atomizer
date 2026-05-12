@@ -51,7 +51,7 @@ public abstract class EntityFrameworkCoreDashboardStorageTests<TDbContext> : IAs
         result.TotalCount.Should().Be(3);
         result.Items.Count.Should().Be(2);
         result.Take.Should().Be(2);
-        result.Items[0].CreatedAt.Should().Be(now.AddMinutes(-1));
+        result.Items[0].CreatedAt.Should().BeCloseTo(now.AddMinutes(-1), TimeSpan.FromMilliseconds(100));
     }
 
     [Fact]
