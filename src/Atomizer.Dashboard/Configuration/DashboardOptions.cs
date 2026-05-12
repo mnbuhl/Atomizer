@@ -8,11 +8,6 @@ namespace Atomizer.Dashboard.Configuration;
 public sealed class DashboardOptions
 {
     /// <summary>
-    /// The route prefix where the dashboard is mounted. Defaults to <c>/atomizer</c>.
-    /// </summary>
-    public string RoutePrefix { get; set; } = "/atomizer";
-
-    /// <summary>
     /// The title displayed in the dashboard browser tab and heading. Defaults to <c>Atomizer Dashboard</c>.
     /// </summary>
     public string Title { get; set; } = "Atomizer Dashboard";

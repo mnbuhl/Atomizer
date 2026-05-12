@@ -1,9 +1,10 @@
+using Atomizer.Dashboard;
 using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Atomizer.Dashboard.DependencyInjection;
+namespace Atomizer;
 
 /// <summary>
 /// Extension methods for registering Atomizer Dashboard services.

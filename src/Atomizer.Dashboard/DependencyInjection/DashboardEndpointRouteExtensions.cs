@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace Atomizer.Dashboard.DependencyInjection;
+namespace Atomizer;
 
 /// <summary>
 /// Extension methods for mapping Atomizer Dashboard routes.
@@ -17,11 +17,16 @@ public static class DashboardEndpointRouteExtensions
     /// <summary>
     /// Maps the Atomizer Dashboard SPA and REST API endpoints.
     /// </summary>
-    public static IEndpointConventionBuilder MapAtomizerDashboard(this IEndpointRouteBuilder endpoints)
+    /// <param name="endpoints">The endpoint route builder.</param>
+    /// <param name="routePrefix">The route prefix where the dashboard is mounted. Defaults to <c>/atomizer</c>.</param>
+    public static IEndpointConventionBuilder MapAtomizerDashboard(
+        this IEndpointRouteBuilder endpoints,
+        string routePrefix = "/atomizer"
+    )
     {
         var options = endpoints.ServiceProvider.GetRequiredService<IOptions<DashboardOptions>>().Value;
 
-        var prefix = options.RoutePrefix.TrimEnd('/');
+        var prefix = routePrefix.TrimEnd('/');
 
         endpoints.MapGet(prefix + "/api/jobs", DashboardAuthorizationFilter.Wrap(options, JobsEndpoints.ListAsync));
         endpoints.MapGet(
@@ -41,11 +46,14 @@ public static class DashboardEndpointRouteExtensions
             DashboardAuthorizationFilter.Wrap(options, ServersEndpoints.ListAsync)
         );
 
-        endpoints.MapGet(prefix, DashboardAuthorizationFilter.Wrap(options, EmbeddedSpaFileProvider.ServeIndexAsync));
+        endpoints.MapGet(
+            prefix,
+            DashboardAuthorizationFilter.Wrap(options, ctx => EmbeddedSpaFileProvider.ServeIndexAsync(ctx, prefix))
+        );
 
         return endpoints.MapGet(
             prefix + "/{**path}",
-            DashboardAuthorizationFilter.Wrap(options, EmbeddedSpaFileProvider.ServeAsync)
+            DashboardAuthorizationFilter.Wrap(options, ctx => EmbeddedSpaFileProvider.ServeAsync(ctx, prefix))
         );
     }
 }
