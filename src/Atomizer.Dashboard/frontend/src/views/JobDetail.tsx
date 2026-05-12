@@ -35,7 +35,7 @@ export default function JobDetail() {
                     <Link to={`${routePrefix}/jobs`} className="text-sm text-gray-400 hover:text-gray-700">
                         ← Jobs
                     </Link>
-                    <h2 className="text-lg font-semibold text-gray-900 mt-1 font-mono text-base">{job.id}</h2>
+                    <h2 className="font-semibold text-gray-900 mt-1 font-mono text-base">{job.id}</h2>
                     <div className="flex gap-2 mt-1 text-sm text-gray-500">
                         <span>{job.payloadTypeName}</span>
                         <span>·</span>
