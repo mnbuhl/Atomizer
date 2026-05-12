@@ -58,6 +58,18 @@ internal sealed class EntityFrameworkCoreDashboardStorage<TContext> : IAtomizerD
         };
     }
 
+    public async Task<AtomizerJob?> GetJobByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var entity = await db.Set<AtomizerJobEntity>()
+            .AsNoTracking()
+            .Include(e => e.Errors)
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+        return entity?.ToAtomizerJob();
+    }
+
     public async Task<IReadOnlyList<AtomizerSchedule>> GetSchedulesAsync(CancellationToken cancellationToken)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);

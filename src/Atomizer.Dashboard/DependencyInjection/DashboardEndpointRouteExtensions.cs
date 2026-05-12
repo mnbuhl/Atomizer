@@ -1,5 +1,6 @@
 using Atomizer.Dashboard.Authorization;
 using Atomizer.Dashboard.Configuration;
+using Atomizer.Dashboard.Endpoints;
 using Atomizer.Dashboard.StaticFiles;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -22,9 +23,29 @@ public static class DashboardEndpointRouteExtensions
 
         var prefix = options.RoutePrefix.TrimEnd('/');
 
-        // Serve index.html for the bare prefix (e.g. /atomizer without trailing slash).
+        // API endpoints
+        endpoints.MapGet(prefix + "/api/jobs", DashboardAuthorizationFilter.Wrap(options, JobsEndpoints.ListAsync));
+        endpoints.MapGet(
+            prefix + "/api/jobs/{id:guid}",
+            DashboardAuthorizationFilter.Wrap(options, JobsEndpoints.GetByIdAsync)
+        );
+        endpoints.MapGet(
+            prefix + "/api/schedules",
+            DashboardAuthorizationFilter.Wrap(options, SchedulesEndpoints.ListAsync)
+        );
+        endpoints.MapGet(
+            prefix + "/api/queues/stats",
+            DashboardAuthorizationFilter.Wrap(options, QueueStatsEndpoints.GetStatsAsync)
+        );
+        endpoints.MapGet(
+            prefix + "/api/servers",
+            DashboardAuthorizationFilter.Wrap(options, ServersEndpoints.ListAsync)
+        );
+
+        // SPA: serve index.html for bare prefix
         endpoints.MapGet(prefix, DashboardAuthorizationFilter.Wrap(options, EmbeddedSpaFileProvider.ServeIndexAsync));
 
+        // SPA: catch-all for client-side routing and static assets
         return endpoints.MapGet(
             prefix + "/{**path}",
             DashboardAuthorizationFilter.Wrap(options, EmbeddedSpaFileProvider.ServeAsync)

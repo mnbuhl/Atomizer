@@ -60,6 +60,12 @@ internal sealed class InMemoryDashboardStorage : IAtomizerDashboardStorage
         return Task.FromResult(_storage.GetAllServers());
     }
 
+    public Task<AtomizerJob?> GetJobByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var job = _storage.GetAllJobs().FirstOrDefault(j => j.Id == id);
+        return Task.FromResult(job);
+    }
+
     public Task<IReadOnlyList<QueueStats>> GetQueueStatsAsync(CancellationToken cancellationToken)
     {
         var groups = _storage

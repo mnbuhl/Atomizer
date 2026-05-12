@@ -22,6 +22,11 @@ public interface IAtomizerDashboardStorage
     Task<IReadOnlyList<AtomizerActiveServer>> GetActiveServersAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Returns a single job by its identifier, including error history, or <see langword="null"/> if not found.
+    /// </summary>
+    Task<AtomizerJob?> GetJobByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Returns job counts grouped by queue and status.
     /// </summary>
     Task<IReadOnlyList<QueueStats>> GetQueueStatsAsync(CancellationToken cancellationToken);
