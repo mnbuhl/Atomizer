@@ -1,6 +1,11 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { routePrefix, title } from './config';
+import JobsList from './views/JobsList';
+import JobDetail from './views/JobDetail';
+import SchedulesList from './views/SchedulesList';
+import QueueStats from './views/QueueStats';
+import Servers from './views/Servers';
 
 const queryClient = new QueryClient();
 
@@ -34,12 +39,12 @@ function AppShell() {
 
             <main className="flex-1 overflow-auto p-6">
                 <Routes>
-                    <Route path={`${routePrefix}/jobs/:id`} element={<div>Job detail — Step 10</div>} />
-                    <Route path={`${routePrefix}/jobs`} element={<div>Jobs list — Step 10</div>} />
-                    <Route path={`${routePrefix}/schedules`} element={<div>Schedules — Step 10</div>} />
-                    <Route path={`${routePrefix}/queues`} element={<div>Queue stats — Step 10</div>} />
-                    <Route path={`${routePrefix}/servers`} element={<div>Servers — Step 10</div>} />
-                    <Route path={routePrefix} element={<div>Jobs list — Step 10</div>} />
+                    <Route path={`${routePrefix}/jobs/:id`} element={<JobDetail />} />
+                    <Route path={`${routePrefix}/jobs`} element={<JobsList />} />
+                    <Route path={`${routePrefix}/schedules`} element={<SchedulesList />} />
+                    <Route path={`${routePrefix}/queues`} element={<QueueStats />} />
+                    <Route path={`${routePrefix}/servers`} element={<Servers />} />
+                    <Route path={routePrefix} element={<JobsList />} />
                 </Routes>
             </main>
         </div>
