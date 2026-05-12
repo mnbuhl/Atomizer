@@ -130,6 +130,13 @@ jobs:
           echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
           echo "Resolved version: ${NEW_VERSION} (tag: ${NEW_TAG})"
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/Atomizer.Dashboard/frontend/package-lock.json
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:

@@ -32,6 +32,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/Atomizer.Dashboard/frontend/package-lock.json
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
