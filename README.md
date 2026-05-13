@@ -23,20 +23,22 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - ⏳ **Visibility Timeout** — Prevent job duplication by locking jobs during processing.
 - 🕒 **FIFO Partitioned Processing** — Guarantee strict in-order, one-at-a-time execution per partition key (e.g. per customer, per entity).
 - 🧪 **In-Memory Driver** — Perfect for local development and testing; spin up queues instantly with zero setup.
+- 📈 **Dashboard** — Optional read-only dashboard for jobs, schedules, queue statistics, and worker heartbeats.
 - 🔔 **ASP.NET Core Integration** — Works with DI, logging, and modern C# idioms.
 
 ## Planned Features
-- 📈 **Dashboard** — Live monitoring, retry/dead-letter management, and operational insights.
 - ⚡ **Redis Driver** — Lightning-fast, distributed, in-memory queues for massive scale.
 
 ## Quick Start
 Get up and running in minutes:
 
 ### 1. Install the package
-```csharp
-// Add Atomizer core and EF Core storage support
- dotnet add package Atomizer
- dotnet add package Atomizer.EntityFrameworkCore
+```bash
+dotnet add package Atomizer
+dotnet add package Atomizer.EntityFrameworkCore
+
+# Optional: add the monitoring dashboard
+dotnet add package Atomizer.Dashboard
 ```
 
 ### 2. Configure Atomizer
@@ -73,6 +75,14 @@ builder.Services.AddAtomizerProcessing(options =>
 {
     options.StartupDelay = TimeSpan.FromSeconds(5); // Delay startup to allow other services to initialize
     options.GracefulShutdownTimeout = TimeSpan.FromSeconds(30); // Allow up to 30 seconds for jobs to finish on shutdown
+});
+
+// Optional: add the Atomizer Dashboard services
+builder.Services.AddAtomizerDashboard(options =>
+{
+    options.Title = "Atomizer Dashboard";
+    options.StatsRefreshInterval = TimeSpan.FromSeconds(5);
+    options.JobsRefreshInterval = TimeSpan.FromSeconds(30);
 });
 ```
 
@@ -159,6 +169,19 @@ await atomizer.ScheduleRecurringAsync(
 
 ...
 ```
+
+### 7. Dashboard (Optional)
+If you install `Atomizer.Dashboard`, map the embedded dashboard SPA after building your app:
+
+```csharp
+var app = builder.Build();
+
+app.MapAtomizerDashboard("/atomizer");
+```
+
+Then browse to `/atomizer` to inspect jobs, job details, schedules, queue statistics, and active worker heartbeats. The dashboard is read-only in the current release; it does not retry, cancel, or dead-letter jobs.
+
+If no authorization filters are configured, dashboard requests are restricted to localhost by default. Add an `IAtomizerDashboardAuthorizationFilter` through `AddAtomizerDashboard(options => options.Authorization.Add(...))` before exposing it outside local development.
 
 ## Contributing
 1. Fork the repository.

@@ -15,6 +15,8 @@ export interface JobDto {
     scheduledAt: string | null;
     completedAt: string | null;
     failedAt: string | null;
+    partitionKey: string | null;
+    sequenceNumber: number | null;
 }
 
 export interface JobDetailDto extends JobDto {
@@ -56,8 +58,7 @@ export interface QueueStatsDto {
 }
 
 export interface ServerDto {
-    id: string;
-    machineName: string;
+    instanceId: string;
     lastHeartbeatAt: string;
     ageSeconds: number;
 }

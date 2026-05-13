@@ -49,9 +49,15 @@ export default function JobDetail() {
                 }
             />
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <MetricCard label="Queue" value={job.queueKey} helper="Assigned queue" tone="blue" />
                 <MetricCard label="Attempts" value={job.attempts} helper="Execution attempts" tone={job.attempts > 0 ? 'amber' : 'slate'} />
+                <MetricCard
+                    label="Partition"
+                    value={job.partitionKey ?? 'None'}
+                    helper={job.sequenceNumber === null ? 'No FIFO partition' : `FIFO sequence #${job.sequenceNumber}`}
+                    tone={job.partitionKey ? 'purple' : 'slate'}
+                />
                 <MetricCard
                     label="Created"
                     value={<RelativeTime value={job.createdAt} now={now} />}
@@ -67,7 +73,7 @@ export default function JobDetail() {
             </div>
 
             <Panel>
-                <div className="border-b border-slate-200/80 p-5">
+                <div className="border-b border-slate-200/80 bg-gradient-to-r from-white via-cyan-50/70 to-violet-50/60 p-5">
                     <h2 className="text-base font-semibold text-slate-950">Timeline</h2>
                     <p className="mt-1 text-sm text-slate-500">Relative job lifecycle timestamps.</p>
                 </div>
@@ -81,7 +87,7 @@ export default function JobDetail() {
 
             {formattedPayload && (
                 <Panel>
-                    <div className="border-b border-slate-200/80 p-5">
+                    <div className="border-b border-slate-200/80 bg-gradient-to-r from-white via-slate-50 to-sky-50/70 p-5">
                         <h2 className="text-base font-semibold text-slate-950">Payload</h2>
                         <p className="mt-1 text-sm text-slate-500">Formatted job payload for quick inspection.</p>
                     </div>

@@ -13,9 +13,9 @@ public sealed class DashboardOptions
     public string Title { get; set; } = "Atomizer Dashboard";
 
     /// <summary>
-    /// The default page size for the jobs list. Defaults to 50. Hard ceiling of 500.
+    /// The default page size for the jobs list. Defaults to 20. Hard ceiling of 500.
     /// </summary>
-    public int PageSize { get; set; } = 50;
+    public int PageSize { get; set; } = 20;
 
     /// <summary>
     /// How often the queue stats overview automatically refreshes. Defaults to 5 seconds.

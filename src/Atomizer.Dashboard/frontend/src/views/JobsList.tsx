@@ -1,7 +1,7 @@
 import type { KeyboardEvent } from 'react';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useJobs, type JobFilters } from '../api/hooks';
+import { useJobs, useJobStatusCounts, type JobFilters } from '../api/hooks';
 import { routePrefix, jobsRefreshMs } from '../config';
 import type { JobDto } from '../api/types';
 import {
@@ -15,8 +15,10 @@ import {
     StatusPill,
 } from '../components/DashboardUi';
 import { useNow } from '../hooks/useNow';
+import { getJobPageWindow } from './jobsPagination';
 
 const STATUS_OPTIONS = ['Pending', 'Processing', 'Completed', 'Failed'] as const;
+const PAGE_SIZE = 20;
 const TIME_FILTERS = [
     { key: 'all', label: 'All time', getFrom: () => undefined },
     { key: '15m', label: '15m', getFrom: () => new Date(Date.now() - 15 * 60 * 1000).toISOString() },
@@ -28,23 +30,22 @@ const TIME_FILTERS = [
 export default function JobsList() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const now = useNow(15_000);
+    const now = useNow(1_000);
     const [timeFilter, setTimeFilter] = useState<(typeof TIME_FILTERS)[number]['key']>('all');
     const [filters, setFilters] = useState<JobFilters>(() => ({
         skip: 0,
-        take: 50,
+        take: PAGE_SIZE,
         queue: searchParams.get('queue') ?? undefined,
         payload: searchParams.get('payload') ?? undefined,
         status: searchParams.getAll('status').length > 0 ? searchParams.getAll('status') : undefined,
     }));
     const { data, isLoading, error, refetch, dataUpdatedAt, isFetching } = useJobs(filters);
+    const { counts, isLoading: countsLoading } = useJobStatusCounts(filters);
 
-    const take = filters.take ?? 50;
+    const take = filters.take ?? PAGE_SIZE;
     const currentPage = Math.floor((filters.skip ?? 0) / take) + 1;
     const visibleCount = data?.items.length ?? 0;
-    const failedVisible = data?.items.filter(job => job.status === 'Failed').length ?? 0;
-    const activeVisible = data?.items.filter(job => job.status === 'Processing').length ?? 0;
-    const queuedVisible = data?.items.filter(job => job.status === 'Pending').length ?? 0;
+    const pageWindow = getJobPageWindow(filters.skip ?? 0, visibleCount, data?.totalCount ?? 0);
 
     const setPage = (skip: number) => setFilters(f => ({ ...f, skip }));
     const openJob = (jobId: string) => navigate(`${routePrefix}/jobs/${jobId}`);
@@ -64,7 +65,7 @@ export default function JobsList() {
 
     const clearFilters = () => {
         setTimeFilter('all');
-        setFilters({ skip: 0, take: 50 });
+        setFilters({ skip: 0, take: PAGE_SIZE });
     };
 
     return (
@@ -91,18 +92,33 @@ export default function JobsList() {
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
-                    label="Total jobs"
+                    label="Matching jobs"
                     value={formatNumber(data?.totalCount ?? 0, true)}
                     helper={`${formatNumber(visibleCount)} visible on page ${currentPage}`}
                     tone="blue"
                 />
-                <MetricCard label="Pending" value={formatNumber(queuedVisible)} helper="Visible queue backlog" tone="amber" />
-                <MetricCard label="Processing" value={formatNumber(activeVisible)} helper="Currently leased work" tone="cyan" />
-                <MetricCard label="Failed" value={formatNumber(failedVisible)} helper="Visible jobs needing attention" tone="red" />
+                <MetricCard
+                    label="Pending"
+                    value={countsLoading ? '—' : formatNumber(counts.Pending)}
+                    helper="Matching queued backlog"
+                    tone="amber"
+                />
+                <MetricCard
+                    label="Processing"
+                    value={countsLoading ? '—' : formatNumber(counts.Processing)}
+                    helper="Matching leased work"
+                    tone="cyan"
+                />
+                <MetricCard
+                    label="Failed"
+                    value={countsLoading ? '—' : formatNumber(counts.Failed)}
+                    helper="Matching jobs needing attention"
+                    tone="red"
+                />
             </div>
 
             <Panel>
-                <div className="border-b border-slate-200/70 p-5">
+                <div className="border-b border-slate-200/70 bg-gradient-to-r from-white via-sky-50/60 to-violet-50/40 p-5">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                         <div>
                             <h2 className="text-base font-semibold text-slate-950">Filters</h2>
@@ -201,7 +217,7 @@ export default function JobsList() {
                                     <tr className="border-b border-slate-200/80 bg-slate-50/80 text-xs uppercase tracking-[0.16em] text-slate-400">
                                         <th className="px-5 py-4 font-semibold">Job</th>
                                         <th className="px-5 py-4 font-semibold">Status</th>
-                                        <th className="px-5 py-4 font-semibold">Queue</th>
+                                        <th className="px-5 py-4 font-semibold">Queue / Partition</th>
                                         <th className="px-5 py-4 font-semibold">Attempts</th>
                                         <th className="px-5 py-4 font-semibold">Timing</th>
                                         <th className="px-5 py-4 font-semibold">Payload</th>
@@ -233,6 +249,16 @@ export default function JobsList() {
                                                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                                                     {job.queueKey}
                                                 </span>
+                                                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                                                    <span className="max-w-36 truncate">
+                                                        {job.partitionKey ? `Partition ${job.partitionKey}` : 'Unpartitioned'}
+                                                    </span>
+                                                    {job.sequenceNumber !== null && (
+                                                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-600">
+                                                            #{formatNumber(job.sequenceNumber)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-5 py-4 text-slate-600">{formatNumber(job.attempts)}</td>
                                             <td className="px-5 py-4 text-slate-600">
@@ -259,7 +285,8 @@ export default function JobsList() {
 
                         <div className="flex flex-col gap-3 border-t border-slate-200/80 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                             <span>
-                                Showing {formatNumber(visibleCount)} of {formatNumber(data.totalCount)} jobs · auto-refresh{' '}
+                                Showing {pageWindow.label} of {formatNumber(data.totalCount)} matching jobs · page size{' '}
+                                {take} · auto-refresh{' '}
                                 {jobsRefreshMs / 1000}s
                             </span>
                             <div className="flex gap-2">

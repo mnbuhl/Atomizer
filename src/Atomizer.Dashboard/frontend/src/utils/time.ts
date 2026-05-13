@@ -26,8 +26,12 @@ export function formatRelativeTime(value: string | number | Date | null | undefi
     const diffSeconds = Math.round((timestamp - now) / 1000);
     const absSeconds = Math.abs(diffSeconds);
 
-    if (absSeconds < 45) {
+    if (absSeconds < 2) {
         return 'just now';
+    }
+
+    if (absSeconds < 60) {
+        return diffSeconds < 0 ? `${absSeconds}s ago` : `in ${absSeconds}s`;
     }
 
     for (const { unit, seconds } of units) {

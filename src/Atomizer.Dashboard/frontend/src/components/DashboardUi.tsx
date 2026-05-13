@@ -22,6 +22,7 @@ const statusTones: Record<string, Tone> = {
     Disabled: 'slate',
     Healthy: 'green',
     Backlog: 'amber',
+    Attention: 'red',
     Idle: 'slate',
     Active: 'green',
     Stale: 'red',
@@ -53,13 +54,15 @@ export function PageHeader({
     actions?: ReactNode;
 }) {
     return (
-        <div className="flex flex-col gap-4 rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur md:flex-row md:items-end md:justify-between">
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-sky-950 p-6 text-white shadow-2xl shadow-slate-950/25 ring-1 ring-white/10 md:flex md:items-end md:justify-between md:gap-4">
+            <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-sky-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-32 left-1/3 h-56 w-56 rounded-full bg-emerald-400/10 blur-3xl" />
             <div className="max-w-3xl">
-                {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-500">{eyebrow}</p>}
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">{title}</h1>
-                {description && <p className="mt-3 text-sm leading-6 text-slate-500 md:text-base">{description}</p>}
+                {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">{eyebrow}</p>}
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white md:text-4xl">{title}</h1>
+                {description && <p className="mt-3 text-sm leading-6 text-slate-300 md:text-base">{description}</p>}
             </div>
-            {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+            {actions && <div className="relative mt-5 flex flex-wrap items-center gap-3 md:mt-0">{actions}</div>}
         </div>
     );
 }
@@ -68,7 +71,7 @@ export function Panel({ children, className }: { children: ReactNode; className?
     return (
         <section
             className={cx(
-                'overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur',
+                'overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-950/10 ring-1 ring-white/80',
                 className,
             )}
         >
@@ -99,11 +102,11 @@ export function MetricCard({
     };
 
     return (
-        <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/85 p-5 shadow-lg shadow-slate-900/5 ring-1 ring-slate-900/5">
-            <div className={cx('absolute inset-x-0 top-0 h-1 bg-gradient-to-r', accentClasses[tone])} />
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/60 p-5 shadow-xl shadow-slate-950/10 ring-1 ring-white">
+            <div className={cx('absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r', accentClasses[tone])} />
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">{label}</p>
             <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</div>
-            {helper && <div className="mt-2 text-sm text-slate-500">{helper}</div>}
+            {helper && <div className="mt-2 text-sm font-medium text-slate-600">{helper}</div>}
         </div>
     );
 }
