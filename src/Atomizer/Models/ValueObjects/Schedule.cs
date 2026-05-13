@@ -53,93 +53,17 @@ public sealed class Schedule : ValueObject
     public static Schedule Default => new Schedule("*", "*", "*", "*", "*", "*");
 
     /// <summary>
-    /// Gets a schedule that fires every second.
+    /// Starts a fluent recurring schedule builder for schedules that run once per unit.
     /// </summary>
-    public static Schedule Secondly => new Schedule("*", "*", "*", "*", "*", "*");
-
-    /// <summary>
-    /// Gets a schedule that fires at the start of every minute.
-    /// </summary>
-    public static Schedule Minutely => new Schedule("0", "*", "*", "*", "*", "*");
-
-    /// <summary>
-    /// Gets a schedule that fires at the top of every hour.
-    /// </summary>
-    public static Schedule Hourly => new Schedule("0", "0", "*", "*", "*", "*");
-
-    /// <summary>
-    /// Gets a schedule that fires at midnight UTC every day.
-    /// </summary>
-    public static Schedule Daily => new Schedule("0", "0", "0", "*", "*", "*");
-
-    /// <summary>
-    /// Gets a schedule that fires at midnight UTC every Sunday.
-    /// </summary>
-    public static Schedule Weekly => new Schedule("0", "0", "0", "*", "*", "0");
-
-    /// <summary>
-    /// Gets a schedule that fires at midnight UTC on the 1st of each month.
-    /// </summary>
-    public static Schedule Monthly => new Schedule("0", "0", "0", "1", "*", "*");
+    /// <returns>A builder that can translate a recurrence unit to a cron schedule.</returns>
+    public static ScheduleBuilder Every() => new ScheduleBuilder();
 
     /// <summary>
     /// Starts a fluent recurring schedule builder for interval-based schedules.
     /// </summary>
     /// <param name="interval">The positive interval between occurrences.</param>
     /// <returns>A builder that can translate the interval to a cron schedule.</returns>
-    public static ScheduleBuilder Every(int interval) => new ScheduleBuilder(interval);
-
-    /// <summary>
-    /// Creates a schedule that fires daily at the specified UTC time.
-    /// </summary>
-    /// <param name="hour">The UTC hour from 0 through 23.</param>
-    /// <param name="minute">The minute from 0 through 59.</param>
-    /// <param name="second">The second from 0 through 59.</param>
-    /// <returns>A schedule translated to a 6-part cron expression.</returns>
-    public static Schedule DailyAt(int hour, int minute = 0, int second = 0)
-    {
-        ValidateTime(hour, minute, second);
-
-        return new Schedule(second.ToString(), minute.ToString(), hour.ToString(), "*", "*", "*");
-    }
-
-    /// <summary>
-    /// Creates a schedule that fires weekly on the specified day at the specified UTC time.
-    /// </summary>
-    /// <param name="dayOfWeek">The day of week on which the schedule fires.</param>
-    /// <param name="hour">The UTC hour from 0 through 23.</param>
-    /// <param name="minute">The minute from 0 through 59.</param>
-    /// <param name="second">The second from 0 through 59.</param>
-    /// <returns>A schedule translated to a 6-part cron expression.</returns>
-    public static Schedule WeeklyOn(DayOfWeek dayOfWeek, int hour = 0, int minute = 0, int second = 0)
-    {
-        ValidateTime(hour, minute, second);
-
-        return new Schedule(
-            second.ToString(),
-            minute.ToString(),
-            hour.ToString(),
-            "*",
-            "*",
-            ToCronDayOfWeek(dayOfWeek)
-        );
-    }
-
-    /// <summary>
-    /// Creates a schedule that fires monthly on the specified day at the specified UTC time.
-    /// </summary>
-    /// <param name="dayOfMonth">The day of the month from 1 through 31.</param>
-    /// <param name="hour">The UTC hour from 0 through 23.</param>
-    /// <param name="minute">The minute from 0 through 59.</param>
-    /// <param name="second">The second from 0 through 59.</param>
-    /// <returns>A schedule translated to a 6-part cron expression.</returns>
-    public static Schedule MonthlyOn(int dayOfMonth, int hour = 0, int minute = 0, int second = 0)
-    {
-        ValidateDayOfMonth(dayOfMonth);
-        ValidateTime(hour, minute, second);
-
-        return new Schedule(second.ToString(), minute.ToString(), hour.ToString(), dayOfMonth.ToString(), "*", "*");
-    }
+    public static ScheduleIntervalBuilder Every(int interval) => new ScheduleIntervalBuilder(interval);
 
     /// <summary>
     /// Creates a <see cref="Schedule"/> from a 5- or 6-part cron expression string.

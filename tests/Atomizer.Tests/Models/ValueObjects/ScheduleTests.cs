@@ -6,23 +6,33 @@ namespace Atomizer.Tests.Models.ValueObjects;
 public class ScheduleTests
 {
     [Fact]
-    public void Secondly_ShouldReturnEverySecondSchedule()
+    public void EverySecond_ShouldReturnCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.Secondly;
+        var schedule = Schedule.Every().Second();
 
         // Assert
         schedule.ToString().Should().Be("* * * * * *");
     }
 
     [Fact]
-    public void Minutely_ShouldReturnEveryMinuteSchedule()
+    public void EveryMinute_ShouldReturnCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.Minutely;
+        var schedule = Schedule.Every().Minute();
 
         // Assert
         schedule.ToString().Should().Be("0 * * * * *");
+    }
+
+    [Fact]
+    public void EveryHour_ShouldReturnCronSchedule()
+    {
+        // Arrange & Act
+        var schedule = Schedule.Every().Hour();
+
+        // Assert
+        schedule.ToString().Should().Be("0 0 * * * *");
     }
 
     [Theory]
@@ -58,10 +68,10 @@ public class ScheduleTests
     }
 
     [Fact]
-    public void EveryDays_ShouldReturnDailyCronSchedule()
+    public void EveryDay_ShouldReturnDailyCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.Every(1).Days();
+        var schedule = Schedule.Every().Day();
 
         // Assert
         schedule.ToString().Should().Be("0 0 0 * * *");
@@ -78,10 +88,10 @@ public class ScheduleTests
     }
 
     [Fact]
-    public void EveryWeeks_ShouldReturnCronSchedule()
+    public void EveryWeek_ShouldReturnCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.Every(1).Weeks(DayOfWeek.Monday);
+        var schedule = Schedule.Every().Week(DayOfWeek.Monday);
 
         // Assert
         schedule.ToString().Should().Be("0 0 0 * * 1");
@@ -98,7 +108,7 @@ public class ScheduleTests
     }
 
     [Fact]
-    public void EveryMonths_ShouldReturnCronSchedule()
+    public void EveryMonths_ShouldReturnIntervalCronSchedule()
     {
         // Arrange & Act
         var schedule = Schedule.Every(2).Months(dayOfMonth: 15);
@@ -108,30 +118,30 @@ public class ScheduleTests
     }
 
     [Fact]
-    public void DailyAt_ShouldReturnCronSchedule()
+    public void EveryDay_WithTime_ShouldReturnCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.DailyAt(hour: 9, minute: 30, second: 15);
+        var schedule = Schedule.Every().Day(hour: 9, minute: 30, second: 15);
 
         // Assert
         schedule.ToString().Should().Be("15 30 9 * * *");
     }
 
     [Fact]
-    public void WeeklyOn_ShouldReturnCronSchedule()
+    public void EveryWeek_WithTime_ShouldReturnCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.WeeklyOn(DayOfWeek.Friday, hour: 16, minute: 45);
+        var schedule = Schedule.Every().Week(DayOfWeek.Friday, hour: 16, minute: 45);
 
         // Assert
         schedule.ToString().Should().Be("0 45 16 * * 5");
     }
 
     [Fact]
-    public void MonthlyOn_ShouldReturnCronSchedule()
+    public void EveryMonth_WithTime_ShouldReturnCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.MonthlyOn(dayOfMonth: 31, hour: 23, minute: 59, second: 30);
+        var schedule = Schedule.Every().Month(dayOfMonth: 31, hour: 23, minute: 59, second: 30);
 
         // Assert
         schedule.ToString().Should().Be("30 59 23 31 * *");
@@ -175,20 +185,20 @@ public class ScheduleTests
     [InlineData(24, 0, 0, "hour")]
     [InlineData(0, 60, 0, "minute")]
     [InlineData(0, 0, 60, "second")]
-    public void DailyAt_WithInvalidTimePart_ShouldThrow(int hour, int minute, int second, string parameterName)
+    public void EveryDay_WithInvalidTimePart_ShouldThrow(int hour, int minute, int second, string parameterName)
     {
         // Arrange & Act
-        Action act = () => Schedule.DailyAt(hour, minute, second);
+        Action act = () => Schedule.Every().Day(hour, minute, second);
 
         // Assert
         act.Should().Throw<ArgumentOutOfRangeException>().And.ParamName.Should().Be(parameterName);
     }
 
     [Fact]
-    public void MonthlyOn_WithInvalidDayOfMonth_ShouldThrow()
+    public void EveryMonth_WithInvalidDayOfMonth_ShouldThrow()
     {
         // Arrange & Act
-        Action act = () => Schedule.MonthlyOn(0);
+        Action act = () => Schedule.Every().Month(0);
 
         // Assert
         act.Should().Throw<ArgumentOutOfRangeException>().And.ParamName.Should().Be("dayOfMonth");
