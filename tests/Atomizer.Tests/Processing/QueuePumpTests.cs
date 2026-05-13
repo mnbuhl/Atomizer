@@ -25,13 +25,13 @@ public class QueuePumpTests
         var clock = Substitute.For<IAtomizerClock>();
         workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         worker
-            .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
+            .RunAsync(Arg.Any<ChannelReader<JobBatch>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         poller
             .RunAsync(
                 Arg.Any<QueueOptions>(),
                 Arg.Any<LeaseToken>(),
-                Arg.Any<Channel<AtomizerJob>>(),
+                Arg.Any<Channel<JobBatch>>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Task.CompletedTask);
@@ -55,7 +55,7 @@ public class QueuePumpTests
             .RunAsync(
                 Arg.Any<QueueOptions>(),
                 Arg.Any<LeaseToken>(),
-                Arg.Any<Channel<AtomizerJob>>(),
+                Arg.Any<Channel<JobBatch>>(),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -74,13 +74,13 @@ public class QueuePumpTests
         var clock = Substitute.For<IAtomizerClock>();
         workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         worker
-            .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
+            .RunAsync(Arg.Any<ChannelReader<JobBatch>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         poller
             .RunAsync(
                 Arg.Any<QueueOptions>(),
                 Arg.Any<LeaseToken>(),
-                Arg.Any<Channel<AtomizerJob>>(),
+                Arg.Any<Channel<JobBatch>>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Task.CompletedTask);
@@ -115,7 +115,7 @@ public class QueuePumpTests
         workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
         // Simulate a worker that takes 3 seconds to complete
         worker
-            .RunAsync(Arg.Any<ChannelReader<AtomizerJob>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
+            .RunAsync(Arg.Any<ChannelReader<JobBatch>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
             {
                 await Task.Delay(TimeSpan.FromSeconds(3));
@@ -124,7 +124,7 @@ public class QueuePumpTests
             .RunAsync(
                 Arg.Any<QueueOptions>(),
                 Arg.Any<LeaseToken>(),
-                Arg.Any<Channel<AtomizerJob>>(),
+                Arg.Any<Channel<JobBatch>>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Task.CompletedTask);

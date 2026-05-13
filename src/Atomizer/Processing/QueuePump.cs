@@ -20,7 +20,7 @@ internal sealed class QueuePump : IQueuePump
     private readonly IQueuePoller _poller;
     private readonly IAtomizerClock _clock;
 
-    private readonly Channel<AtomizerJob> _channel;
+    private readonly Channel<JobBatch> _channel;
     private readonly List<Task> _workers = new List<Task>();
 
     private CancellationTokenSource _ioCts = new CancellationTokenSource();
@@ -45,7 +45,7 @@ internal sealed class QueuePump : IQueuePump
         _workerFactory = workerFactory;
         _clock = clock;
 
-        _channel = Channel.CreateBounded<AtomizerJob>(
+        _channel = Channel.CreateBounded<JobBatch>(
             new BoundedChannelOptions(Math.Max(1, _queue.DegreeOfParallelism) * Math.Max(1, _queue.BatchSize))
             {
                 SingleReader = false,

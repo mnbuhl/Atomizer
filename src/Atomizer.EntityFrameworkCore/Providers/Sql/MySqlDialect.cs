@@ -17,66 +17,31 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
                   {{_jStatus}} = {{_statusProcessing}}
                   OR ({{_jStatus}} = {{_statusPending}} AND {{_jAttempts}} > 0)
                 )
-            ),
-            partition_heads AS (
-              SELECT j.{{_jPartitionKey}}, MIN(j.{{_jSequenceNumber}}) AS min_seq
-              FROM {{_jTable}} AS j
-              LEFT JOIN blocked_partitions bp ON j.{{_jPartitionKey}} = bp.{{_jPartitionKey}}
-              WHERE j.{{_jQueueKey}} = {1}
-                AND j.{{_jPartitionKey}} IS NOT NULL
-                AND bp.{{_jPartitionKey}} IS NULL
-                AND (
-                  (j.{{_jStatus}} = {{_statusPending}}
-                    AND (j.{{_jVisibleAt}} IS NULL OR j.{{_jVisibleAt}} <= {10})
-                    AND j.{{_jScheduledAt}} <= {11})
-                  OR (j.{{_jStatus}} = {{_statusProcessing}} AND j.{{_jVisibleAt}} <= {12})
-                )
-              GROUP BY j.{{_jPartitionKey}}
             )
             SELECT t.*
             FROM {{_jTable}} AS t
-            LEFT JOIN partition_heads ph
-              ON t.{{_jPartitionKey}} = ph.{{_jPartitionKey}}
-              AND t.{{_jSequenceNumber}} = ph.min_seq
-            WHERE t.{{_jQueueKey}} = {2}
+            LEFT JOIN blocked_partitions bp
+              ON t.{{_jPartitionKey}} = bp.{{_jPartitionKey}}
+            WHERE t.{{_jQueueKey}} = {1}
+              AND (t.{{_jPartitionKey}} IS NULL OR bp.{{_jPartitionKey}} IS NULL)
               AND (
-                (t.{{_jPartitionKey}} IS NULL
-                  AND (
-                    (t.{{_jStatus}} = {{_statusPending}}
-                      AND (t.{{_jVisibleAt}} IS NULL OR t.{{_jVisibleAt}} <= {3})
-                      AND t.{{_jScheduledAt}} <= {4})
-                    OR (t.{{_jStatus}} = {{_statusProcessing}} AND t.{{_jVisibleAt}} <= {5})
-                  )
-                )
-                OR
-                (t.{{_jPartitionKey}} IS NOT NULL AND ph.min_seq IS NOT NULL
-                  AND (
-                    (t.{{_jStatus}} = {{_statusPending}}
-                      AND (t.{{_jVisibleAt}} IS NULL OR t.{{_jVisibleAt}} <= {6})
-                      AND t.{{_jScheduledAt}} <= {7})
-                    OR (t.{{_jStatus}} = {{_statusProcessing}} AND t.{{_jVisibleAt}} <= {8})
-                  )
-                )
+                (t.{{_jStatus}} = {{_statusPending}}
+                  AND (t.{{_jVisibleAt}} IS NULL OR t.{{_jVisibleAt}} <= {2})
+                  AND t.{{_jScheduledAt}} <= {3})
+                OR (t.{{_jStatus}} = {{_statusProcessing}} AND t.{{_jVisibleAt}} <= {4})
               )
-            ORDER BY t.{{_jScheduledAt}}, t.{{_jId}}
-            LIMIT {9}
+            ORDER BY t.{{_jScheduledAt}}, t.{{_jPartitionKey}}, t.{{_jSequenceNumber}}, t.{{_jId}}
+            LIMIT {5}
             FOR UPDATE SKIP LOCKED;
             """;
         return FormattableStringFactory.Create(
             format,
             queueKey.Key, // {0} blocked_partitions queue filter
-            queueKey.Key, // {1} partition_heads queue filter
-            queueKey.Key, // {2} outer SELECT queue filter
-            now, // {3} unpartitioned VisibleAt
-            now, // {4} unpartitioned ScheduledAt
-            now, // {5} unpartitioned Processing VisibleAt
-            now, // {6} partitioned VisibleAt
-            now, // {7} partitioned ScheduledAt
-            now, // {8} partitioned Processing VisibleAt
-            batchSize, // {9} LIMIT
-            now, // {10} partition_heads VisibleAt
-            now, // {11} partition_heads ScheduledAt
-            now // {12} partition_heads Processing VisibleAt
+            queueKey.Key, // {1} outer SELECT queue filter
+            now, // {2} VisibleAt
+            now, // {3} ScheduledAt
+            now, // {4} Processing VisibleAt
+            batchSize // {5} LIMIT
         );
     }
 

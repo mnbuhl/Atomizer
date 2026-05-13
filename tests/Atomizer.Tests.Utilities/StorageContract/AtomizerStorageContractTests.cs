@@ -108,15 +108,15 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
     }
 
     // ------------------------------------------------------------------
-    // FIFO-07: GetDueJobsAsync returns at most one job per partition
+    // FIFO-07: GetDueJobsAsync returns a sequence-ordered batch for unblocked partitions
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// FIFO-07: When multiple jobs share a partition key, only the lowest-sequence-number
-    /// job is returned by <see cref="IAtomizerStorage.GetDueJobsAsync"/>.
+    /// FIFO-07: When multiple jobs share a partition key and the partition is not blocked,
+    /// the due jobs are returned in sequence-number order up to the requested batch size.
     /// </summary>
     [Fact]
-    public async Task GetDueJobsAsync_WhenMultipleJobsInSamePartition_ShouldReturnOnlyLowestSequenceNumber()
+    public async Task GetDueJobsAsync_WhenMultipleJobsInSamePartition_ShouldReturnSequenceOrderedBatch()
     {
         // Arrange
         var partitionKey = new PartitionKey("batch-key");
@@ -130,8 +130,49 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
 
         // Assert
-        result.Should().HaveCount(1);
-        result.Single().Id.Should().Be(job1.Id);
+        result.Should().HaveCount(2);
+        result.Select(j => j.Id).Should().ContainInOrder(job1.Id, job2.Id);
+    }
+
+    /// <summary>
+    /// FIFO-07: Batch size limits return a sequence-ordered prefix of an unblocked partition batch.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenBatchSizeIsSmallerThanPartitionBatch_ShouldReturnSequenceOrderedPrefix()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("prefix-key");
+        var job1 = CreateJob(partitionKey: partitionKey);
+        var job2 = CreateJob(partitionKey: partitionKey);
+        var job3 = CreateJob(partitionKey: partitionKey);
+
+        await _sut.InsertAsync(job1, CancellationToken.None);
+        await _sut.InsertAsync(job2, CancellationToken.None);
+        await _sut.InsertAsync(job3, CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 2, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Select(j => j.Id).Should().ContainInOrder(job1.Id, job2.Id);
+        result.Should().NotContain(j => j.Id == job3.Id);
+    }
+
+    /// <summary>
+    /// FIFO-07: A zero batch size returns no jobs even when jobs are eligible.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenBatchSizeIsZero_ShouldReturnEmpty()
+    {
+        // Arrange
+        await _sut.InsertAsync(CreateJob(), CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 0, CancellationToken.None);
+
+        // Assert
+        result.Should().BeEmpty();
     }
 
     /// <summary>
@@ -214,6 +255,37 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// FIFO-08: A blocked partition does not hide eligible jobs from other partitions or unpartitioned work.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenPartitionIsBlocked_ShouldStillReturnOtherEligibleJobs()
+    {
+        // Arrange
+        var blockedPartition = new PartitionKey("blocked-p");
+        var otherPartition = new PartitionKey("other-p");
+        var blockedHead = CreateJob(partitionKey: blockedPartition);
+        var blockedTail = CreateJob(partitionKey: blockedPartition);
+        var otherPartitionJob = CreateJob(partitionKey: otherPartition);
+        var unpartitionedJob = CreateJob();
+
+        await _sut.InsertAsync(blockedHead, CancellationToken.None);
+        await _sut.InsertAsync(blockedTail, CancellationToken.None);
+        await _sut.InsertAsync(otherPartitionJob, CancellationToken.None);
+        await _sut.InsertAsync(unpartitionedJob, CancellationToken.None);
+
+        blockedHead.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        await _sut.UpdateJobsAsync([blockedHead], CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
+
+        // Assert
+        result.Select(j => j.Id).Should().BeEquivalentTo(new[] { otherPartitionJob.Id, unpartitionedJob.Id });
+        result.Should().NotContain(j => j.Id == blockedHead.Id);
+        result.Should().NotContain(j => j.Id == blockedTail.Id);
+    }
+
+    /// <summary>
     /// FIFO-08: Two jobs sharing the same partition key string but in different queues
     /// are treated as independent partitions.
     /// </summary>
@@ -267,8 +339,8 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         await _sut.ReleaseLeasedAsync(leaseToken, _now, CancellationToken.None);
 
         var unblocked = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
-        unblocked.Should().HaveCount(1);
-        unblocked.Single().Id.Should().Be(job1.Id);
+        unblocked.Should().HaveCount(2);
+        unblocked.Select(j => j.Id).Should().ContainInOrder(job1.Id, job2.Id);
     }
 
     // ------------------------------------------------------------------
@@ -331,6 +403,66 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         // Assert — job2 is now the partition head and must be returned
         result.Should().HaveCount(1);
         result.Single().Id.Should().Be(job2.Id);
+    }
+
+    /// <summary>
+    /// FIFO-13: When a completed head has multiple pending successors, the remaining partition
+    /// batch becomes eligible in sequence order.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenPartitionHeadCompletedWithMultipleRemainingJobs_ShouldReturnRemainingBatch()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("complete-batch-p");
+        var job1 = CreateJob(partitionKey: partitionKey);
+        var job2 = CreateJob(partitionKey: partitionKey);
+        var job3 = CreateJob(partitionKey: partitionKey);
+
+        await _sut.InsertAsync(job1, CancellationToken.None);
+        await _sut.InsertAsync(job2, CancellationToken.None);
+        await _sut.InsertAsync(job3, CancellationToken.None);
+
+        job1.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        job1.Attempt();
+        job1.MarkAsCompleted(_now);
+        await _sut.UpdateJobsAsync([job1], CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Select(j => j.Id).Should().ContainInOrder(job2.Id, job3.Id);
+    }
+
+    /// <summary>
+    /// FIFO-13: When a failed head has multiple pending successors, the remaining partition
+    /// batch becomes eligible in sequence order.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenPartitionHeadFailedWithMultipleRemainingJobs_ShouldReturnRemainingBatch()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("failed-batch-p");
+        var job1 = CreateJob(partitionKey: partitionKey);
+        var job2 = CreateJob(partitionKey: partitionKey);
+        var job3 = CreateJob(partitionKey: partitionKey);
+
+        await _sut.InsertAsync(job1, CancellationToken.None);
+        await _sut.InsertAsync(job2, CancellationToken.None);
+        await _sut.InsertAsync(job3, CancellationToken.None);
+
+        job1.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        job1.Attempt();
+        job1.MarkAsFailed(_now);
+        await _sut.UpdateJobsAsync([job1], CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 10, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Select(j => j.Id).Should().ContainInOrder(job2.Id, job3.Id);
     }
 
     // ------------------------------------------------------------------

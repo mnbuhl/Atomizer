@@ -7,7 +7,7 @@ namespace Atomizer.Processing;
 
 internal interface IQueuePoller
 {
-    Task RunAsync(QueueOptions queue, LeaseToken leaseToken, Channel<AtomizerJob> channel, CancellationToken ct);
+    Task RunAsync(QueueOptions queue, LeaseToken leaseToken, Channel<JobBatch> channel, CancellationToken ct);
 }
 
 internal class QueuePoller : IQueuePoller
@@ -34,7 +34,7 @@ internal class QueuePoller : IQueuePoller
     public async Task RunAsync(
         QueueOptions queue,
         LeaseToken leaseToken,
-        Channel<AtomizerJob> channel,
+        Channel<JobBatch> channel,
         CancellationToken ct
     )
     {
@@ -102,27 +102,29 @@ internal class QueuePoller : IQueuePoller
 
             if (leasedJobs.Count > 0)
             {
-                foreach (var job in leasedJobs)
+                var batches = CreateBatches(leasedJobs);
+                foreach (var batch in batches)
                 {
                     try
                     {
-                        await channel.Writer.WriteAsync(job, ct);
+                        await channel.Writer.WriteAsync(batch, ct);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(
                             ex,
-                            "Error writing leased job {JobId} to channel for queue '{Queue}'. Will be retried after visibility timeout",
-                            job.Id,
+                            "Error writing leased job batch starting with {JobId} to channel for queue '{Queue}'. Will be retried after visibility timeout",
+                            batch.FirstJob.Id,
                             queue.QueueKey
                         );
                     }
                 }
 
                 _logger.LogDebug(
-                    "Queue '{Queue}' wrote {JobCount} leased jobs to channel",
+                    "Queue '{Queue}' wrote {JobCount} leased jobs in {BatchCount} batch(es) to channel",
                     queue.QueueKey,
-                    leasedJobs.Count
+                    leasedJobs.Count,
+                    batches.Count
                 );
             }
 
@@ -138,5 +140,33 @@ internal class QueuePoller : IQueuePoller
         }
 
         _logger.LogDebug("Poller for queue '{QueueKey}' stopped", queue.QueueKey);
+    }
+
+    private static List<JobBatch> CreateBatches(IReadOnlyList<AtomizerJob> jobs)
+    {
+        var batches = new List<JobBatch>();
+
+        foreach (var job in jobs.Where(j => j.PartitionKey == null))
+        {
+            batches.Add(new JobBatch(new[] { job }));
+        }
+
+        var partitionedBatches = jobs.Where(j => j.PartitionKey != null)
+            .GroupBy(j => new { QueueKey = j.QueueKey.Key, PartitionKey = j.PartitionKey!.Key })
+            .Select(group => new JobBatch(
+                group
+                    .OrderBy(j => j.SequenceNumber ?? long.MaxValue)
+                    .ThenBy(j => j.ScheduledAt)
+                    .ThenBy(j => j.CreatedAt)
+                    .ToList()
+            ));
+
+        batches.AddRange(partitionedBatches);
+
+        return batches
+            .OrderBy(batch => batch.FirstJob.ScheduledAt)
+            .ThenBy(batch => batch.FirstJob.CreatedAt)
+            .ThenBy(batch => batch.FirstJob.SequenceNumber ?? long.MaxValue)
+            .ToList();
     }
 }

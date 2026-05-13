@@ -1,4 +1,5 @@
-﻿using Atomizer.Core;
+﻿using Atomizer.Abstractions;
+using Atomizer.Core;
 using Atomizer.Processing;
 using Microsoft.Extensions.Logging;
 
@@ -10,6 +11,8 @@ namespace Atomizer.Tests.Processing
     public class JobWorkerFactoryTests
     {
         private readonly IJobProcessorFactory _jobProcessorFactory = Substitute.For<IJobProcessorFactory>();
+        private readonly IAtomizerServiceScopeFactory _scopeFactory = Substitute.For<IAtomizerServiceScopeFactory>();
+        private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
         private readonly ILoggerFactory _loggerFactory = Substitute.For<ILoggerFactory>();
         private readonly AtomizerRuntimeIdentity _identity = new AtomizerRuntimeIdentity();
 
@@ -17,7 +20,7 @@ namespace Atomizer.Tests.Processing
 
         public JobWorkerFactoryTests()
         {
-            _sut = new JobWorkerFactory(_loggerFactory, _jobProcessorFactory, _identity);
+            _sut = new JobWorkerFactory(_loggerFactory, _jobProcessorFactory, _scopeFactory, _clock, _identity);
         }
 
         [Fact]

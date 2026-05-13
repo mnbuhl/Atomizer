@@ -145,16 +145,10 @@ public sealed class InMemoryStorage : IAtomizerStorage
             )
             .Select(j => j!);
 
-        var unpartitioned = eligible.Where(j => j.PartitionKey == null);
-        var partitionHeads = eligible
-            .Where(j => j.PartitionKey != null)
-            .GroupBy(j => j.PartitionKey!.Key)
-            .Select(g => g.OrderBy(j => j.SequenceNumber).First());
-
-        var candidates = unpartitioned
-            .Concat(partitionHeads)
+        var candidates = eligible
             .OrderBy(j => j.ScheduledAt)
             .ThenBy(j => j.CreatedAt)
+            .ThenBy(j => j.SequenceNumber ?? long.MaxValue)
             .Take(Math.Max(0, batchSize))
             .ToList();
 
