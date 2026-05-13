@@ -1,8 +1,6 @@
 using System.Reflection;
 using Atomizer.Dashboard.Configuration;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace Atomizer.Dashboard.StaticFiles;
 
@@ -16,7 +14,7 @@ internal static class EmbeddedSpaFileProvider
     /// Serves the embedded SPA asset matching the request path, or falls back to
     /// <c>index.html</c> for unmatched paths to support client-side routing.
     /// </summary>
-    public static async Task ServeAsync(HttpContext context, string routePrefix)
+    public static async Task ServeAsync(HttpContext context, string routePrefix, DashboardOptions options)
     {
         var rawPath = context.Request.Path.Value ?? string.Empty;
         var prefix = routePrefix.TrimEnd('/');
@@ -34,13 +32,11 @@ internal static class EmbeddedSpaFileProvider
             return;
         }
 
-        await ServeIndexAsync(context, routePrefix);
+        await ServeIndexAsync(context, routePrefix, options);
     }
 
-    public static async Task ServeIndexAsync(HttpContext context, string routePrefix)
+    public static async Task ServeIndexAsync(HttpContext context, string routePrefix, DashboardOptions options)
     {
-        var options = context.RequestServices.GetRequiredService<IOptions<DashboardOptions>>().Value;
-
         var html = _cachedIndexHtml ??= BuildIndexHtml(options, routePrefix);
 
         context.Response.ContentType = "text/html; charset=utf-8";

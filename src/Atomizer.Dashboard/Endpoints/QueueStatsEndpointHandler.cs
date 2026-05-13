@@ -1,16 +1,21 @@
 using Atomizer.Abstractions;
 using Atomizer.Dashboard.Contracts;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Atomizer.Dashboard.Endpoints;
 
-internal static class QueueStatsEndpoints
+internal sealed class QueueStatsEndpointHandler
 {
-    internal static async Task GetStatsAsync(HttpContext context)
+    private readonly IAtomizerStorage _storage;
+
+    public QueueStatsEndpointHandler(IAtomizerStorage storage)
     {
-        var storage = context.RequestServices.GetRequiredService<IAtomizerStorage>();
-        var stats = await storage.GetQueueStatsAsync(context.RequestAborted);
+        _storage = storage;
+    }
+
+    public async Task GetStatsAsync(HttpContext context)
+    {
+        var stats = await _storage.GetQueueStatsAsync(context.RequestAborted);
         var response = new QueueStatsResponse { Queues = stats.Select(QueueStatsDto.From).ToList() };
         await DashboardJsonResponse.WriteAsync(context, response, context.RequestAborted);
     }

@@ -1,106 +1,125 @@
-import { useParams, Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useJob } from '../api/hooks';
 import { routePrefix } from '../config';
-
-const STATUS_COLORS: Record<string, string> = {
-    Pending: 'bg-gray-100 text-gray-700',
-    Processing: 'bg-blue-100 text-blue-700',
-    Completed: 'bg-green-100 text-green-700',
-    Failed: 'bg-red-100 text-red-700',
-};
+import { MetricCard, PageHeader, Panel, RelativeTime, StatusPill } from '../components/DashboardUi';
+import { useNow } from '../hooks/useNow';
 
 export default function JobDetail() {
     const { id } = useParams<{ id: string }>();
+    const now = useNow(15_000);
     const { data: job, isLoading, error } = useJob(id!);
 
-    if (isLoading) return <p className="text-sm text-gray-400">Loading…</p>;
-    if (error || !job) return (
-        <div>
-            <p className="text-sm text-red-500 mb-2">Job not found.</p>
-            <Link to={`${routePrefix}/jobs`} className="text-sm text-blue-600 hover:underline">
-                ← Back to jobs
-            </Link>
-        </div>
-    );
+    if (isLoading) return <div className="rounded-3xl bg-white/90 p-8 text-sm text-slate-500">Loading job…</div>;
+    if (error || !job)
+        return (
+            <Panel className="p-8">
+                <p className="text-sm font-medium text-rose-600">Job not found.</p>
+                <Link to={`${routePrefix}/jobs`} className="mt-3 inline-block text-sm font-semibold text-sky-600 hover:text-sky-700">
+                    ← Back to jobs
+                </Link>
+            </Panel>
+        );
 
     let formattedPayload = job.payload ?? '';
     try {
         if (job.payload) formattedPayload = JSON.stringify(JSON.parse(job.payload), null, 2);
-    } catch { /* not valid JSON, show raw */ }
+    } catch {
+        /* not valid JSON, show raw */
+    }
+
+    const finalTimestamp = job.failedAt ?? job.completedAt ?? job.scheduledAt ?? job.createdAt;
+    const finalLabel = job.failedAt ? 'Failed' : job.completedAt ? 'Completed' : job.scheduledAt ? 'Scheduled' : 'Created';
 
     return (
         <div className="space-y-6">
-            <div className="flex items-start justify-between">
-                <div>
-                    <Link to={`${routePrefix}/jobs`} className="text-sm text-gray-400 hover:text-gray-700">
-                        ← Jobs
-                    </Link>
-                    <h2 className="font-semibold text-gray-900 mt-1 font-mono text-base">{job.id}</h2>
-                    <div className="flex gap-2 mt-1 text-sm text-gray-500">
-                        <span>{job.payloadTypeName}</span>
-                        <span>·</span>
-                        <span>Queue: {job.queueKey}</span>
-                        <span>·</span>
-                        <span>Attempts: {job.attempts}</span>
-                    </div>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[job.status]}`}>
-                    {job.status}
-                </span>
+            <PageHeader
+                eyebrow="Job detail"
+                title={job.id.slice(0, 13)}
+                description={job.payloadTypeName}
+                actions={
+                    <>
+                        <StatusPill status={job.status} className="px-3 py-1.5 text-sm" />
+                        <Link
+                            to={`${routePrefix}/jobs`}
+                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
+                        >
+                            ← Jobs
+                        </Link>
+                    </>
+                }
+            />
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard label="Queue" value={job.queueKey} helper="Assigned queue" tone="blue" />
+                <MetricCard label="Attempts" value={job.attempts} helper="Execution attempts" tone={job.attempts > 0 ? 'amber' : 'slate'} />
+                <MetricCard
+                    label="Created"
+                    value={<RelativeTime value={job.createdAt} now={now} />}
+                    helper="Relative creation time"
+                    tone="cyan"
+                />
+                <MetricCard
+                    label={finalLabel}
+                    value={<RelativeTime value={finalTimestamp} now={now} />}
+                    helper="Most relevant transition"
+                    tone={job.status === 'Failed' ? 'red' : job.status === 'Completed' ? 'green' : 'purple'}
+                />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                    <span className="text-gray-400">Created</span>
-                    <br />
-                    {new Date(job.createdAt).toLocaleString()}
+            <Panel>
+                <div className="border-b border-slate-200/80 p-5">
+                    <h2 className="text-base font-semibold text-slate-950">Timeline</h2>
+                    <p className="mt-1 text-sm text-slate-500">Relative job lifecycle timestamps.</p>
                 </div>
-                {job.scheduledAt && (
-                    <div>
-                        <span className="text-gray-400">Scheduled</span>
-                        <br />
-                        {new Date(job.scheduledAt).toLocaleString()}
-                    </div>
-                )}
-                {job.completedAt && (
-                    <div>
-                        <span className="text-gray-400">Completed</span>
-                        <br />
-                        {new Date(job.completedAt).toLocaleString()}
-                    </div>
-                )}
-                {job.failedAt && (
-                    <div>
-                        <span className="text-gray-400">Failed</span>
-                        <br />
-                        {new Date(job.failedAt).toLocaleString()}
-                    </div>
-                )}
-            </div>
+                <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
+                    <TimelineItem label="Created" value={job.createdAt} now={now} />
+                    <TimelineItem label="Scheduled" value={job.scheduledAt} now={now} empty="Not scheduled" />
+                    <TimelineItem label="Completed" value={job.completedAt} now={now} empty="Not completed" />
+                    <TimelineItem label="Failed" value={job.failedAt} now={now} empty="No failure recorded" />
+                </div>
+            </Panel>
 
             {formattedPayload && (
-                <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Payload</h3>
-                    <pre className="bg-gray-50 border border-gray-200 rounded p-3 text-xs overflow-x-auto">
+                <Panel>
+                    <div className="border-b border-slate-200/80 p-5">
+                        <h2 className="text-base font-semibold text-slate-950">Payload</h2>
+                        <p className="mt-1 text-sm text-slate-500">Formatted job payload for quick inspection.</p>
+                    </div>
+                    <pre className="max-h-[34rem] overflow-auto bg-slate-950 p-5 text-xs leading-6 text-slate-100">
                         {formattedPayload}
                     </pre>
-                </div>
+                </Panel>
             )}
 
             {job.errors.length > 0 && (
-                <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Error History ({job.errors.length})</h3>
-                    <div className="space-y-3">
+                <Panel>
+                    <div className="border-b border-rose-100 bg-rose-50/80 p-5">
+                        <h2 className="text-base font-semibold text-rose-950">Error history</h2>
+                        <p className="mt-1 text-sm text-rose-700">
+                            {job.errors.length} recorded failure{job.errors.length === 1 ? '' : 's'} across attempts.
+                        </p>
+                    </div>
+                    <div className="space-y-3 p-5">
                         {job.errors.map(err => (
-                            <details key={err.attempt} className="border border-red-100 rounded bg-red-50">
-                                <summary className="px-3 py-2 cursor-pointer text-sm text-red-700 font-medium">
-                                    Attempt {err.attempt} — {err.exceptionType}
+                            <details
+                                key={err.attempt}
+                                className="group overflow-hidden rounded-2xl border border-rose-100 bg-white shadow-sm shadow-rose-950/5"
+                            >
+                                <summary className="flex cursor-pointer list-none flex-col gap-2 px-4 py-3 text-sm font-semibold text-rose-900 transition hover:bg-rose-50 sm:flex-row sm:items-center sm:justify-between">
+                                    <span>
+                                        Attempt {err.attempt} · {err.exceptionType}
+                                    </span>
+                                    <span className="text-xs font-medium text-rose-500">
+                                        <RelativeTime value={err.occurredAt} now={now} />
+                                    </span>
                                 </summary>
-                                <div className="px-3 pb-3 text-xs space-y-2">
-                                    <p className="text-red-600">{err.message}</p>
-                                    <p className="text-gray-400">{new Date(err.occurredAt).toLocaleString()}</p>
+                                <div className="space-y-3 border-t border-rose-100 px-4 pb-4 pt-3 text-sm">
+                                    <p className="text-rose-700">{err.message}</p>
+                                    {err.runtimeIdentity && (
+                                        <p className="text-xs font-medium text-slate-500">Runtime: {err.runtimeIdentity}</p>
+                                    )}
                                     {err.stackTrace && (
-                                        <pre className="bg-white border border-red-100 rounded p-2 overflow-x-auto text-gray-600">
+                                        <pre className="max-h-80 overflow-auto rounded-2xl border border-slate-200 bg-slate-950 p-4 text-xs leading-5 text-slate-100">
                                             {err.stackTrace}
                                         </pre>
                                     )}
@@ -108,8 +127,29 @@ export default function JobDetail() {
                             </details>
                         ))}
                     </div>
-                </div>
+                </Panel>
             )}
+        </div>
+    );
+}
+
+function TimelineItem({
+    label,
+    value,
+    now,
+    empty = '—',
+}: {
+    label: string;
+    value: string | null;
+    now: number;
+    empty?: string;
+}) {
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+            <p className="mt-2 text-sm font-semibold text-slate-900">
+                <RelativeTime value={value} now={now} fallback={empty} />
+            </p>
         </div>
     );
 }

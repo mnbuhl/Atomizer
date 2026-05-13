@@ -2,18 +2,23 @@ using Atomizer.Abstractions;
 using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Contracts;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Atomizer.Dashboard.Endpoints;
 
-internal static class JobsEndpoints
+internal sealed class JobsEndpointHandler
 {
-    internal static async Task ListAsync(HttpContext context)
-    {
-        var storage = context.RequestServices.GetRequiredService<IAtomizerStorage>();
-        var options = context.RequestServices.GetRequiredService<IOptions<DashboardOptions>>().Value;
+    private readonly DashboardOptions _options;
+    private readonly IAtomizerStorage _storage;
 
+    public JobsEndpointHandler(IAtomizerStorage storage, IOptions<DashboardOptions> options)
+    {
+        _storage = storage;
+        _options = options.Value;
+    }
+
+    public async Task ListAsync(HttpContext context)
+    {
         var query = context.Request.Query;
         var statuses = query["status"]
             .Where(s => !string.IsNullOrEmpty(s))
@@ -27,7 +32,7 @@ internal static class JobsEndpoints
         DateTimeOffset? to = DateTimeOffset.TryParse(query["to"].FirstOrDefault(), out var t) ? t : null;
 
         int skip = int.TryParse(query["skip"].FirstOrDefault(), out var s2) ? s2 : 0;
-        int take = int.TryParse(query["take"].FirstOrDefault(), out var tk) ? tk : options.PageSize;
+        int take = int.TryParse(query["take"].FirstOrDefault(), out var tk) ? tk : _options.PageSize;
 
         var jobQuery = new JobQuery
         {
@@ -40,7 +45,7 @@ internal static class JobsEndpoints
             Take = Math.Min(take, 500),
         };
 
-        var result = await storage.GetJobsAsync(jobQuery, context.RequestAborted);
+        var result = await _storage.GetJobsAsync(jobQuery, context.RequestAborted);
 
         var response = new PagedResponse<JobDto>
         {
@@ -53,17 +58,15 @@ internal static class JobsEndpoints
         await DashboardJsonResponse.WriteAsync(context, response, context.RequestAborted);
     }
 
-    internal static async Task GetByIdAsync(HttpContext context)
+    public async Task GetByIdAsync(HttpContext context)
     {
-        var storage = context.RequestServices.GetRequiredService<IAtomizerStorage>();
-
         if (!Guid.TryParse(context.Request.RouteValues["id"]?.ToString(), out var id))
         {
             context.Response.StatusCode = 400;
             return;
         }
 
-        var job = await storage.GetJobByIdAsync(id, context.RequestAborted);
+        var job = await _storage.GetJobByIdAsync(id, context.RequestAborted);
         if (job is null)
         {
             context.Response.StatusCode = 404;

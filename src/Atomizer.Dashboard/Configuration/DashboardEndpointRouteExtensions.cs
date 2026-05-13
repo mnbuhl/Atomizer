@@ -1,11 +1,7 @@
 using Atomizer.Dashboard.Authorization;
-using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Endpoints;
-using Atomizer.Dashboard.StaticFiles;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace Atomizer;
 
@@ -24,36 +20,41 @@ public static class DashboardEndpointRouteExtensions
         string routePrefix = "/atomizer"
     )
     {
-        var options = endpoints.ServiceProvider.GetRequiredService<IOptions<DashboardOptions>>().Value;
-
         var prefix = routePrefix.TrimEnd('/');
 
-        endpoints.MapGet(prefix + "/api/jobs", DashboardAuthorizationFilter.Wrap(options, JobsEndpoints.ListAsync));
+        endpoints.MapGet(
+            prefix + "/api/jobs",
+            DashboardAuthorizationFilter.Wrap<JobsEndpointHandler>((handler, ctx) => handler.ListAsync(ctx))
+        );
         endpoints.MapGet(
             prefix + "/api/jobs/{id:guid}",
-            DashboardAuthorizationFilter.Wrap(options, JobsEndpoints.GetByIdAsync)
+            DashboardAuthorizationFilter.Wrap<JobsEndpointHandler>((handler, ctx) => handler.GetByIdAsync(ctx))
         );
         endpoints.MapGet(
             prefix + "/api/schedules",
-            DashboardAuthorizationFilter.Wrap(options, SchedulesEndpoints.ListAsync)
+            DashboardAuthorizationFilter.Wrap<SchedulesEndpointHandler>((handler, ctx) => handler.ListAsync(ctx))
         );
         endpoints.MapGet(
             prefix + "/api/queues/stats",
-            DashboardAuthorizationFilter.Wrap(options, QueueStatsEndpoints.GetStatsAsync)
+            DashboardAuthorizationFilter.Wrap<QueueStatsEndpointHandler>((handler, ctx) => handler.GetStatsAsync(ctx))
         );
         endpoints.MapGet(
             prefix + "/api/servers",
-            DashboardAuthorizationFilter.Wrap(options, ServersEndpoints.ListAsync)
+            DashboardAuthorizationFilter.Wrap<ServersEndpointHandler>((handler, ctx) => handler.ListAsync(ctx))
         );
 
         endpoints.MapGet(
             prefix,
-            DashboardAuthorizationFilter.Wrap(options, ctx => EmbeddedSpaFileProvider.ServeIndexAsync(ctx, prefix))
+            DashboardAuthorizationFilter.Wrap<StaticFilesEndpointHandler>(
+                (handler, ctx) => handler.ServeIndexAsync(ctx, prefix)
+            )
         );
 
         return endpoints.MapGet(
             prefix + "/{**path}",
-            DashboardAuthorizationFilter.Wrap(options, ctx => EmbeddedSpaFileProvider.ServeAsync(ctx, prefix))
+            DashboardAuthorizationFilter.Wrap<StaticFilesEndpointHandler>(
+                (handler, ctx) => handler.ServeAsync(ctx, prefix)
+            )
         );
     }
 }

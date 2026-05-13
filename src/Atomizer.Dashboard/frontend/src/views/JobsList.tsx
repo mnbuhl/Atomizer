@@ -1,176 +1,319 @@
+import type { KeyboardEvent } from 'react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useJobs, type JobFilters } from '../api/hooks';
 import { routePrefix, jobsRefreshMs } from '../config';
 import type { JobDto } from '../api/types';
+import {
+    cx,
+    EmptyState,
+    formatNumber,
+    MetricCard,
+    PageHeader,
+    Panel,
+    RelativeTime,
+    StatusPill,
+} from '../components/DashboardUi';
+import { useNow } from '../hooks/useNow';
 
 const STATUS_OPTIONS = ['Pending', 'Processing', 'Completed', 'Failed'] as const;
-const STATUS_COLORS: Record<string, string> = {
-    Pending: 'bg-gray-100 text-gray-700',
-    Processing: 'bg-blue-100 text-blue-700',
-    Completed: 'bg-green-100 text-green-700',
-    Failed: 'bg-red-100 text-red-700',
-};
+const TIME_FILTERS = [
+    { key: 'all', label: 'All time', getFrom: () => undefined },
+    { key: '15m', label: '15m', getFrom: () => new Date(Date.now() - 15 * 60 * 1000).toISOString() },
+    { key: '1h', label: '1h', getFrom: () => new Date(Date.now() - 60 * 60 * 1000).toISOString() },
+    { key: '24h', label: '24h', getFrom: () => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() },
+    { key: '7d', label: '7d', getFrom: () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
+] as const;
 
 export default function JobsList() {
-    const [filters, setFilters] = useState<JobFilters>({ skip: 0, take: 50 });
-    const { data, isLoading, error, refetch, dataUpdatedAt } = useJobs(filters);
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const now = useNow(15_000);
+    const [timeFilter, setTimeFilter] = useState<(typeof TIME_FILTERS)[number]['key']>('all');
+    const [filters, setFilters] = useState<JobFilters>(() => ({
+        skip: 0,
+        take: 50,
+        queue: searchParams.get('queue') ?? undefined,
+        payload: searchParams.get('payload') ?? undefined,
+        status: searchParams.getAll('status').length > 0 ? searchParams.getAll('status') : undefined,
+    }));
+    const { data, isLoading, error, refetch, dataUpdatedAt, isFetching } = useJobs(filters);
+
+    const take = filters.take ?? 50;
+    const currentPage = Math.floor((filters.skip ?? 0) / take) + 1;
+    const visibleCount = data?.items.length ?? 0;
+    const failedVisible = data?.items.filter(job => job.status === 'Failed').length ?? 0;
+    const activeVisible = data?.items.filter(job => job.status === 'Processing').length ?? 0;
+    const queuedVisible = data?.items.filter(job => job.status === 'Pending').length ?? 0;
 
     const setPage = (skip: number) => setFilters(f => ({ ...f, skip }));
-    const take = filters.take ?? 50;
+    const openJob = (jobId: string) => navigate(`${routePrefix}/jobs/${jobId}`);
+
+    const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, jobId: string) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openJob(jobId);
+        }
+    };
+
+    const applyTimeFilter = (key: (typeof TIME_FILTERS)[number]['key']) => {
+        const selected = TIME_FILTERS.find(option => option.key === key)!;
+        setTimeFilter(key);
+        setFilters(f => ({ ...f, skip: 0, from: selected.getFrom(), to: undefined }));
+    };
+
+    const clearFilters = () => {
+        setTimeFilter('all');
+        setFilters({ skip: 0, take: 50 });
+    };
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Jobs</h2>
-                <div className="flex items-center gap-3 text-xs text-gray-400">
-                    {dataUpdatedAt > 0 && (
-                        <span>Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>
-                    )}
-                    <span>Auto-refreshes every {jobsRefreshMs / 1000}s</span>
-                    <button
-                        onClick={() => refetch()}
-                        className="px-2 py-1 border border-gray-200 rounded hover:bg-gray-50 text-gray-600"
-                    >
-                        Refresh
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3 mb-4">
-                <div className="flex gap-1">
-                    {STATUS_OPTIONS.map(s => (
+        <div className="space-y-6">
+            <PageHeader
+                eyebrow="Live queue monitor"
+                title="Jobs"
+                description="A focused view of queued, running, completed, and failed jobs. Open a row to inspect payload and error history."
+                actions={
+                    <>
+                        <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
+                            Updated <RelativeTime value={dataUpdatedAt || null} now={now} />
+                        </div>
                         <button
-                            key={s}
-                            onClick={() =>
-                                setFilters(f => ({
-                                    ...f,
-                                    skip: 0,
-                                    status: f.status?.includes(s)
-                                        ? f.status.filter(x => x !== s)
-                                        : [...(f.status ?? []), s],
-                                }))
-                            }
-                            className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
-                                filters.status?.includes(s)
-                                    ? STATUS_COLORS[s] + ' border-current'
-                                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                            }`}
+                            onClick={() => refetch()}
+                            className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-60"
+                            disabled={isFetching}
                         >
-                            {s}
+                            {isFetching ? 'Refreshing…' : 'Refresh'}
                         </button>
-                    ))}
-                </div>
+                    </>
+                }
+            />
 
-                <input
-                    type="text"
-                    placeholder="Queue"
-                    className="border border-gray-200 rounded px-2 py-1 text-sm"
-                    value={filters.queue ?? ''}
-                    onChange={e => setFilters(f => ({ ...f, skip: 0, queue: e.target.value || undefined }))}
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                    label="Total jobs"
+                    value={formatNumber(data?.totalCount ?? 0, true)}
+                    helper={`${formatNumber(visibleCount)} visible on page ${currentPage}`}
+                    tone="blue"
                 />
-
-                <input
-                    type="text"
-                    placeholder="Payload type"
-                    className="border border-gray-200 rounded px-2 py-1 text-sm"
-                    value={filters.payload ?? ''}
-                    onChange={e => setFilters(f => ({ ...f, skip: 0, payload: e.target.value || undefined }))}
-                />
-
-                <input
-                    type="datetime-local"
-                    className="border border-gray-200 rounded px-2 py-1 text-sm"
-                    value={filters.from ?? ''}
-                    onChange={e => setFilters(f => ({ ...f, skip: 0, from: e.target.value || undefined }))}
-                />
-
-                <input
-                    type="datetime-local"
-                    className="border border-gray-200 rounded px-2 py-1 text-sm"
-                    value={filters.to ?? ''}
-                    onChange={e => setFilters(f => ({ ...f, skip: 0, to: e.target.value || undefined }))}
-                />
-
-                <button onClick={() => setFilters({ skip: 0, take: 50 })} className="text-xs text-gray-400 hover:text-gray-700">
-                    Clear
-                </button>
+                <MetricCard label="Pending" value={formatNumber(queuedVisible)} helper="Visible queue backlog" tone="amber" />
+                <MetricCard label="Processing" value={formatNumber(activeVisible)} helper="Currently leased work" tone="cyan" />
+                <MetricCard label="Failed" value={formatNumber(failedVisible)} helper="Visible jobs needing attention" tone="red" />
             </div>
 
-            {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
-            {error && <p className="text-sm text-red-500">Error loading jobs.</p>}
-            {data && (
-                <>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="border-b border-gray-200 text-left text-gray-500 text-xs uppercase tracking-wide">
-                                    <th className="py-2 pr-4">ID</th>
-                                    <th className="py-2 pr-4">Type</th>
-                                    <th className="py-2 pr-4">Queue</th>
-                                    <th className="py-2 pr-4">Status</th>
-                                    <th className="py-2 pr-4">Attempts</th>
-                                    <th className="py-2">Created</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.items.map((job: JobDto) => (
-                                    <tr key={job.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                        <td className="py-2 pr-4 font-mono text-xs text-gray-400">
-                                            <Link
-                                                to={`${routePrefix}/jobs/${job.id}`}
-                                                className="hover:text-blue-600"
-                                            >
-                                                {job.id.slice(0, 8)}…
-                                            </Link>
-                                        </td>
-                                        <td className="py-2 pr-4 text-gray-700 max-w-xs truncate">{job.payloadTypeName}</td>
-                                        <td className="py-2 pr-4 text-gray-500">{job.queueKey}</td>
-                                        <td className="py-2 pr-4">
-                                            <span
-                                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[job.status]}`}
-                                            >
-                                                {job.status}
-                                            </span>
-                                        </td>
-                                        <td className="py-2 pr-4 text-gray-500">{job.attempts}</td>
-                                        <td className="py-2 text-gray-400 text-xs">
-                                            {new Date(job.createdAt).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {data.items.length === 0 && (
-                                    <tr>
-                                        <td colSpan={6} className="py-8 text-center text-gray-400 text-sm">
-                                            No jobs found.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+            <Panel>
+                <div className="border-b border-slate-200/70 p-5">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold text-slate-950">Filters</h2>
+                            <p className="mt-1 text-sm text-slate-500">
+                                Narrow the table without exposing noisy full date values.
+                            </p>
+                        </div>
 
-                    <div className="flex justify-between items-center mt-3 text-sm text-gray-500">
-                        <span>{data.totalCount} total</span>
-                        <div className="flex gap-2">
-                            <button
-                                disabled={filters.skip === 0}
-                                onClick={() => setPage(Math.max(0, (filters.skip ?? 0) - take))}
-                                className="px-3 py-1 border border-gray-200 rounded disabled:opacity-40 hover:bg-gray-50"
-                            >
-                                ← Prev
-                            </button>
-                            <button
-                                disabled={(filters.skip ?? 0) + take >= data.totalCount}
-                                onClick={() => setPage((filters.skip ?? 0) + take)}
-                                className="px-3 py-1 border border-gray-200 rounded disabled:opacity-40 hover:bg-gray-50"
-                            >
-                                Next →
-                            </button>
+                        <div className="flex flex-wrap gap-2">
+                            {TIME_FILTERS.map(option => (
+                                <button
+                                    key={option.key}
+                                    onClick={() => applyTimeFilter(option.key)}
+                                    className={cx(
+                                        'rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset transition',
+                                        timeFilter === option.key
+                                            ? 'bg-slate-950 text-white ring-slate-950'
+                                            : 'bg-white text-slate-500 ring-slate-200 hover:bg-slate-50 hover:text-slate-900',
+                                    )}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
-                </>
-            )}
+
+                    <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+                        <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Queue</span>
+                            <input
+                                type="text"
+                                placeholder="default"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                                value={filters.queue ?? ''}
+                                onChange={e => setFilters(f => ({ ...f, skip: 0, queue: e.target.value || undefined }))}
+                            />
+                        </label>
+
+                        <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                Payload type
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Namespace.JobPayload"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                                value={filters.payload ?? ''}
+                                onChange={e => setFilters(f => ({ ...f, skip: 0, payload: e.target.value || undefined }))}
+                            />
+                        </label>
+
+                        <button
+                            onClick={clearFilters}
+                            className="self-end rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                        >
+                            Clear
+                        </button>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {STATUS_OPTIONS.map(status => {
+                            const active = filters.status?.includes(status);
+                            return (
+                                <button
+                                    key={status}
+                                    onClick={() =>
+                                        setFilters(f => ({
+                                            ...f,
+                                            skip: 0,
+                                            status: f.status?.includes(status)
+                                                ? f.status.filter(x => x !== status)
+                                                : [...(f.status ?? []), status],
+                                        }))
+                                    }
+                                    className={cx(
+                                        'rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset transition',
+                                        active
+                                            ? 'bg-slate-950 text-white ring-slate-950'
+                                            : 'bg-slate-50 text-slate-500 ring-slate-200 hover:bg-white hover:text-slate-900',
+                                    )}
+                                >
+                                    {status}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {isLoading && <div className="p-8 text-sm text-slate-500">Loading jobs…</div>}
+                {error && <div className="p-8 text-sm font-medium text-rose-600">Error loading jobs.</div>}
+                {data && (
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[900px] text-left text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-200/80 bg-slate-50/80 text-xs uppercase tracking-[0.16em] text-slate-400">
+                                        <th className="px-5 py-4 font-semibold">Job</th>
+                                        <th className="px-5 py-4 font-semibold">Status</th>
+                                        <th className="px-5 py-4 font-semibold">Queue</th>
+                                        <th className="px-5 py-4 font-semibold">Attempts</th>
+                                        <th className="px-5 py-4 font-semibold">Timing</th>
+                                        <th className="px-5 py-4 font-semibold">Payload</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {data.items.map((job: JobDto) => (
+                                        <tr
+                                            key={job.id}
+                                            role="link"
+                                            tabIndex={0}
+                                            aria-label={`Open job ${job.id}`}
+                                            onClick={() => openJob(job.id)}
+                                            onKeyDown={event => handleRowKeyDown(event, job.id)}
+                                            className="group cursor-pointer bg-white/70 transition hover:bg-sky-50/70 focus:bg-sky-50/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-300"
+                                        >
+                                            <td className="px-5 py-4">
+                                                <div className="font-mono text-sm font-semibold text-slate-900">
+                                                    {job.id.slice(0, 8)}…
+                                                </div>
+                                                <div className="mt-1 text-xs text-slate-400">
+                                                    Created <RelativeTime value={job.createdAt} now={now} />
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <StatusPill status={job.status} />
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                                    {job.queueKey}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 text-slate-600">{formatNumber(job.attempts)}</td>
+                                            <td className="px-5 py-4 text-slate-600">
+                                                <JobTiming job={job} now={now} />
+                                            </td>
+                                            <td className="max-w-xs px-5 py-4">
+                                                <div className="truncate text-slate-700">{job.payloadTypeName}</div>
+                                                <div className="mt-1 text-xs font-semibold text-sky-600 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                                                    Open details →
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {data.items.length === 0 && (
+                            <EmptyState
+                                title="No jobs found"
+                                description="Try clearing filters or broadening the relative time window."
+                            />
+                        )}
+
+                        <div className="flex flex-col gap-3 border-t border-slate-200/80 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                            <span>
+                                Showing {formatNumber(visibleCount)} of {formatNumber(data.totalCount)} jobs · auto-refresh{' '}
+                                {jobsRefreshMs / 1000}s
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={filters.skip === 0}
+                                    onClick={() => setPage(Math.max(0, (filters.skip ?? 0) - take))}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    ← Prev
+                                </button>
+                                <button
+                                    disabled={(filters.skip ?? 0) + take >= data.totalCount}
+                                    onClick={() => setPage((filters.skip ?? 0) + take)}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    Next →
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </Panel>
         </div>
+    );
+}
+
+function JobTiming({ job, now }: { job: JobDto; now: number }) {
+    if (job.failedAt) {
+        return (
+            <span>
+                Failed <RelativeTime value={job.failedAt} now={now} />
+            </span>
+        );
+    }
+
+    if (job.completedAt) {
+        return (
+            <span>
+                Completed <RelativeTime value={job.completedAt} now={now} />
+            </span>
+        );
+    }
+
+    if (job.scheduledAt) {
+        return (
+            <span>
+                Scheduled <RelativeTime value={job.scheduledAt} now={now} />
+            </span>
+        );
+    }
+
+    return (
+        <span>
+            Queued <RelativeTime value={job.createdAt} now={now} />
+        </span>
     );
 }
