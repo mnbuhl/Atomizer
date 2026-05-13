@@ -83,6 +83,65 @@ public sealed class Schedule : ValueObject
     public static Schedule Monthly => new Schedule("0", "0", "0", "1", "*", "*");
 
     /// <summary>
+    /// Starts a fluent recurring schedule builder for interval-based schedules.
+    /// </summary>
+    /// <param name="interval">The positive interval between occurrences.</param>
+    /// <returns>A builder that can translate the interval to a cron schedule.</returns>
+    public static ScheduleBuilder Every(int interval) => new ScheduleBuilder(interval);
+
+    /// <summary>
+    /// Creates a schedule that fires daily at the specified UTC time.
+    /// </summary>
+    /// <param name="hour">The UTC hour from 0 through 23.</param>
+    /// <param name="minute">The minute from 0 through 59.</param>
+    /// <param name="second">The second from 0 through 59.</param>
+    /// <returns>A schedule translated to a 6-part cron expression.</returns>
+    public static Schedule DailyAt(int hour, int minute = 0, int second = 0)
+    {
+        ValidateTime(hour, minute, second);
+
+        return new Schedule(second.ToString(), minute.ToString(), hour.ToString(), "*", "*", "*");
+    }
+
+    /// <summary>
+    /// Creates a schedule that fires weekly on the specified day at the specified UTC time.
+    /// </summary>
+    /// <param name="dayOfWeek">The day of week on which the schedule fires.</param>
+    /// <param name="hour">The UTC hour from 0 through 23.</param>
+    /// <param name="minute">The minute from 0 through 59.</param>
+    /// <param name="second">The second from 0 through 59.</param>
+    /// <returns>A schedule translated to a 6-part cron expression.</returns>
+    public static Schedule WeeklyOn(DayOfWeek dayOfWeek, int hour = 0, int minute = 0, int second = 0)
+    {
+        ValidateTime(hour, minute, second);
+
+        return new Schedule(
+            second.ToString(),
+            minute.ToString(),
+            hour.ToString(),
+            "*",
+            "*",
+            ToCronDayOfWeek(dayOfWeek)
+        );
+    }
+
+    /// <summary>
+    /// Creates a schedule that fires monthly on the specified day at the specified UTC time.
+    /// </summary>
+    /// <param name="dayOfMonth">The day of the month from 1 through 31.</param>
+    /// <param name="hour">The UTC hour from 0 through 23.</param>
+    /// <param name="minute">The minute from 0 through 59.</param>
+    /// <param name="second">The second from 0 through 59.</param>
+    /// <returns>A schedule translated to a 6-part cron expression.</returns>
+    public static Schedule MonthlyOn(int dayOfMonth, int hour = 0, int minute = 0, int second = 0)
+    {
+        ValidateDayOfMonth(dayOfMonth);
+        ValidateTime(hour, minute, second);
+
+        return new Schedule(second.ToString(), minute.ToString(), hour.ToString(), dayOfMonth.ToString(), "*", "*");
+    }
+
+    /// <summary>
     /// Creates a <see cref="Schedule"/> from a 5- or 6-part cron expression string.
     /// </summary>
     /// <param name="cronExpression">A standard 5-part or seconds-extended 6-part cron expression.</param>
@@ -117,4 +176,32 @@ public sealed class Schedule : ValueObject
         yield return Month;
         yield return DayOfWeek;
     }
+
+    internal static void ValidateTime(int hour, int minute, int second)
+    {
+        if (hour is < 0 or > 23)
+        {
+            throw new ArgumentOutOfRangeException(nameof(hour), "Hour must be between 0 and 23.");
+        }
+
+        if (minute is < 0 or > 59)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minute), "Minute must be between 0 and 59.");
+        }
+
+        if (second is < 0 or > 59)
+        {
+            throw new ArgumentOutOfRangeException(nameof(second), "Second must be between 0 and 59.");
+        }
+    }
+
+    internal static void ValidateDayOfMonth(int dayOfMonth)
+    {
+        if (dayOfMonth is < 1 or > 31)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dayOfMonth), "Day of month must be between 1 and 31.");
+        }
+    }
+
+    internal static string ToCronDayOfWeek(DayOfWeek dayOfWeek) => ((int)dayOfWeek).ToString();
 }
