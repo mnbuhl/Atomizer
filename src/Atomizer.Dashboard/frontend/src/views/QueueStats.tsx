@@ -47,7 +47,7 @@ export default function QueueStats() {
                 description="Compare backlog, active work, and failures across queues. Open a row to inspect jobs for that queue."
                 actions={
                     <div className={ui.toolbarPill}>
-                        Refresh every {statsRefreshMs / 1000}s
+                        Refreshes every {statsRefreshMs / 1000}s
                     </div>
                 }
             />

@@ -1,7 +1,7 @@
 import type { KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSchedules } from '../api/hooks';
-import { routePrefix } from '../config';
+import { routePrefix, statsRefreshMs } from '../config';
 import {
     EmptyState,
     formatNumber,
@@ -18,9 +18,9 @@ import {
 import { useNow } from '../hooks/useNow';
 
 export default function SchedulesList() {
-    const { data, isLoading, error } = useSchedules();
+    const { data, isLoading, error, dataUpdatedAt } = useSchedules();
     const navigate = useNavigate();
-    const now = useNow(30_000);
+    const now = useNow(1_000);
     const schedules = data ?? [];
     const enabled = schedules.filter(schedule => schedule.enabled).length;
     const paused = schedules.length - enabled;
@@ -52,6 +52,11 @@ export default function SchedulesList() {
                 eyebrow="Recurring work"
                 title="Schedules"
                 description="Cron-driven jobs with next run, last run, queue, and payload context in one operator table."
+                actions={
+                    <div className={ui.toolbarPill}>
+                        Refreshes every {statsRefreshMs / 1000}s
+                    </div>
+                }
             />
 
             {isLoading ? (
@@ -128,7 +133,11 @@ export default function SchedulesList() {
                                                 <RelativeTime value={schedule.nextRunAt} now={now} fallback="Not planned" />
                                             </td>
                                             <td className={cx(ui.muted, 'px-5 py-4')}>
-                                                <RelativeTime value={schedule.lastRunAt} now={now} fallback="Never" />
+                                                <RelativeTime
+                                                    value={getLastRunDisplayValue(schedule.lastRunAt, dataUpdatedAt || now)}
+                                                    now={now}
+                                                    fallback="Never"
+                                                />
                                             </td>
                                             <td className={cx(ui.muted, 'px-5 py-4')}>{schedule.misfirePolicy}</td>
                                             <td className="px-5 py-4">
@@ -151,4 +160,17 @@ export default function SchedulesList() {
             </Panel>
         </div>
     );
+}
+
+function getLastRunDisplayValue(lastRunAt: string | null, latestKnownRefreshAt: number): string | number | null {
+    if (!lastRunAt) {
+        return null;
+    }
+
+    const timestamp = new Date(lastRunAt).getTime();
+    if (Number.isNaN(timestamp)) {
+        return lastRunAt;
+    }
+
+    return Math.min(timestamp, latestKnownRefreshAt);
 }

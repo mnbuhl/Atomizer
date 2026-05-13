@@ -33,6 +33,7 @@ export function useSchedules() {
     return useQuery<ScheduleDto[]>({
         queryKey: ['schedules'],
         queryFn: api.getSchedules,
+        refetchInterval: statsRefreshMs,
     });
 }
 
