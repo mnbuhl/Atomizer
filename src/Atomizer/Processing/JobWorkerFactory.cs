@@ -1,4 +1,5 @@
-﻿using Atomizer.Core;
+﻿using Atomizer.Abstractions;
+using Atomizer.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Atomizer.Processing;
@@ -11,17 +12,23 @@ internal interface IJobWorkerFactory
 internal sealed class JobWorkerFactory : IJobWorkerFactory
 {
     private readonly IJobProcessorFactory _jobProcessorFactory;
+    private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
+    private readonly IAtomizerClock _clock;
     private readonly ILoggerFactory _loggerFactory;
     private readonly AtomizerRuntimeIdentity _identity;
 
     public JobWorkerFactory(
         ILoggerFactory loggerFactory,
         IJobProcessorFactory jobProcessorFactory,
+        IAtomizerServiceScopeFactory serviceScopeFactory,
+        IAtomizerClock clock,
         AtomizerRuntimeIdentity identity
     )
     {
         _loggerFactory = loggerFactory;
         _jobProcessorFactory = jobProcessorFactory;
+        _serviceScopeFactory = serviceScopeFactory;
+        _clock = clock;
         _identity = identity;
     }
 
@@ -31,6 +38,8 @@ internal sealed class JobWorkerFactory : IJobWorkerFactory
         return new JobWorker(
             workerId,
             _jobProcessorFactory,
+            _serviceScopeFactory,
+            _clock,
             _loggerFactory.CreateLogger($"{typeof(JobWorker).FullName};{workerId}")
         );
     }
