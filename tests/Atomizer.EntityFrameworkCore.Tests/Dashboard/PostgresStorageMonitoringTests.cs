@@ -6,8 +6,8 @@ using AwesomeAssertions;
 namespace Atomizer.EntityFrameworkCore.Tests.Dashboard;
 
 [Collection(nameof(PostgreSqlDatabaseFixture))]
-public sealed class PostgresDashboardStorageTests(PostgreSqlDatabaseFixture fixture)
-    : EntityFrameworkCoreDashboardStorageTests<PostgresDbContext>
+public sealed class PostgresStorageMonitoringTests(PostgreSqlDatabaseFixture fixture)
+    : EntityFrameworkCoreStorageMonitoringTests<PostgresDbContext>
 {
     protected override PostgresDbContext CreateDbContext() => fixture.CreateNewDbContext();
 

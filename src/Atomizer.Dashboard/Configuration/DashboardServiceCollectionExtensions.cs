@@ -1,8 +1,5 @@
-using Atomizer.Dashboard;
 using Atomizer.Dashboard.Configuration;
-using Atomizer.Dashboard.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Atomizer;
 
@@ -25,7 +22,6 @@ public static class DashboardServiceCollectionExtensions
     )
     {
         services.AddOptions<DashboardOptions>().Configure(configure ?? (_ => { }));
-        services.TryAddSingleton<IAtomizerDashboardStorage, InMemoryDashboardStorage>();
 
         return services;
     }

@@ -31,21 +31,12 @@ builder.Services.AddAtomizerDashboard(options =>
 {
     options.Title = "Atomizer EF Core Example Dashboard";
 });
-builder.Services.UseEntityFrameworkCoreDashboardStorage<ExamplePostgresContext>();
 
 builder.Services.AddDbContext<ExamplePostgresContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("postgresql"))
         .EnableDetailedErrors()
         .EnableSensitiveDataLogging()
 );
-builder.Services.AddDbContextFactory<ExamplePostgresContext>(
-    o =>
-        o.UseNpgsql(builder.Configuration.GetConnectionString("postgresql"))
-            .EnableDetailedErrors()
-            .EnableSensitiveDataLogging(),
-    ServiceLifetime.Scoped
-);
-
 builder.Services.AddDbContext<ExampleMySqlContext>(o =>
     o.UseMySql(
             builder.Configuration.GetConnectionString("mysql"),

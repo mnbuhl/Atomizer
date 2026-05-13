@@ -1,3 +1,4 @@
+using Atomizer.Abstractions;
 using Atomizer.Dashboard.Contracts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,7 +9,7 @@ internal static class SchedulesEndpoints
 {
     internal static async Task ListAsync(HttpContext context)
     {
-        var storage = context.RequestServices.GetRequiredService<IAtomizerDashboardStorage>();
+        var storage = context.RequestServices.GetRequiredService<IAtomizerStorage>();
         var schedules = await storage.GetSchedulesAsync(context.RequestAborted);
         await DashboardJsonResponse.WriteAsync(
             context,

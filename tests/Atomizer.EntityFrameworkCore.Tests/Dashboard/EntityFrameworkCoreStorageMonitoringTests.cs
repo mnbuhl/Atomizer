@@ -1,25 +1,27 @@
+using Atomizer.Abstractions;
 using Atomizer.Core;
-using Atomizer.Dashboard;
-using Atomizer.EntityFrameworkCore.Dashboard;
 using Atomizer.EntityFrameworkCore.Entities;
+using Atomizer.EntityFrameworkCore.Storage;
 using Atomizer.EntityFrameworkCore.Tests.TestSetup;
+using Atomizer.Tests.Utilities;
 using AwesomeAssertions;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Dashboard;
 
-public abstract class EntityFrameworkCoreDashboardStorageTests<TDbContext> : IAsyncLifetime
+public abstract class EntityFrameworkCoreStorageMonitoringTests<TDbContext> : IAsyncLifetime
     where TDbContext : TestDbContext
 {
     protected readonly IAtomizerClock Clock = Substitute.For<IAtomizerClock>();
     protected abstract TDbContext CreateDbContext();
 
-    protected IAtomizerDashboardStorage CreateStorage()
-    {
-        var factory = new DelegatingDbContextFactory<TDbContext>(CreateDbContext);
-        return new EntityFrameworkCoreDashboardStorage<TDbContext>(factory, Clock);
-    }
+    protected IAtomizerStorage CreateStorage() =>
+        new EntityFrameworkCoreStorage<TDbContext>(
+            CreateDbContext(),
+            new EntityFrameworkCoreJobStorageOptions(),
+            Substitute.For<TestableLogger<EntityFrameworkCoreStorage<TDbContext>>>(),
+            Clock
+        );
 
     public abstract ValueTask InitializeAsync();
 
@@ -196,14 +198,4 @@ public abstract class EntityFrameworkCoreDashboardStorageTests<TDbContext> : IAs
             UpdatedAt = now,
             FailedAt = now,
         };
-}
-
-internal sealed class DelegatingDbContextFactory<T> : IDbContextFactory<T>
-    where T : DbContext
-{
-    private readonly Func<T> _factory;
-
-    public DelegatingDbContextFactory(Func<T> factory) => _factory = factory;
-
-    public T CreateDbContext() => _factory();
 }

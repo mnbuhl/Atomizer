@@ -1,4 +1,4 @@
-namespace Atomizer.Dashboard;
+namespace Atomizer;
 
 /// <summary>
 /// Job counts for a single queue, broken down by status.

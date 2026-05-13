@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Atomizer.Abstractions;
 using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Contracts;
 using Microsoft.AspNetCore.Http;
@@ -11,7 +11,7 @@ internal static class JobsEndpoints
 {
     internal static async Task ListAsync(HttpContext context)
     {
-        var storage = context.RequestServices.GetRequiredService<IAtomizerDashboardStorage>();
+        var storage = context.RequestServices.GetRequiredService<IAtomizerStorage>();
         var options = context.RequestServices.GetRequiredService<IOptions<DashboardOptions>>().Value;
 
         var query = context.Request.Query;
@@ -55,7 +55,7 @@ internal static class JobsEndpoints
 
     internal static async Task GetByIdAsync(HttpContext context)
     {
-        var storage = context.RequestServices.GetRequiredService<IAtomizerDashboardStorage>();
+        var storage = context.RequestServices.GetRequiredService<IAtomizerStorage>();
 
         if (!Guid.TryParse(context.Request.RouteValues["id"]?.ToString(), out var id))
         {

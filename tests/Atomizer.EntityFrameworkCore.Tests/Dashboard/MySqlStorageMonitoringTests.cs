@@ -1,15 +1,15 @@
 using Atomizer.EntityFrameworkCore.Tests.Fixtures;
 using Atomizer.EntityFrameworkCore.Tests.Storage;
-using Atomizer.EntityFrameworkCore.Tests.TestSetup.SqlServer;
+using Atomizer.EntityFrameworkCore.Tests.TestSetup.MySql;
 using AwesomeAssertions;
 
 namespace Atomizer.EntityFrameworkCore.Tests.Dashboard;
 
-[Collection(nameof(SqlServerDatabaseFixture))]
-public sealed class SqlServerDashboardStorageTests(SqlServerDatabaseFixture fixture)
-    : EntityFrameworkCoreDashboardStorageTests<SqlServerDbContext>
+[Collection(nameof(MySqlDatabaseFixture))]
+public sealed class MySqlStorageMonitoringTests(MySqlDatabaseFixture fixture)
+    : EntityFrameworkCoreStorageMonitoringTests<MySqlDbContext>
 {
-    protected override SqlServerDbContext CreateDbContext() => fixture.CreateNewDbContext();
+    protected override MySqlDbContext CreateDbContext() => fixture.CreateNewDbContext();
 
     public override ValueTask InitializeAsync() => ValueTask.CompletedTask;
 
@@ -21,7 +21,7 @@ public sealed class SqlServerDashboardStorageTests(SqlServerDatabaseFixture fixt
     }
 
     [Fact]
-    public async Task GetJobsAsync_WhenUsingMsSql_ShouldReturnPagedResults()
+    public async Task GetJobsAsync_WhenUsingMySql_ShouldReturnPagedResults()
     {
         var result = await CreateStorage().GetJobsAsync(new JobQuery { Skip = 0, Take = 10 }, CancellationToken.None);
 

@@ -1,27 +1,23 @@
 using Atomizer.Core;
-using Atomizer.Dashboard;
-using Atomizer.Dashboard.Storage;
 using Atomizer.Storage;
 
 namespace Atomizer.Tests.Dashboard;
 
-public class InMemoryDashboardStorageTests
+public class InMemoryStorageMonitoringTests
 {
     private readonly IAtomizerClock _clock = Substitute.For<IAtomizerClock>();
     private readonly TestableLogger<InMemoryStorage> _storageLogger = Substitute.For<TestableLogger<InMemoryStorage>>();
-    private readonly InMemoryStorage _inMemoryStorage;
-    private readonly InMemoryDashboardStorage _sut;
+    private readonly InMemoryStorage _sut;
     private readonly DateTimeOffset _now = new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero);
 
-    public InMemoryDashboardStorageTests()
+    public InMemoryStorageMonitoringTests()
     {
         _clock.UtcNow.Returns(_now);
-        _inMemoryStorage = new InMemoryStorage(
+        _sut = new InMemoryStorage(
             new InMemoryJobStorageOptions { AmountOfJobsToRetainInMemory = 1000 },
             _clock,
             _storageLogger
         );
-        _sut = new InMemoryDashboardStorage(_inMemoryStorage);
     }
 
     private async Task<AtomizerJob> InsertJobAsync(
@@ -40,13 +36,13 @@ public class InMemoryDashboardStorageTests
             created
         );
 
-        await _inMemoryStorage.InsertAsync(job, CancellationToken.None);
+        await _sut.InsertAsync(job, CancellationToken.None);
 
         if (status == AtomizerJobStatus.Processing)
         {
             var leaseToken = new LeaseToken($"server-1:*:{job.QueueKey.Key}:*:{Guid.NewGuid()}");
             job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
-            await _inMemoryStorage.UpdateJobsAsync([job], CancellationToken.None);
+            await _sut.UpdateJobsAsync([job], CancellationToken.None);
         }
         else if (status == AtomizerJobStatus.Completed)
         {
@@ -54,7 +50,7 @@ public class InMemoryDashboardStorageTests
             job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
             job.Attempt();
             job.MarkAsCompleted(_now);
-            await _inMemoryStorage.UpdateJobsAsync([job], CancellationToken.None);
+            await _sut.UpdateJobsAsync([job], CancellationToken.None);
         }
         else if (status == AtomizerJobStatus.Failed)
         {
@@ -62,7 +58,7 @@ public class InMemoryDashboardStorageTests
             job.Lease(leaseToken, _now, TimeSpan.FromMinutes(5));
             job.Attempt();
             job.MarkAsFailed(_now);
-            await _inMemoryStorage.UpdateJobsAsync([job], CancellationToken.None);
+            await _sut.UpdateJobsAsync([job], CancellationToken.None);
         }
 
         return job;
@@ -222,7 +218,7 @@ public class InMemoryDashboardStorageTests
             TimeZoneInfo.Utc,
             _now
         );
-        await _inMemoryStorage.UpsertScheduleAsync(schedule, CancellationToken.None);
+        await _sut.UpsertScheduleAsync(schedule, CancellationToken.None);
 
         var result = await _sut.GetSchedulesAsync(CancellationToken.None);
 
@@ -236,8 +232,8 @@ public class InMemoryDashboardStorageTests
         var server1 = new AtomizerActiveServer { InstanceId = "server-1", LastHeartbeatAt = _now };
         var server2 = new AtomizerActiveServer { InstanceId = "server-2", LastHeartbeatAt = _now.AddMinutes(-1) };
 
-        await _inMemoryStorage.UpsertHeartbeatAsync(server1, CancellationToken.None);
-        await _inMemoryStorage.UpsertHeartbeatAsync(server2, CancellationToken.None);
+        await _sut.UpsertHeartbeatAsync(server1, CancellationToken.None);
+        await _sut.UpsertHeartbeatAsync(server2, CancellationToken.None);
 
         var result = await _sut.GetActiveServersAsync(CancellationToken.None);
 

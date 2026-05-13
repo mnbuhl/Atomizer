@@ -1,3 +1,5 @@
+using Atomizer;
+
 namespace Atomizer.Dashboard.Contracts;
 
 internal sealed class QueueStatsResponse
