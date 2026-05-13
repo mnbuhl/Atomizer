@@ -35,7 +35,7 @@ public class ScheduleProcessorTests
             QueueKey.Default,
             typeof(WriteLineMessage),
             "payload",
-            Schedule.EverySecond,
+            Schedule.Secondly,
             TimeZoneInfo.Utc,
             _clock.UtcNow
         );
@@ -68,7 +68,7 @@ public class ScheduleProcessorTests
             QueueKey.Default,
             typeof(WriteLineMessage),
             "payload",
-            Schedule.EverySecond,
+            Schedule.Secondly,
             TimeZoneInfo.Utc,
             _clock.UtcNow,
             partitionKey: partitionKey
@@ -97,7 +97,7 @@ public class ScheduleProcessorTests
             QueueKey.Default,
             typeof(WriteLineMessage),
             "payload",
-            Schedule.EverySecond,
+            Schedule.Secondly,
             TimeZoneInfo.Utc,
             _clock.UtcNow
         );

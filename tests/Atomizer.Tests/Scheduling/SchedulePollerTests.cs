@@ -46,7 +46,7 @@ public class SchedulePollerTests
             QueueKey.Default,
             typeof(WriteLineMessage),
             JsonSerializer.Serialize(new WriteLineMessage("Hello 1")),
-            Schedule.EverySecond,
+            Schedule.Secondly,
             TimeZoneInfo.Utc,
             _clock.UtcNow
         );
@@ -55,7 +55,7 @@ public class SchedulePollerTests
             QueueKey.Default,
             typeof(WriteLineMessage),
             JsonSerializer.Serialize(new WriteLineMessage("Hello 2")),
-            Schedule.EverySecond,
+            Schedule.Secondly,
             TimeZoneInfo.Utc,
             _clock.UtcNow
         );

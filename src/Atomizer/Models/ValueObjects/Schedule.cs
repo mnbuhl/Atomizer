@@ -55,12 +55,12 @@ public sealed class Schedule : ValueObject
     /// <summary>
     /// Gets a schedule that fires every second.
     /// </summary>
-    public static Schedule EverySecond => new Schedule("*", "*", "*", "*", "*", "*");
+    public static Schedule Secondly => new Schedule("*", "*", "*", "*", "*", "*");
 
     /// <summary>
     /// Gets a schedule that fires at the start of every minute.
     /// </summary>
-    public static Schedule EveryMinute => new Schedule("0", "*", "*", "*", "*", "*");
+    public static Schedule Minutely => new Schedule("0", "*", "*", "*", "*", "*");
 
     /// <summary>
     /// Gets a schedule that fires at the top of every hour.

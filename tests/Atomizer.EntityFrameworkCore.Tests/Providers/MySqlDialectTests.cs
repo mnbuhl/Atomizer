@@ -68,7 +68,7 @@ public sealed class MySqlDialectTests
             QueueKey.Default,
             typeof(object),
             "{}",
-            Schedule.EveryMinute,
+            Schedule.Minutely,
             TimeZoneInfo.Utc,
             DateTimeOffset.UtcNow
         );

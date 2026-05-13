@@ -5,6 +5,26 @@ namespace Atomizer.Tests.Models.ValueObjects;
 /// </summary>
 public class ScheduleTests
 {
+    [Fact]
+    public void Secondly_ShouldReturnEverySecondSchedule()
+    {
+        // Arrange & Act
+        var schedule = Schedule.Secondly;
+
+        // Assert
+        schedule.ToString().Should().Be("* * * * * *");
+    }
+
+    [Fact]
+    public void Minutely_ShouldReturnEveryMinuteSchedule()
+    {
+        // Arrange & Act
+        var schedule = Schedule.Minutely;
+
+        // Assert
+        schedule.ToString().Should().Be("0 * * * * *");
+    }
+
     [Theory]
     [InlineData(15, "*/15 * * * * *")]
     [InlineData(1, "*/1 * * * * *")]
@@ -38,13 +58,23 @@ public class ScheduleTests
     }
 
     [Fact]
-    public void EveryDays_ShouldReturnCronSchedule()
+    public void EveryDays_ShouldReturnDailyCronSchedule()
     {
         // Arrange & Act
-        var schedule = Schedule.Every(3).Days();
+        var schedule = Schedule.Every(1).Days();
 
         // Assert
-        schedule.ToString().Should().Be("0 0 0 */3 * *");
+        schedule.ToString().Should().Be("0 0 0 * * *");
+    }
+
+    [Fact]
+    public void EveryDays_WithIntervalGreaterThanOne_ShouldThrow()
+    {
+        // Arrange & Act
+        Action act = () => Schedule.Every(3).Days();
+
+        // Assert
+        act.Should().Throw<NotSupportedException>().WithMessage("*do not support intervals greater than 1 day*");
     }
 
     [Fact]
@@ -112,6 +142,30 @@ public class ScheduleTests
     {
         // Arrange & Act
         Action act = () => Schedule.Every(0);
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>().And.ParamName.Should().Be("interval");
+    }
+
+    [Theory]
+    [InlineData(60, "Seconds")]
+    [InlineData(60, "Minutes")]
+    [InlineData(24, "Hours")]
+    [InlineData(13, "Months")]
+    public void EveryUnit_WithIntervalOutsideCronFieldRange_ShouldThrow(int interval, string unit)
+    {
+        // Arrange
+        var builder = Schedule.Every(interval);
+
+        // Act
+        Action act = unit switch
+        {
+            "Seconds" => () => builder.Seconds(),
+            "Minutes" => () => builder.Minutes(),
+            "Hours" => () => builder.Hours(),
+            "Months" => () => builder.Months(),
+            _ => throw new InvalidOperationException("Unsupported schedule unit."),
+        };
 
         // Assert
         act.Should().Throw<ArgumentOutOfRangeException>().And.ParamName.Should().Be("interval");

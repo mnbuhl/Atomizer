@@ -21,25 +21,52 @@ public sealed class ScheduleBuilder
     /// Builds a schedule that fires every configured number of seconds.
     /// </summary>
     /// <returns>A schedule translated to a 6-part cron expression.</returns>
-    public Schedule Seconds() => new Schedule($"*/{_interval}", "*", "*", "*", "*", "*");
+    public Schedule Seconds()
+    {
+        ValidateInterval(59, "seconds");
+
+        return new Schedule($"*/{_interval}", "*", "*", "*", "*", "*");
+    }
 
     /// <summary>
     /// Builds a schedule that fires every configured number of minutes.
     /// </summary>
     /// <returns>A schedule translated to a 6-part cron expression.</returns>
-    public Schedule Minutes() => new Schedule("0", $"*/{_interval}", "*", "*", "*", "*");
+    public Schedule Minutes()
+    {
+        ValidateInterval(59, "minutes");
+
+        return new Schedule("0", $"*/{_interval}", "*", "*", "*", "*");
+    }
 
     /// <summary>
     /// Builds a schedule that fires every configured number of hours.
     /// </summary>
     /// <returns>A schedule translated to a 6-part cron expression.</returns>
-    public Schedule Hours() => new Schedule("0", "0", $"*/{_interval}", "*", "*", "*");
+    public Schedule Hours()
+    {
+        ValidateInterval(23, "hours");
+
+        return new Schedule("0", "0", $"*/{_interval}", "*", "*", "*");
+    }
 
     /// <summary>
-    /// Builds a schedule that fires every configured number of days at midnight UTC.
+    /// Builds a schedule that fires daily at midnight UTC.
     /// </summary>
     /// <returns>A schedule translated to a 6-part cron expression.</returns>
-    public Schedule Days() => new Schedule("0", "0", "0", $"*/{_interval}", "*", "*");
+    /// <exception cref="NotSupportedException">
+    /// Thrown when the interval is greater than one because Cronos cron expressions do not represent every-N-days
+    /// schedules reliably across month boundaries.
+    /// </exception>
+    public Schedule Days()
+    {
+        if (_interval != 1)
+        {
+            throw new NotSupportedException("Cronos cron expressions do not support intervals greater than 1 day.");
+        }
+
+        return Schedule.Daily;
+    }
 
     /// <summary>
     /// Builds a weekly schedule that fires on the specified day at the specified UTC time.
@@ -73,6 +100,7 @@ public sealed class ScheduleBuilder
     /// <returns>A schedule translated to a 6-part cron expression.</returns>
     public Schedule Months(int dayOfMonth = 1, int hour = 0, int minute = 0, int second = 0)
     {
+        ValidateInterval(12, "months");
         Schedule.ValidateDayOfMonth(dayOfMonth);
         Schedule.ValidateTime(hour, minute, second);
 
@@ -84,5 +112,17 @@ public sealed class ScheduleBuilder
             $"*/{_interval}",
             "*"
         );
+    }
+
+    private void ValidateInterval(int max, string unit)
+    {
+        if (_interval > max)
+        {
+            throw new ArgumentOutOfRangeException(
+                "interval",
+                _interval,
+                $"Interval for {unit} must be between 1 and {max}."
+            );
+        }
     }
 }
