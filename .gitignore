@@ -9,3 +9,6 @@ example.db*
 .omc/
 .claude/
 .planning/
+.sisyphus/
+src/Atomizer.Dashboard/frontend/node_modules/
+src/Atomizer.Dashboard/frontend/dist/

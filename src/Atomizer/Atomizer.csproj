@@ -16,6 +16,11 @@
         <Description>Atomizer provides background job queue and scheduler for .NET applications</Description>
     </PropertyGroup>
     <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+            <_Parameter1>Atomizer.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+    <ItemGroup>
         <PackageReference Include="Cronos" Version="0.13.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[6.0.0, )" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="[6.0.0, )" />

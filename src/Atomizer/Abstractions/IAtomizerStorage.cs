@@ -87,6 +87,51 @@ public interface IAtomizerStorage
     Task<IReadOnlyList<AtomizerSchedule>> GetDueSchedulesAsync(DateTimeOffset now, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Returns a paginated, filtered list of jobs ordered by creation time descending.
+    /// </summary>
+    /// <param name="query">The filter and pagination parameters to apply.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A paginated result of Atomizer jobs.</returns>
+    Task<PagedResult<AtomizerJob>> GetJobsAsync(JobQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns job counts grouped by status for the supplied query filters.
+    /// </summary>
+    /// <param name="query">The filter parameters to apply. Pagination and status filters are ignored.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>Job counts grouped by status.</returns>
+    Task<JobStatusCounts> GetJobStatusCountsAsync(JobQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns a single job by its identifier, including error history when supported by the backend.
+    /// </summary>
+    /// <param name="id">The unique job identifier.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>The matching job, or <see langword="null"/> when not found.</returns>
+    Task<AtomizerJob?> GetJobByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns all registered recurring schedules.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>The registered schedules.</returns>
+    Task<IReadOnlyList<AtomizerSchedule>> GetSchedulesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns active server records for monitoring views.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>The active server records.</returns>
+    Task<IReadOnlyList<AtomizerActiveServer>> GetActiveServersAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns job counts grouped by queue and status.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>Queue-level job counts grouped by status.</returns>
+    Task<IReadOnlyList<QueueStats>> GetQueueStatsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Inserts or refreshes the current process heartbeat.
     /// </summary>
     Task UpsertHeartbeatAsync(AtomizerActiveServer server, CancellationToken cancellationToken);

@@ -133,6 +133,9 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_AtomizerJobs_CreatedAt");
+
                     b.HasIndex("IdempotencyKey")
                         .HasDatabaseName("IX_AtomizerJobs_IdempotencyKey");
 

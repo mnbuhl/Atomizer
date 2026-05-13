@@ -318,6 +318,138 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         throw UnsupportedProviderException(_providerCache.ProviderName);
     }
 
+    public async Task<PagedResult<AtomizerJob>> GetJobsAsync(JobQuery query, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var take = Math.Min(query.Take, 500);
+
+        var q = ApplyJobQueryFilters(JobEntities.AsNoTracking(), query, includeStatusFilter: true);
+
+        q = q.OrderByDescending(e => e.CreatedAt);
+
+        var total = await q.CountAsync(cancellationToken);
+
+        var entities = await q.Skip(query.Skip).Take(take).Include(e => e.Errors).ToListAsync(cancellationToken);
+
+        return new PagedResult<AtomizerJob>
+        {
+            Items = entities.Select(e => e.ToAtomizerJob()).ToList(),
+            TotalCount = total,
+            Skip = query.Skip,
+            Take = take,
+        };
+    }
+
+    public async Task<JobStatusCounts> GetJobStatusCountsAsync(JobQuery query, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var q = ApplyJobQueryFilters(JobEntities.AsNoTracking(), query, includeStatusFilter: false);
+        var counts = await q.GroupBy(e => e.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return new JobStatusCounts
+        {
+            Pending = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Pending)?.Count ?? 0,
+            Processing = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Processing)?.Count ?? 0,
+            Completed = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Completed)?.Count ?? 0,
+            Failed = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Failed)?.Count ?? 0,
+        };
+    }
+
+    private static IQueryable<AtomizerJobEntity> ApplyJobQueryFilters(
+        IQueryable<AtomizerJobEntity> q,
+        JobQuery query,
+        bool includeStatusFilter
+    )
+    {
+        if (includeStatusFilter && query.Statuses is { Count: > 0 })
+        {
+            var statuses = query.Statuses.Select(s => (AtomizerEntityJobStatus)(int)s).ToList();
+            q = q.Where(e => statuses.Contains(e.Status));
+        }
+
+        if (query.QueueKey is not null)
+            q = q.Where(e => e.QueueKey == query.QueueKey.ToString());
+
+        if (query.PayloadTypeName is not null)
+            q = q.Where(e => e.PayloadType.Contains(query.PayloadTypeName));
+
+        if (query.CreatedFromUtc.HasValue)
+            q = q.Where(e => e.CreatedAt >= query.CreatedFromUtc.Value);
+
+        if (query.CreatedToUtc.HasValue)
+            q = q.Where(e => e.CreatedAt <= query.CreatedToUtc.Value);
+
+        return q;
+    }
+
+    public async Task<AtomizerJob?> GetJobByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var entity = await JobEntities
+            .AsNoTracking()
+            .Include(e => e.Errors)
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+        return entity?.ToAtomizerJob();
+    }
+
+    public async Task<IReadOnlyList<AtomizerSchedule>> GetSchedulesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var entities = await ScheduleEntities.AsNoTracking().ToListAsync(cancellationToken);
+
+        return entities.Select(e => e.ToAtomizerSchedule()).ToList();
+    }
+
+    public async Task<IReadOnlyList<AtomizerActiveServer>> GetActiveServersAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var cutoff = _clock.UtcNow.AddMinutes(-5);
+
+        var entities = await ActiveServerEntities
+            .AsNoTracking()
+            .Where(e => e.LastHeartbeatAt >= cutoff)
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(e => e.ToAtomizerActiveServer()).ToList();
+    }
+
+    public async Task<IReadOnlyList<QueueStats>> GetQueueStatsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var stats = await JobEntities
+            .AsNoTracking()
+            .GroupBy(e => e.QueueKey)
+            .Select(g => new
+            {
+                QueueKey = g.Key,
+                Pending = g.Count(e => e.Status == AtomizerEntityJobStatus.Pending),
+                Processing = g.Count(e => e.Status == AtomizerEntityJobStatus.Processing),
+                Completed = g.Count(e => e.Status == AtomizerEntityJobStatus.Completed),
+                Failed = g.Count(e => e.Status == AtomizerEntityJobStatus.Failed),
+            })
+            .ToListAsync(cancellationToken);
+
+        return stats
+            .Select(s => new QueueStats
+            {
+                QueueKey = new QueueKey(s.QueueKey),
+                Pending = s.Pending,
+                Processing = s.Processing,
+                Completed = s.Completed,
+                Failed = s.Failed,
+            })
+            .ToList();
+    }
+
     public async Task<TResult> ExecuteInLeaseAsync<TResult>(
         QueueKey queue,
         Func<CancellationToken, Task<TResult>> callback,
