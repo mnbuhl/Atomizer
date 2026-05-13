@@ -46,6 +46,7 @@ internal sealed class JobsEndpointHandler
         };
 
         var result = await _storage.GetJobsAsync(jobQuery, context.RequestAborted);
+        var statusCounts = await _storage.GetJobStatusCountsAsync(jobQuery, context.RequestAborted);
 
         var response = new PagedResponse<JobDto>
         {
@@ -53,6 +54,7 @@ internal sealed class JobsEndpointHandler
             TotalCount = result.TotalCount,
             Skip = result.Skip,
             Take = result.Take,
+            StatusCounts = statusCounts,
         };
 
         await DashboardJsonResponse.WriteAsync(context, response, context.RequestAborted);

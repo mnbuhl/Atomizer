@@ -207,6 +207,27 @@ public class InMemoryStorageMonitoringTests
     }
 
     [Fact]
+    public async Task GetJobStatusCountsAsync_WhenQueryHasStatusFilter_ShouldIgnoreStatusAndApplyOtherFilters()
+    {
+        var queue2 = new QueueKey("queue2");
+
+        await InsertJobAsync(queue: QueueKey.Default, status: AtomizerJobStatus.Pending);
+        await InsertJobAsync(queue: QueueKey.Default, status: AtomizerJobStatus.Processing);
+        await InsertJobAsync(queue: QueueKey.Default, status: AtomizerJobStatus.Failed);
+        await InsertJobAsync(queue: queue2, status: AtomizerJobStatus.Completed);
+
+        var result = await _sut.GetJobStatusCountsAsync(
+            new JobQuery { QueueKey = QueueKey.Default, Statuses = [AtomizerJobStatus.Pending] },
+            CancellationToken.None
+        );
+
+        result.Pending.Should().Be(1);
+        result.Processing.Should().Be(1);
+        result.Completed.Should().Be(0);
+        result.Failed.Should().Be(1);
+    }
+
+    [Fact]
     public async Task GetSchedulesAsync_ShouldReturnAllSchedules()
     {
         var schedule = AtomizerSchedule.Create(

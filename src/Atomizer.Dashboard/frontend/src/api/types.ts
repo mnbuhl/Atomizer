@@ -3,6 +3,14 @@ export interface PagedResponse<T> {
     totalCount: number;
     skip: number;
     take: number;
+    statusCounts: JobStatusCounts;
+}
+
+export interface JobStatusCounts {
+    pending: number;
+    processing: number;
+    completed: number;
+    failed: number;
 }
 
 export interface JobDto {

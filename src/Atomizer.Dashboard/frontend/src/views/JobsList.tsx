@@ -1,7 +1,7 @@
 import type { KeyboardEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useJobs, useJobStatusCounts, type JobFilters } from '../api/hooks';
+import { useJobs, type JobFilters } from '../api/hooks';
 import { routePrefix, jobsRefreshMs } from '../config';
 import type { JobDto } from '../api/types';
 import {
@@ -48,7 +48,7 @@ export default function JobsList() {
     const debouncedQueueSearch = useDebouncedValue(queueSearch, 300);
     const debouncedPayloadSearch = useDebouncedValue(payloadSearch, 300);
     const { data, isLoading, error, refetch, dataUpdatedAt, isFetching } = useJobs(filters);
-    const { counts, isLoading: countsLoading } = useJobStatusCounts(filters);
+    const counts = data?.statusCounts ?? { pending: 0, processing: 0, completed: 0, failed: 0 };
 
     const take = filters.take ?? PAGE_SIZE;
     const currentPage = Math.floor((filters.skip ?? 0) / take) + 1;
@@ -120,32 +120,32 @@ export default function JobsList() {
                         tone="blue"
                     />
                 )}
-                {countsLoading ? (
+                {isLoading ? (
                     <MetricCardSkeleton />
                 ) : (
                     <MetricCard
                         label="Pending"
-                        value={formatNumber(counts.Pending)}
+                        value={formatNumber(counts.pending)}
                         helper="Matching queued backlog"
                         tone="amber"
                     />
                 )}
-                {countsLoading ? (
+                {isLoading ? (
                     <MetricCardSkeleton />
                 ) : (
                     <MetricCard
                         label="Processing"
-                        value={formatNumber(counts.Processing)}
+                        value={formatNumber(counts.processing)}
                         helper="Matching leased work"
                         tone="cyan"
                     />
                 )}
-                {countsLoading ? (
+                {isLoading ? (
                     <MetricCardSkeleton />
                 ) : (
                     <MetricCard
                         label="Failed"
-                        value={formatNumber(counts.Failed)}
+                        value={formatNumber(counts.failed)}
                         helper="Matching jobs needing attention"
                         tone="red"
                     />

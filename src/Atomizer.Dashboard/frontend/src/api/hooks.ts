@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api } from './client';
 import { statsRefreshMs, jobsRefreshMs } from '../config';
 import type { JobDto, JobDetailDto, ScheduleDto, QueueStatsResponse, ServerDto, PagedResponse } from './types';
@@ -13,41 +13,11 @@ export interface JobFilters {
     take?: number;
 }
 
-const jobStatuses = ['Pending', 'Processing', 'Completed', 'Failed'] as const;
-export type JobStatus = (typeof jobStatuses)[number];
-
 export function useJobs(filters: JobFilters = {}) {
     return useQuery<PagedResponse<JobDto>>({
         queryKey: ['jobs', filters],
         queryFn: () => api.getJobs(filters as Record<string, string | string[] | number | undefined>),
         refetchInterval: jobsRefreshMs,
-    });
-}
-
-export function useJobStatusCounts(filters: JobFilters = {}) {
-    const { skip: _skip, take: _take, status: _status, ...countFilters } = filters;
-
-    return useQueries({
-        queries: jobStatuses.map(status => ({
-            queryKey: ['jobs', 'count', status, countFilters],
-            queryFn: () =>
-                api.getJobs({
-                    ...countFilters,
-                    status: [status],
-                    skip: 0,
-                    take: 0,
-            }),
-            staleTime: 5_000,
-            refetchInterval: jobsRefreshMs,
-        })),
-        combine: results => ({
-            counts: Object.fromEntries(
-                jobStatuses.map((status, index) => [status, results[index]?.data?.totalCount ?? 0]),
-            ) as Record<JobStatus, number>,
-            isLoading: results.some(result => result.isLoading),
-            isFetching: results.some(result => result.isFetching),
-            error: results.find(result => result.error)?.error,
-        }),
     });
 }
 

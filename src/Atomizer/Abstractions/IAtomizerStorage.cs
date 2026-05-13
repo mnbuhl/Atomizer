@@ -95,6 +95,14 @@ public interface IAtomizerStorage
     Task<PagedResult<AtomizerJob>> GetJobsAsync(JobQuery query, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Returns job counts grouped by status for the supplied query filters.
+    /// </summary>
+    /// <param name="query">The filter parameters to apply. Pagination and status filters are ignored.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>Job counts grouped by status.</returns>
+    Task<JobStatusCounts> GetJobStatusCountsAsync(JobQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Returns a single job by its identifier, including error history when supported by the backend.
     /// </summary>
     /// <param name="id">The unique job identifier.</param>

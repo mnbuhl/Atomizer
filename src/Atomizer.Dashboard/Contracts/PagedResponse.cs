@@ -6,4 +6,5 @@ internal sealed class PagedResponse<T>
     public int TotalCount { get; init; }
     public int Skip { get; init; }
     public int Take { get; init; }
+    public JobStatusCounts? StatusCounts { get; init; }
 }

@@ -380,9 +380,48 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         var take = Math.Min(query.Take, 500);
 
-        IEnumerable<AtomizerJob> jobs = _jobs.Values;
+        var jobs = ApplyJobQueryFilters(_jobs.Values, query, includeStatusFilter: true);
 
-        if (query.Statuses is { Count: > 0 })
+        var ordered = jobs.OrderByDescending(j => j.CreatedAt).ToList();
+        var total = ordered.Count;
+        var items = ordered.Skip(query.Skip).Take(take).ToList();
+
+        return Task.FromResult(
+            new PagedResult<AtomizerJob>
+            {
+                Items = items,
+                TotalCount = total,
+                Skip = query.Skip,
+                Take = take,
+            }
+        );
+    }
+
+    /// <inheritdoc/>
+    public Task<JobStatusCounts> GetJobStatusCountsAsync(JobQuery query, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var jobs = ApplyJobQueryFilters(_jobs.Values, query, includeStatusFilter: false).ToList();
+
+        return Task.FromResult(
+            new JobStatusCounts
+            {
+                Pending = jobs.Count(j => j.Status == AtomizerJobStatus.Pending),
+                Processing = jobs.Count(j => j.Status == AtomizerJobStatus.Processing),
+                Completed = jobs.Count(j => j.Status == AtomizerJobStatus.Completed),
+                Failed = jobs.Count(j => j.Status == AtomizerJobStatus.Failed),
+            }
+        );
+    }
+
+    private static IEnumerable<AtomizerJob> ApplyJobQueryFilters(
+        IEnumerable<AtomizerJob> jobs,
+        JobQuery query,
+        bool includeStatusFilter
+    )
+    {
+        if (includeStatusFilter && query.Statuses is { Count: > 0 })
             jobs = jobs.Where(j => query.Statuses.Contains(j.Status));
 
         if (query.QueueKey is not null)
@@ -400,19 +439,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         if (query.CreatedToUtc.HasValue)
             jobs = jobs.Where(j => j.CreatedAt <= query.CreatedToUtc.Value);
 
-        var ordered = jobs.OrderByDescending(j => j.CreatedAt).ToList();
-        var total = ordered.Count;
-        var items = ordered.Skip(query.Skip).Take(take).ToList();
-
-        return Task.FromResult(
-            new PagedResult<AtomizerJob>
-            {
-                Items = items,
-                TotalCount = total,
-                Skip = query.Skip,
-                Take = take,
-            }
-        );
+        return jobs;
     }
 
     /// <inheritdoc/>

@@ -183,6 +183,37 @@ public abstract class EntityFrameworkCoreStorageMonitoringTests<TDbContext> : IA
         otherStats.Pending.Should().Be(1);
     }
 
+    [Fact]
+    public async Task GetJobStatusCountsAsync_WhenQueryHasStatusFilter_ShouldIgnoreStatusAndApplyOtherFilters()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Clock.UtcNow.Returns(now);
+
+        var defaultQueue = QueueKey.Default;
+        var otherQueue = new QueueKey("other");
+
+        await using var db = CreateDbContext();
+        db.Set<AtomizerJobEntity>()
+            .AddRange(
+                CreateJobEntity(now, AtomizerEntityJobStatus.Pending, defaultQueue),
+                CreateJobEntity(now, AtomizerEntityJobStatus.Processing, defaultQueue),
+                CreateJobEntity(now, AtomizerEntityJobStatus.Failed, defaultQueue),
+                CreateJobEntity(now, AtomizerEntityJobStatus.Completed, otherQueue)
+            );
+        await db.SaveChangesAsync();
+
+        var result = await CreateStorage()
+            .GetJobStatusCountsAsync(
+                new JobQuery { QueueKey = defaultQueue, Statuses = [AtomizerJobStatus.Pending] },
+                CancellationToken.None
+            );
+
+        result.Pending.Should().Be(1);
+        result.Processing.Should().Be(1);
+        result.Completed.Should().Be(0);
+        result.Failed.Should().Be(1);
+    }
+
     private static AtomizerJobEntity CreateFailedJobEntity(DateTimeOffset now, QueueKey? queueKey = null) =>
         new AtomizerJobEntity
         {
@@ -197,5 +228,27 @@ public abstract class EntityFrameworkCoreStorageMonitoringTests<TDbContext> : IA
             CreatedAt = now,
             UpdatedAt = now,
             FailedAt = now,
+        };
+
+    private static AtomizerJobEntity CreateJobEntity(
+        DateTimeOffset now,
+        AtomizerEntityJobStatus status,
+        QueueKey queueKey
+    ) =>
+        new AtomizerJobEntity
+        {
+            Id = Guid.NewGuid(),
+            QueueKey = queueKey.ToString(),
+            PayloadType = typeof(object).AssemblyQualifiedName!,
+            Payload = "{}",
+            ScheduledAt = now,
+            Status = status,
+            Attempts = status == AtomizerEntityJobStatus.Pending ? 0 : 1,
+            RetryIntervals = [],
+            CreatedAt = now,
+            UpdatedAt = now,
+            CompletedAt = status == AtomizerEntityJobStatus.Completed ? now : null,
+            FailedAt = status == AtomizerEntityJobStatus.Failed ? now : null,
+            LeaseToken = status == AtomizerEntityJobStatus.Processing ? "server-1:*:default:*:lease" : null,
         };
 }
