@@ -69,7 +69,7 @@ public sealed class SqlServerDialectTests
             QueueKey.Default,
             typeof(object),
             "{}",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             DateTimeOffset.UtcNow
         );

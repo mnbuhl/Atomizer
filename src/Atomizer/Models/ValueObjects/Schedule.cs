@@ -53,34 +53,17 @@ public sealed class Schedule : ValueObject
     public static Schedule Default => new Schedule("*", "*", "*", "*", "*", "*");
 
     /// <summary>
-    /// Gets a schedule that fires every second.
+    /// Starts a fluent recurring schedule builder for schedules that run once per unit.
     /// </summary>
-    public static Schedule EverySecond => new Schedule("*", "*", "*", "*", "*", "*");
+    /// <returns>A builder that can translate a recurrence unit to a cron schedule.</returns>
+    public static ScheduleBuilder Every() => new ScheduleBuilder();
 
     /// <summary>
-    /// Gets a schedule that fires at the start of every minute.
+    /// Starts a fluent recurring schedule builder for interval-based schedules.
     /// </summary>
-    public static Schedule EveryMinute => new Schedule("0", "*", "*", "*", "*", "*");
-
-    /// <summary>
-    /// Gets a schedule that fires at the top of every hour.
-    /// </summary>
-    public static Schedule Hourly => new Schedule("0", "0", "*", "*", "*", "*");
-
-    /// <summary>
-    /// Gets a schedule that fires at midnight UTC every day.
-    /// </summary>
-    public static Schedule Daily => new Schedule("0", "0", "0", "*", "*", "*");
-
-    /// <summary>
-    /// Gets a schedule that fires at midnight UTC every Sunday.
-    /// </summary>
-    public static Schedule Weekly => new Schedule("0", "0", "0", "*", "*", "0");
-
-    /// <summary>
-    /// Gets a schedule that fires at midnight UTC on the 1st of each month.
-    /// </summary>
-    public static Schedule Monthly => new Schedule("0", "0", "0", "1", "*", "*");
+    /// <param name="interval">The positive interval between occurrences.</param>
+    /// <returns>A builder that can translate the interval to a cron schedule.</returns>
+    public static ScheduleIntervalBuilder Every(int interval) => new ScheduleIntervalBuilder(interval);
 
     /// <summary>
     /// Creates a <see cref="Schedule"/> from a 5- or 6-part cron expression string.
@@ -117,4 +100,32 @@ public sealed class Schedule : ValueObject
         yield return Month;
         yield return DayOfWeek;
     }
+
+    internal static void ValidateTime(int hour, int minute, int second)
+    {
+        if (hour is < 0 or > 23)
+        {
+            throw new ArgumentOutOfRangeException(nameof(hour), "Hour must be between 0 and 23.");
+        }
+
+        if (minute is < 0 or > 59)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minute), "Minute must be between 0 and 59.");
+        }
+
+        if (second is < 0 or > 59)
+        {
+            throw new ArgumentOutOfRangeException(nameof(second), "Second must be between 0 and 59.");
+        }
+    }
+
+    internal static void ValidateDayOfMonth(int dayOfMonth)
+    {
+        if (dayOfMonth is < 1 or > 31)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dayOfMonth), "Day of month must be between 1 and 31.");
+        }
+    }
+
+    internal static string ToCronDayOfWeek(DayOfWeek dayOfWeek) => ((int)dayOfWeek).ToString();
 }

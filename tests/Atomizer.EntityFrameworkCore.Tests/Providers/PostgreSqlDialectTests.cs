@@ -69,7 +69,7 @@ public sealed class PostgreSqlDialectTests
             QueueKey.Default,
             typeof(object),
             "{}",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             DateTimeOffset.UtcNow
         );

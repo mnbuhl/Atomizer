@@ -391,7 +391,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Due Schedule 1" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             pastTime
         );
@@ -400,7 +400,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Due Schedule 2" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             pastTime
         );
@@ -409,7 +409,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Not Due Schedule" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             futureTime
         );
@@ -445,7 +445,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Not Due Schedule" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             futureTime
         );
@@ -476,7 +476,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Due Schedule 1" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             pastTime
         );
@@ -485,7 +485,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Due Schedule 2" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             pastTime
         );
@@ -532,7 +532,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Schedule 1" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             now
         );
@@ -541,7 +541,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Schedule 2" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             now
         );
@@ -589,7 +589,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "New Schedule" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             now,
             partitionKey: new PartitionKey("scheduled-partition")
@@ -627,7 +627,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Original" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             now
         );
@@ -644,7 +644,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Updated" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             now
         );
@@ -668,7 +668,7 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
             QueueKey.Default,
             typeof(WriteLineMessage),
             """{ "message": "Initial Schedule" }""",
-            Schedule.EveryMinute,
+            Schedule.Every().Minute(),
             TimeZoneInfo.Utc,
             now
         );
