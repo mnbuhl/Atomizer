@@ -9,7 +9,6 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.8" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.8" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
@@ -17,5 +16,6 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\..\src\Atomizer.EntityFrameworkCore\Atomizer.EntityFrameworkCore.csproj" />
+        <ProjectReference Include="..\..\src\Atomizer.Dashboard\Atomizer.Dashboard.csproj" />
     </ItemGroup>
 </Project>

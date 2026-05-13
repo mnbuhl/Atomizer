@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFrameworks>net6.0;net8.0;net10.0</TargetFrameworks>
+        <PackageId>Atomizer.Dashboard</PackageId>
+        <Description>Atomizer.Dashboard provides a real-time monitoring dashboard for Atomizer background jobs and schedules</Description>
+        <PackageTags>jobs;queue;scheduler;dashboard;monitoring</PackageTags>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>14</LangVersion>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <EnablePackageValidation>true</EnablePackageValidation>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+    </PropertyGroup>
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+            <_Parameter1>Atomizer.Tests</_Parameter1>
+        </AssemblyAttribute>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+            <_Parameter1>Atomizer.Dashboard.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <ProjectReference Include="..\Atomizer\Atomizer.csproj" />
+    </ItemGroup>
+    <PropertyGroup>
+        <SpaProjectDir>$(MSBuildProjectDirectory)/frontend</SpaProjectDir>
+    </PropertyGroup>
+    <Target
+        Name="BuildSpa"
+        BeforeTargets="DispatchToInnerBuilds"
+        Condition=" '$(SkipSpaBuild)' != 'true' AND Exists('$(SpaProjectDir)/package.json') AND '$(TargetFramework)' == '' "
+        Inputs="$(SpaProjectDir)/package-lock.json;$(SpaProjectDir)/tsconfig.json;$(SpaProjectDir)/vite.config.ts"
+        Outputs="$(SpaProjectDir)/dist/index.html"
+    >
+        <Exec Command="node --version" ConsoleToMSBuild="true" />
+        <Exec Command="npm ci" WorkingDirectory="$(SpaProjectDir)" />
+        <Exec Command="npm run build" WorkingDirectory="$(SpaProjectDir)" />
+    </Target>
+    <ItemGroup>
+        <EmbeddedResource
+            Include="frontend/dist/**/*.*"
+            LogicalName="Atomizer.Dashboard.Spa.%(RecursiveDir)%(Filename)%(Extension)"
+        />
+    </ItemGroup>
+</Project>
