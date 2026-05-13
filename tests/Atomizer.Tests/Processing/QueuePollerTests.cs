@@ -20,6 +20,8 @@ namespace Atomizer.Tests.Processing
         private readonly LeaseToken _leaseToken = new LeaseToken("instance:*:default:*:lease");
         private readonly DateTimeOffset _now = DateTimeOffset.UtcNow;
 
+        private static TimeSpan Timeout => TimeSpan.FromSeconds(2);
+
         public QueuePollerTests()
         {
             _clock.UtcNow.Returns(_now);
@@ -59,17 +61,12 @@ namespace Atomizer.Tests.Processing
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(jobs);
 
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(100); // short run
-
             // Act
-            await _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+            var batches = await RunPollerUntilBatchesAsync(channel, expectedBatchCount: 2);
 
             // Assert
-            channel.Reader.TryRead(out var batch1).Should().BeTrue();
-            channel.Reader.TryRead(out var batch2).Should().BeTrue();
-            batch1!.Jobs.Should().ContainSingle().Which.Should().Be(jobs[0]);
-            batch2!.Jobs.Should().ContainSingle().Which.Should().Be(jobs[1]);
+            batches[0].Jobs.Should().ContainSingle().Which.Should().Be(jobs[0]);
+            batches[1].Jobs.Should().ContainSingle().Which.Should().Be(jobs[1]);
 
             _logger.Received().LogDebug($"Queue '{_queueOptions.QueueKey}' leasing {jobs.Count} job(s)");
         }
@@ -103,15 +100,12 @@ namespace Atomizer.Tests.Processing
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob> { second, first });
 
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(100);
-
             // Act
-            await _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+            var batches = await RunPollerUntilBatchesAsync(channel, expectedBatchCount: 1);
 
             // Assert
-            channel.Reader.TryRead(out var batch).Should().BeTrue();
-            batch!.Jobs.Select(j => j.Id).Should().ContainInOrder(first.Id, second.Id);
+            var batch = batches.Single();
+            batch.Jobs.Select(j => j.Id).Should().ContainInOrder(first.Id, second.Id);
             channel.Reader.TryRead(out _).Should().BeFalse();
         }
 
@@ -139,14 +133,10 @@ namespace Atomizer.Tests.Processing
                     }
                 );
 
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(100);
-
             // Act
-            await _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+            var batches = await RunPollerUntilBatchesAsync(channel, expectedBatchCount: 4);
 
             // Assert
-            var batches = ReadAllBatches(channel);
             batches.Should().HaveCount(4);
             batches.Where(batch => batch.FirstJob.PartitionKey == null).Should().HaveCount(2);
 
@@ -175,14 +165,11 @@ namespace Atomizer.Tests.Processing
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(jobs);
 
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(100);
-
             // Act
-            await _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+            var batches = await RunPollerUntilBatchesAsync(channel, expectedBatchCount: 2);
 
             // Assert
-            var writtenJobs = ReadAllBatches(channel).SelectMany(batch => batch.Jobs).ToList();
+            var writtenJobs = batches.SelectMany(batch => batch.Jobs).ToList();
             writtenJobs.Should().BeEquivalentTo(jobs);
             writtenJobs
                 .Should()
@@ -207,14 +194,10 @@ namespace Atomizer.Tests.Processing
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob> { defaultQueueJob, otherQueueJob });
 
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(100);
-
             // Act
-            await _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+            var batches = await RunPollerUntilBatchesAsync(channel, expectedBatchCount: 2);
 
             // Assert
-            var batches = ReadAllBatches(channel);
             batches.Should().HaveCount(2);
             batches.Should().OnlyContain(batch => batch.Count == 1);
             batches
@@ -302,15 +285,39 @@ namespace Atomizer.Tests.Processing
             return job;
         }
 
-        private static List<JobBatch> ReadAllBatches(Channel<JobBatch> channel)
+        private static async Task<List<JobBatch>> ReadBatchesAsync(Channel<JobBatch> channel, int expectedBatchCount)
         {
             var batches = new List<JobBatch>();
-            while (channel.Reader.TryRead(out var batch))
+            using var timeout = new CancellationTokenSource(Timeout);
+
+            while (batches.Count < expectedBatchCount)
             {
-                batches.Add(batch);
+                batches.Add(await channel.Reader.ReadAsync(timeout.Token));
             }
 
             return batches;
+        }
+
+        private async Task<List<JobBatch>> RunPollerUntilBatchesAsync(Channel<JobBatch> channel, int expectedBatchCount)
+        {
+            using var cts = new CancellationTokenSource();
+            var runTask = _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+
+            try
+            {
+                return await ReadBatchesAsync(channel, expectedBatchCount);
+            }
+            finally
+            {
+                cts.Cancel();
+                (await WaitOrTimeout(runTask, Timeout)).Should().BeTrue();
+            }
+        }
+
+        private static async Task<bool> WaitOrTimeout(Task task, TimeSpan timeout)
+        {
+            var completed = await Task.WhenAny(task, Task.Delay(timeout));
+            return completed == task && task.IsCompleted;
         }
     }
 }
