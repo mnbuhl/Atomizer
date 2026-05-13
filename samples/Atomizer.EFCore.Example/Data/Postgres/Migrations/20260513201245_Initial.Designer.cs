@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
 {
     [DbContext(typeof(ExamplePostgresContext))]
-    [Migration("20260505152231_Initial")]
+    [Migration("20260513201245_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -135,6 +135,9 @@ namespace Atomizer.EFCore.Example.Data.Postgres.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_AtomizerJobs_CreatedAt");
 
                     b.HasIndex("IdempotencyKey")
                         .HasDatabaseName("IX_AtomizerJobs_IdempotencyKey");

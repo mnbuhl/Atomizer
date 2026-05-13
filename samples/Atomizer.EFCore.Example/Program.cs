@@ -1,7 +1,6 @@
 using Atomizer;
 using Atomizer.EFCore.Example.Data.MySql;
 using Atomizer.EFCore.Example.Data.Postgres;
-using Atomizer.EFCore.Example.Data.Sqlite;
 using Atomizer.EFCore.Example.Data.SqlServer;
 using Atomizer.EFCore.Example.Entities;
 using Atomizer.EFCore.Example.Handlers;
@@ -52,10 +51,6 @@ builder.Services.AddDbContext<ExampleSqlServerContext>(o =>
         .EnableSensitiveDataLogging()
 );
 
-builder.Services.AddDbContext<ExampleSqliteContext>(o =>
-    o.UseSqlite("Data Source=example.db").EnableDetailedErrors().EnableSensitiveDataLogging()
-);
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -68,15 +63,9 @@ if (app.Environment.IsDevelopment())
 using var scope = app.Services.CreateScope();
 await using var postgres = scope.ServiceProvider.GetRequiredService<ExamplePostgresContext>();
 await using var mysql = scope.ServiceProvider.GetRequiredService<ExampleMySqlContext>();
-await using var sqlite = scope.ServiceProvider.GetRequiredService<ExampleSqliteContext>();
 await using var sqlServer = scope.ServiceProvider.GetRequiredService<ExampleSqlServerContext>();
 
-await Task.WhenAll(
-    postgres.Database.MigrateAsync(),
-    mysql.Database.MigrateAsync(),
-    sqlite.Database.MigrateAsync(),
-    sqlServer.Database.MigrateAsync()
-);
+await Task.WhenAll(postgres.Database.MigrateAsync(), mysql.Database.MigrateAsync(), sqlServer.Database.MigrateAsync());
 
 var atomizer = app.Services.GetRequiredService<IAtomizerClient>();
 

@@ -11,7 +11,8 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(name: "Atomizer");
+            migrationBuilder.EnsureSchema(
+                name: "Atomizer");
 
             migrationBuilder.CreateTable(
                 name: "AtomizerActiveServers",
@@ -19,13 +20,12 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                 columns: table => new
                 {
                     InstanceId = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: false),
-                    LastHeartbeatAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    LastHeartbeatAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerActiveServers", x => x.InstanceId);
-                }
-            );
+                });
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobs",
@@ -49,13 +49,12 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     ScheduleJobKey = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     IdempotencyKey = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
                     PartitionKey = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
-                    SequenceNumber = table.Column<long>(type: "bigint", nullable: true),
+                    SequenceNumber = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerJobs", x => x.Id);
-                }
-            );
+                });
 
             migrationBuilder.CreateTable(
                 name: "AtomizerSchedules",
@@ -77,13 +76,12 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     NextRunAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
                     LastEnqueueAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AtomizerSchedules", x => x.Id);
-                }
-            );
+                });
 
             migrationBuilder.CreateTable(
                 name: "Products",
@@ -93,13 +91,12 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Products", x => x.Id);
-                }
-            );
+                });
 
             migrationBuilder.CreateTable(
                 name: "AtomizerJobErrors",
@@ -113,7 +110,7 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                     ExceptionType = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
                     Attempt = table.Column<int>(type: "int", nullable: false),
-                    RuntimeIdentity = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    RuntimeIdentity = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -124,88 +121,92 @@ namespace Atomizer.EFCore.Example.Data.SqlServer.Migrations
                         principalSchema: "Atomizer",
                         principalTable: "AtomizerJobs",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                }
-            );
+                        onDelete: ReferentialAction.Cascade);
+                });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerActiveServers_LastHeartbeatAt_InstanceId",
                 schema: "Atomizer",
                 table: "AtomizerActiveServers",
-                columns: new[] { "LastHeartbeatAt", "InstanceId" }
-            );
+                columns: new[] { "LastHeartbeatAt", "InstanceId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobErrors_JobId",
                 schema: "Atomizer",
                 table: "AtomizerJobErrors",
-                column: "JobId"
-            );
+                column: "JobId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AtomizerJobs_CreatedAt",
+                schema: "Atomizer",
+                table: "AtomizerJobs",
+                column: "CreatedAt");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobs_IdempotencyKey",
                 schema: "Atomizer",
                 table: "AtomizerJobs",
-                column: "IdempotencyKey"
-            );
+                column: "IdempotencyKey");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobs_QueueKey_PartitionKey_SequenceNumber",
                 schema: "Atomizer",
                 table: "AtomizerJobs",
-                columns: new[] { "QueueKey", "PartitionKey", "SequenceNumber" }
-            );
+                columns: new[] { "QueueKey", "PartitionKey", "SequenceNumber" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobs_QueueKey_Status_Attempts_PartitionKey",
                 schema: "Atomizer",
                 table: "AtomizerJobs",
-                columns: new[] { "QueueKey", "Status", "Attempts", "PartitionKey" }
-            );
+                columns: new[] { "QueueKey", "Status", "Attempts", "PartitionKey" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobs_QueueKey_Status_ScheduledAt_Id",
                 schema: "Atomizer",
                 table: "AtomizerJobs",
-                columns: new[] { "QueueKey", "Status", "ScheduledAt", "Id" }
-            );
+                columns: new[] { "QueueKey", "Status", "ScheduledAt", "Id" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerJobs_Status_LeaseToken",
                 schema: "Atomizer",
                 table: "AtomizerJobs",
-                columns: new[] { "Status", "LeaseToken" }
-            );
+                columns: new[] { "Status", "LeaseToken" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerSchedules_Enabled_NextRunAt_Id",
                 schema: "Atomizer",
                 table: "AtomizerSchedules",
-                columns: new[] { "Enabled", "NextRunAt", "Id" }
-            );
+                columns: new[] { "Enabled", "NextRunAt", "Id" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AtomizerSchedules_JobKey",
                 schema: "Atomizer",
                 table: "AtomizerSchedules",
                 column: "JobKey",
-                unique: true
-            );
+                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "AtomizerActiveServers", schema: "Atomizer");
+            migrationBuilder.DropTable(
+                name: "AtomizerActiveServers",
+                schema: "Atomizer");
 
-            migrationBuilder.DropTable(name: "AtomizerJobErrors", schema: "Atomizer");
+            migrationBuilder.DropTable(
+                name: "AtomizerJobErrors",
+                schema: "Atomizer");
 
-            migrationBuilder.DropTable(name: "AtomizerSchedules", schema: "Atomizer");
+            migrationBuilder.DropTable(
+                name: "AtomizerSchedules",
+                schema: "Atomizer");
 
-            migrationBuilder.DropTable(name: "Products");
+            migrationBuilder.DropTable(
+                name: "Products");
 
-            migrationBuilder.DropTable(name: "AtomizerJobs", schema: "Atomizer");
+            migrationBuilder.DropTable(
+                name: "AtomizerJobs",
+                schema: "Atomizer");
         }
     }
 }
