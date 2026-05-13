@@ -17,11 +17,40 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
                   {{_jStatus}} = {{_statusProcessing}}
                   OR ({{_jStatus}} = {{_statusPending}} AND {{_jAttempts}} > 0)
                 )
+            ),
+            partition_heads AS (
+              SELECT ranked_partition_heads.{{_jPartitionKey}},
+                     ranked_partition_heads.{{_jScheduledAt}},
+                     ranked_partition_heads.{{_jCreatedAt}}
+              FROM (
+                SELECT h.{{_jPartitionKey}},
+                       h.{{_jScheduledAt}},
+                       h.{{_jCreatedAt}},
+                       ROW_NUMBER() OVER (
+                         PARTITION BY h.{{_jPartitionKey}}
+                         ORDER BY h.{{_jSequenceNumber}}, h.{{_jScheduledAt}}, h.{{_jCreatedAt}}, h.{{_jId}}
+                       ) AS rn
+                FROM {{_jTable}} AS h
+                LEFT JOIN blocked_partitions bp
+                  ON h.{{_jPartitionKey}} = bp.{{_jPartitionKey}}
+                WHERE h.{{_jQueueKey}} = {1}
+                  AND h.{{_jPartitionKey}} IS NOT NULL
+                  AND bp.{{_jPartitionKey}} IS NULL
+                  AND (
+                    (h.{{_jStatus}} = {{_statusPending}}
+                      AND (h.{{_jVisibleAt}} IS NULL OR h.{{_jVisibleAt}} <= {2})
+                      AND h.{{_jScheduledAt}} <= {3})
+                    OR (h.{{_jStatus}} = {{_statusProcessing}} AND h.{{_jVisibleAt}} <= {4})
+                  )
+              ) AS ranked_partition_heads
+              WHERE ranked_partition_heads.rn = 1
             )
             SELECT t.*
             FROM {{_jTable}} AS t
             LEFT JOIN blocked_partitions bp
               ON t.{{_jPartitionKey}} = bp.{{_jPartitionKey}}
+            LEFT JOIN partition_heads ph
+              ON t.{{_jPartitionKey}} = ph.{{_jPartitionKey}}
             WHERE t.{{_jQueueKey}} = {1}
               AND (t.{{_jPartitionKey}} IS NULL OR bp.{{_jPartitionKey}} IS NULL)
               AND (
@@ -30,7 +59,14 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
                   AND t.{{_jScheduledAt}} <= {3})
                 OR (t.{{_jStatus}} = {{_statusProcessing}} AND t.{{_jVisibleAt}} <= {4})
               )
-            ORDER BY t.{{_jScheduledAt}}, t.{{_jPartitionKey}}, t.{{_jSequenceNumber}}, t.{{_jId}}
+            ORDER BY
+              CASE WHEN t.{{_jPartitionKey}} IS NULL THEN t.{{_jScheduledAt}} ELSE ph.{{_jScheduledAt}} END,
+              CASE WHEN t.{{_jPartitionKey}} IS NULL THEN t.{{_jCreatedAt}} ELSE ph.{{_jCreatedAt}} END,
+              t.{{_jPartitionKey}},
+              t.{{_jSequenceNumber}},
+              t.{{_jScheduledAt}},
+              t.{{_jCreatedAt}},
+              t.{{_jId}}
             LIMIT {5}
             FOR NO KEY UPDATE SKIP LOCKED;
             """;

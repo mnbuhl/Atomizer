@@ -145,10 +145,42 @@ public sealed class InMemoryStorage : IAtomizerStorage
             )
             .Select(j => j!);
 
-        var candidates = eligible
-            .OrderBy(j => j.ScheduledAt)
-            .ThenBy(j => j.CreatedAt)
-            .ThenBy(j => j.SequenceNumber ?? long.MaxValue)
+        var unpartitionedCandidates = eligible
+            .Where(j => j.PartitionKey == null)
+            .Select(j => new DueJobCandidate(j, j.ScheduledAt, j.CreatedAt, string.Empty, long.MaxValue));
+
+        var partitionedCandidates = eligible
+            .Where(j => j.PartitionKey != null)
+            .GroupBy(j => j.PartitionKey!.Key)
+            .SelectMany(group =>
+            {
+                var orderedJobs = group
+                    .OrderBy(j => j.SequenceNumber ?? long.MaxValue)
+                    .ThenBy(j => j.ScheduledAt)
+                    .ThenBy(j => j.CreatedAt)
+                    .ThenBy(j => j.Id)
+                    .ToList();
+                var head = orderedJobs[0];
+
+                return orderedJobs.Select(j => new DueJobCandidate(
+                    j,
+                    head.ScheduledAt,
+                    head.CreatedAt,
+                    group.Key,
+                    j.SequenceNumber ?? long.MaxValue
+                ));
+            });
+
+        var candidates = unpartitionedCandidates
+            .Concat(partitionedCandidates)
+            .OrderBy(candidate => candidate.SortScheduledAt)
+            .ThenBy(candidate => candidate.SortCreatedAt)
+            .ThenBy(candidate => candidate.SortPartitionKey, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.SortSequenceNumber)
+            .ThenBy(candidate => candidate.Job.ScheduledAt)
+            .ThenBy(candidate => candidate.Job.CreatedAt)
+            .ThenBy(candidate => candidate.Job.Id)
+            .Select(candidate => candidate.Job)
             .Take(Math.Max(0, batchSize))
             .ToList();
 
@@ -166,6 +198,34 @@ public sealed class InMemoryStorage : IAtomizerStorage
         );
 
         return Task.FromResult((IReadOnlyList<AtomizerJob>)candidates);
+    }
+
+    private sealed class DueJobCandidate
+    {
+        public DueJobCandidate(
+            AtomizerJob job,
+            DateTimeOffset sortScheduledAt,
+            DateTimeOffset sortCreatedAt,
+            string sortPartitionKey,
+            long sortSequenceNumber
+        )
+        {
+            Job = job;
+            SortScheduledAt = sortScheduledAt;
+            SortCreatedAt = sortCreatedAt;
+            SortPartitionKey = sortPartitionKey;
+            SortSequenceNumber = sortSequenceNumber;
+        }
+
+        public AtomizerJob Job { get; }
+
+        public DateTimeOffset SortScheduledAt { get; }
+
+        public DateTimeOffset SortCreatedAt { get; }
+
+        public string SortPartitionKey { get; }
+
+        public long SortSequenceNumber { get; }
     }
 
     /// <inheritdoc/>

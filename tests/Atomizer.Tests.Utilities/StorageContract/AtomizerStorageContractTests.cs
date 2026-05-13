@@ -160,6 +160,32 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// FIFO-07: Batch size limits return a sequence-ordered prefix even when scheduled times
+    /// do not match insertion order.
+    /// </summary>
+    [Fact]
+    public async Task GetDueJobsAsync_WhenPartitionScheduledTimesAreNonMonotonic_ShouldReturnSequenceOrderedPrefix()
+    {
+        // Arrange
+        var partitionKey = new PartitionKey("non-monotonic-prefix-key");
+        var job1 = CreateJob(partitionKey: partitionKey, scheduledAt: _now);
+        var job2 = CreateJob(partitionKey: partitionKey, scheduledAt: _now.AddMinutes(-2));
+        var job3 = CreateJob(partitionKey: partitionKey, scheduledAt: _now.AddMinutes(-1));
+
+        await _sut.InsertAsync(job1, CancellationToken.None);
+        await _sut.InsertAsync(job2, CancellationToken.None);
+        await _sut.InsertAsync(job3, CancellationToken.None);
+
+        // Act
+        var result = await _sut.GetDueJobsAsync(QueueKey.Default, _now, batchSize: 2, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Select(j => j.Id).Should().ContainInOrder(job1.Id, job2.Id);
+        result.Should().NotContain(j => j.Id == job3.Id);
+    }
+
+    /// <summary>
     /// FIFO-07: A zero batch size returns no jobs even when jobs are eligible.
     /// </summary>
     [Fact]
@@ -472,7 +498,8 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
     private AtomizerJob CreateJob(
         PartitionKey? partitionKey = null,
         string? idempotencyKey = null,
-        QueueKey? queueKey = null
+        QueueKey? queueKey = null,
+        DateTimeOffset? scheduledAt = null
     )
     {
         return AtomizerJob.Create(
@@ -480,7 +507,7 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
             typeof(WriteLineJob),
             "{}",
             _now,
-            _now,
+            scheduledAt ?? _now,
             idempotencyKey: idempotencyKey,
             partitionKey: partitionKey
         );
