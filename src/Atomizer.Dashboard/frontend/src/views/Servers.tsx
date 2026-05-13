@@ -7,6 +7,8 @@ import {
     Panel,
     RelativeTime,
     StatusPill,
+    ui,
+    cx,
 } from '../components/DashboardUi';
 import { useNow } from '../hooks/useNow';
 
@@ -24,7 +26,7 @@ export default function Servers() {
                 title="Servers"
                 description="Worker identities with latest heartbeat state and stale highlighting."
                 actions={
-                    <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
+                    <div className={ui.toolbarPill}>
                         Updated <RelativeTime value={dataUpdatedAt || null} now={now} />
                     </div>
                 }
@@ -37,25 +39,25 @@ export default function Servers() {
             </div>
 
             <Panel>
-                <div className="border-b border-slate-200/80 p-5">
-                    <h2 className="text-base font-semibold text-slate-950">Server heartbeat table</h2>
-                    <p className="mt-1 text-sm text-slate-500">Each worker appears once with its latest heartbeat.</p>
+                <div className={ui.panelHeading}>
+                    <h2 className={ui.sectionTitle}>Server heartbeat table</h2>
+                    <p className={ui.sectionDescription}>Each worker appears once with its latest heartbeat.</p>
                 </div>
 
-                {isLoading && <div className="p-8 text-sm text-slate-500">Loading servers…</div>}
-                {error && <div className="p-8 text-sm font-medium text-rose-600">Error loading servers.</div>}
+                {isLoading && <div className={ui.loading}>Loading servers…</div>}
+                {error && <div className={ui.error}>Error loading servers.</div>}
                 {data && (
                     <>
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[560px] text-left text-sm">
                                 <thead>
-                                    <tr className="border-b border-slate-200/80 bg-slate-50/80 text-xs uppercase tracking-[0.16em] text-slate-400">
+                                    <tr className={ui.tableHeadRow}>
                                         <th className="px-5 py-4 font-semibold">Server identity</th>
                                         <th className="px-5 py-4 font-semibold">State</th>
                                         <th className="px-5 py-4 font-semibold">Last heartbeat</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className={ui.tableBody}>
                                     {servers.map(server => {
                                         const ageSeconds = getAgeSeconds(server.lastHeartbeatAt, now, server.ageSeconds);
                                         const isStale = ageSeconds > 60;
@@ -63,11 +65,11 @@ export default function Servers() {
                                         const hasExpandedIdentity = instanceName !== server.instanceId;
 
                                         return (
-                                            <tr key={server.instanceId} className="bg-white transition hover:bg-sky-50/60">
+                                            <tr key={server.instanceId} className={ui.tableRow}>
                                                 <td className="px-5 py-4">
-                                                    <div className="font-semibold text-slate-950">{instanceName}</div>
+                                                    <div className={cx(ui.strong, 'font-semibold')}>{instanceName}</div>
                                                     {hasExpandedIdentity && (
-                                                        <div className="mt-1 font-mono text-xs text-slate-400">
+                                                        <div className={cx(ui.soft, 'mt-1 font-mono text-xs')}>
                                                             {server.instanceId}
                                                         </div>
                                                     )}
@@ -75,7 +77,7 @@ export default function Servers() {
                                                 <td className="px-5 py-4">
                                                     <StatusPill status={isStale ? 'Stale' : 'Active'} />
                                                 </td>
-                                                <td className="px-5 py-4 text-slate-600">
+                                                <td className={cx(ui.defaultText, 'px-5 py-4')}>
                                                     <RelativeTime value={server.lastHeartbeatAt} now={now} />
                                                 </td>
                                             </tr>

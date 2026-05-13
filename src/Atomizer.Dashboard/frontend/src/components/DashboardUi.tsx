@@ -4,13 +4,13 @@ import { formatAbsoluteDateTime, formatRelativeTime } from '../utils/time';
 type Tone = 'slate' | 'blue' | 'green' | 'red' | 'amber' | 'purple' | 'cyan';
 
 const toneClasses: Record<Tone, string> = {
-    slate: 'bg-slate-100 text-slate-700 ring-slate-200',
-    blue: 'bg-sky-100 text-sky-700 ring-sky-200',
-    green: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
-    red: 'bg-rose-100 text-rose-700 ring-rose-200',
-    amber: 'bg-amber-100 text-amber-800 ring-amber-200',
-    purple: 'bg-violet-100 text-violet-700 ring-violet-200',
-    cyan: 'bg-cyan-100 text-cyan-700 ring-cyan-200',
+    slate: 'status-pill--slate',
+    blue: 'status-pill--blue',
+    green: 'status-pill--green',
+    red: 'status-pill--red',
+    amber: 'status-pill--amber',
+    purple: 'status-pill--purple',
+    cyan: 'status-pill--cyan',
 };
 
 const statusTones: Record<string, Tone> = {
@@ -34,6 +34,37 @@ const compactNumberFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
 });
 
+export const ui = {
+    toolbarPill: 'toolbar-pill rounded-2xl px-3 py-2 text-xs font-medium',
+    primaryButton:
+        'button-primary rounded-2xl px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5 disabled:opacity-60',
+    secondaryButton: 'button-secondary rounded-2xl border px-4 py-2 text-sm font-semibold transition',
+    smallButton: 'button-secondary rounded-xl border px-3 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-40',
+    panelHeading: 'panel-heading p-5',
+    panelHeadingAccent: 'panel-heading panel-heading-accent p-5',
+    sectionTitle: 'section-title text-base font-semibold',
+    sectionDescription: 'text-muted mt-1 text-sm',
+    muted: 'text-muted',
+    soft: 'text-soft',
+    strong: 'text-strong',
+    defaultText: 'text-default',
+    fieldLabel: 'field-label text-xs font-semibold uppercase tracking-[0.18em]',
+    input: 'input-field mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none transition',
+    filterChip: 'filter-chip rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+    filterChipActive: 'filter-chip filter-chip-active rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+    tableHeadRow: 'table-head-row border-b text-xs uppercase tracking-[0.16em]',
+    tableBody: 'table-body divide-y',
+    tableRow: 'table-row transition',
+    interactiveTableRow:
+        'table-row group cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-300',
+    softChip: 'soft-chip rounded-full px-2.5 py-1 text-xs font-semibold',
+    softChipPurple: 'soft-chip soft-chip-purple rounded-full px-2 py-0.5 font-semibold',
+    rowAction: 'row-action mt-1 text-xs font-semibold opacity-0 transition group-hover:opacity-100 group-focus:opacity-100',
+    footer: 'table-footer flex flex-col gap-3 border-t px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between',
+    loading: 'text-muted p-8 text-sm',
+    error: 'danger-text p-8 text-sm font-medium',
+};
+
 export function cx(...classes: Array<string | false | null | undefined>): string {
     return classes.filter(Boolean).join(' ');
 }
@@ -54,13 +85,11 @@ export function PageHeader({
     actions?: ReactNode;
 }) {
     return (
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-sky-950 p-6 text-white shadow-2xl shadow-slate-950/25 ring-1 ring-white/10 md:flex md:items-end md:justify-between md:gap-4">
-            <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-sky-400/20 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-32 left-1/3 h-56 w-56 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="page-header relative overflow-hidden rounded-[2rem] border p-6 md:flex md:items-end md:justify-between md:gap-4">
             <div className="max-w-3xl">
-                {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">{eyebrow}</p>}
+                {eyebrow && <p className="page-eyebrow text-xs font-semibold uppercase tracking-[0.28em]">{eyebrow}</p>}
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white md:text-4xl">{title}</h1>
-                {description && <p className="mt-3 text-sm leading-6 text-slate-300 md:text-base">{description}</p>}
+                {description && <p className="page-description mt-3 text-sm leading-6 md:text-base">{description}</p>}
             </div>
             {actions && <div className="relative mt-5 flex flex-wrap items-center gap-3 md:mt-0">{actions}</div>}
         </div>
@@ -71,7 +100,7 @@ export function Panel({ children, className }: { children: ReactNode; className?
     return (
         <section
             className={cx(
-                'overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-950/10 ring-1 ring-white/80',
+                'panel-surface overflow-hidden rounded-3xl border',
                 className,
             )}
         >
@@ -102,11 +131,11 @@ export function MetricCard({
     };
 
     return (
-        <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/60 p-5 shadow-xl shadow-slate-950/10 ring-1 ring-white">
+        <div className="metric-card relative overflow-hidden rounded-3xl border p-5">
             <div className={cx('absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r', accentClasses[tone])} />
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">{label}</p>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</div>
-            {helper && <div className="mt-2 text-sm font-medium text-slate-600">{helper}</div>}
+            <p className="text-soft text-xs font-bold uppercase tracking-[0.24em]">{label}</p>
+            <div className="text-strong mt-3 text-3xl font-semibold tracking-tight">{value}</div>
+            {helper && <div className="text-muted mt-2 text-sm font-medium">{helper}</div>}
         </div>
     );
 }
@@ -115,7 +144,7 @@ export function StatusPill({ status, tone, className }: { status: string; tone?:
     return (
         <span
             className={cx(
-                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
+                'status-pill',
                 toneClasses[tone ?? statusTones[status] ?? 'slate'],
                 className,
             )}
@@ -154,11 +183,11 @@ export function RelativeTime({
 export function EmptyState({ title, description }: { title: string; description: string }) {
     return (
         <div className="py-16 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+            <div className="soft-chip mx-auto flex h-12 w-12 items-center justify-center rounded-2xl text-xl">
                 —
             </div>
-            <h3 className="mt-4 text-sm font-semibold text-slate-900">{title}</h3>
-            <p className="mt-1 text-sm text-slate-500">{description}</p>
+            <h3 className="text-strong mt-4 text-sm font-semibold">{title}</h3>
+            <p className="text-muted mt-1 text-sm">{description}</p>
         </div>
     );
 }

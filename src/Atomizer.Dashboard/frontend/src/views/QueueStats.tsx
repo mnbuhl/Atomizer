@@ -10,6 +10,7 @@ import {
     PageHeader,
     Panel,
     StatusPill,
+    ui,
 } from '../components/DashboardUi';
 
 export default function QueueStats() {
@@ -43,7 +44,7 @@ export default function QueueStats() {
                 title="Queues"
                 description="Compare backlog, active work, and failures across queues. Open a row to inspect jobs for that queue."
                 actions={
-                    <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
+                    <div className={ui.toolbarPill}>
                         Refresh every {statsRefreshMs / 1000}s
                     </div>
                 }
@@ -57,19 +58,19 @@ export default function QueueStats() {
             </div>
 
             <Panel>
-                <div className="border-b border-slate-200/80 p-5">
-                    <h2 className="text-base font-semibold text-slate-950">Queue workload table</h2>
-                    <p className="mt-1 text-sm text-slate-500">Counts are grouped by queue and job status.</p>
+                <div className={ui.panelHeading}>
+                    <h2 className={ui.sectionTitle}>Queue workload table</h2>
+                    <p className={ui.sectionDescription}>Counts are grouped by queue and job status.</p>
                 </div>
 
-                {isLoading && <div className="p-8 text-sm text-slate-500">Loading queue stats…</div>}
-                {error && <div className="p-8 text-sm font-medium text-rose-600">Error loading queue stats.</div>}
+                {isLoading && <div className={ui.loading}>Loading queue stats…</div>}
+                {error && <div className={ui.error}>Error loading queue stats.</div>}
                 {data && (
                     <>
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[780px] text-left text-sm">
                                 <thead>
-                                    <tr className="border-b border-slate-200/80 bg-slate-50/80 text-xs uppercase tracking-[0.16em] text-slate-400">
+                                    <tr className={ui.tableHeadRow}>
                                         <th className="px-5 py-4 font-semibold">Queue</th>
                                         <th className="px-5 py-4 font-semibold">State</th>
                                         <th className="px-5 py-4 font-semibold">Pending</th>
@@ -79,7 +80,7 @@ export default function QueueStats() {
                                         <th className="px-5 py-4 font-semibold">Work mix</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className={ui.tableBody}>
                                     {queues.map(queue => {
                                         const total = queue.pending + queue.processing + queue.completed + queue.failed;
                                         const hasBacklog = queue.pending > 0;
@@ -94,11 +95,11 @@ export default function QueueStats() {
                                                 aria-label={`Open jobs for queue ${queue.queueKey}`}
                                                 onClick={() => openQueueJobs(queue.queueKey)}
                                                 onKeyDown={event => handleRowKeyDown(event, queue.queueKey)}
-                                                className="group cursor-pointer bg-white/70 transition hover:bg-sky-50/70 focus:bg-sky-50/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-300"
+                                                className={ui.interactiveTableRow}
                                             >
                                                 <td className="px-5 py-4">
-                                                    <div className="font-semibold text-slate-950">{queue.queueKey}</div>
-                                                    <div className="mt-1 text-xs font-semibold text-sky-600 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                                                    <div className={cx(ui.strong, 'font-semibold')}>{queue.queueKey}</div>
+                                                    <div className={ui.rowAction}>
                                                         View jobs →
                                                     </div>
                                                 </td>
@@ -108,18 +109,18 @@ export default function QueueStats() {
                                                         tone={hasFailures ? 'red' : hasBacklog ? 'amber' : queue.processing > 0 ? 'green' : 'slate'}
                                                     />
                                                 </td>
-                                                <CountCell value={queue.pending} tone="text-amber-600" />
-                                                <CountCell value={queue.processing} tone="text-sky-600" />
-                                                <CountCell value={queue.completed} tone="text-emerald-600" />
-                                                <CountCell value={queue.failed} tone="text-rose-600" />
+                                                <CountCell value={queue.pending} tone="count-amber" />
+                                                <CountCell value={queue.processing} tone="count-sky" />
+                                                <CountCell value={queue.completed} tone="count-emerald" />
+                                                <CountCell value={queue.failed} tone="count-rose" />
                                                 <td className="px-5 py-4">
-                                                    <div className="flex h-2 w-40 overflow-hidden rounded-full bg-slate-100">
+                                                    <div className="flex h-2 w-40 overflow-hidden rounded-full bg-[var(--chip)]">
                                                         <WorkMixSegment value={queue.pending} total={total} className="bg-amber-400" />
                                                         <WorkMixSegment value={queue.processing} total={total} className="bg-sky-400" />
                                                         <WorkMixSegment value={queue.failed} total={total} className="bg-rose-400" />
                                                         <WorkMixSegment value={queue.completed} total={total} className="bg-emerald-400" />
                                                     </div>
-                                                    <div className="mt-1 text-xs text-slate-400">{formatNumber(total)} total</div>
+                                                    <div className={cx(ui.soft, 'mt-1 text-xs')}>{formatNumber(total)} total</div>
                                                 </td>
                                             </tr>
                                         );
@@ -142,7 +143,7 @@ export default function QueueStats() {
 }
 
 function CountCell({ value, tone }: { value: number; tone: string }) {
-    return <td className={cx('px-5 py-4 font-semibold tabular-nums', value > 0 ? tone : 'text-slate-400')}>{formatNumber(value)}</td>;
+    return <td className={cx('px-5 py-4 font-semibold tabular-nums', value > 0 ? tone : ui.soft)}>{formatNumber(value)}</td>;
 }
 
 function WorkMixSegment({ value, total, className }: { value: number; total: number; className: string }) {

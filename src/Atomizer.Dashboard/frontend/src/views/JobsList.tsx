@@ -13,6 +13,7 @@ import {
     Panel,
     RelativeTime,
     StatusPill,
+    ui,
 } from '../components/DashboardUi';
 import { useNow } from '../hooks/useNow';
 import { getJobPageWindow } from './jobsPagination';
@@ -76,12 +77,12 @@ export default function JobsList() {
                 description="A focused view of queued, running, completed, and failed jobs. Open a row to inspect payload and error history."
                 actions={
                     <>
-                        <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
+                        <div className={ui.toolbarPill}>
                             Updated <RelativeTime value={dataUpdatedAt || null} now={now} />
                         </div>
                         <button
                             onClick={() => refetch()}
-                            className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-60"
+                            className={ui.primaryButton}
                             disabled={isFetching}
                         >
                             {isFetching ? 'Refreshing…' : 'Refresh'}
@@ -118,11 +119,11 @@ export default function JobsList() {
             </div>
 
             <Panel>
-                <div className="border-b border-slate-200/70 bg-gradient-to-r from-white via-sky-50/60 to-violet-50/40 p-5">
+                <div className={ui.panelHeadingAccent}>
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                         <div>
-                            <h2 className="text-base font-semibold text-slate-950">Filters</h2>
-                            <p className="mt-1 text-sm text-slate-500">
+                            <h2 className={ui.sectionTitle}>Filters</h2>
+                            <p className={ui.sectionDescription}>
                                 Narrow the table without exposing noisy full date values.
                             </p>
                         </div>
@@ -133,10 +134,7 @@ export default function JobsList() {
                                     key={option.key}
                                     onClick={() => applyTimeFilter(option.key)}
                                     className={cx(
-                                        'rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset transition',
-                                        timeFilter === option.key
-                                            ? 'bg-slate-950 text-white ring-slate-950'
-                                            : 'bg-white text-slate-500 ring-slate-200 hover:bg-slate-50 hover:text-slate-900',
+                                        timeFilter === option.key ? ui.filterChipActive : ui.filterChip,
                                     )}
                                 >
                                     {option.label}
@@ -147,24 +145,22 @@ export default function JobsList() {
 
                     <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
                         <label className="block">
-                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Queue</span>
+                            <span className={ui.fieldLabel}>Queue</span>
                             <input
                                 type="text"
                                 placeholder="default"
-                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                                className={ui.input}
                                 value={filters.queue ?? ''}
                                 onChange={e => setFilters(f => ({ ...f, skip: 0, queue: e.target.value || undefined }))}
                             />
                         </label>
 
                         <label className="block">
-                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                Payload type
-                            </span>
+                            <span className={ui.fieldLabel}>Payload type</span>
                             <input
                                 type="text"
                                 placeholder="Namespace.JobPayload"
-                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                                className={ui.input}
                                 value={filters.payload ?? ''}
                                 onChange={e => setFilters(f => ({ ...f, skip: 0, payload: e.target.value || undefined }))}
                             />
@@ -172,7 +168,7 @@ export default function JobsList() {
 
                         <button
                             onClick={clearFilters}
-                            className="self-end rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                            className={cx(ui.secondaryButton, 'self-end px-4 py-3')}
                         >
                             Clear
                         </button>
@@ -193,12 +189,7 @@ export default function JobsList() {
                                                 : [...(f.status ?? []), status],
                                         }))
                                     }
-                                    className={cx(
-                                        'rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset transition',
-                                        active
-                                            ? 'bg-slate-950 text-white ring-slate-950'
-                                            : 'bg-slate-50 text-slate-500 ring-slate-200 hover:bg-white hover:text-slate-900',
-                                    )}
+                                    className={active ? ui.filterChipActive : ui.filterChip}
                                 >
                                     {status}
                                 </button>
@@ -207,14 +198,14 @@ export default function JobsList() {
                     </div>
                 </div>
 
-                {isLoading && <div className="p-8 text-sm text-slate-500">Loading jobs…</div>}
-                {error && <div className="p-8 text-sm font-medium text-rose-600">Error loading jobs.</div>}
+                {isLoading && <div className={ui.loading}>Loading jobs…</div>}
+                {error && <div className={ui.error}>Error loading jobs.</div>}
                 {data && (
                     <>
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[900px] text-left text-sm">
                                 <thead>
-                                    <tr className="border-b border-slate-200/80 bg-slate-50/80 text-xs uppercase tracking-[0.16em] text-slate-400">
+                                    <tr className={ui.tableHeadRow}>
                                         <th className="px-5 py-4 font-semibold">Job</th>
                                         <th className="px-5 py-4 font-semibold">Status</th>
                                         <th className="px-5 py-4 font-semibold">Queue / Partition</th>
@@ -223,7 +214,7 @@ export default function JobsList() {
                                         <th className="px-5 py-4 font-semibold">Payload</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className={ui.tableBody}>
                                     {data.items.map((job: JobDto) => (
                                         <tr
                                             key={job.id}
@@ -232,13 +223,13 @@ export default function JobsList() {
                                             aria-label={`Open job ${job.id}`}
                                             onClick={() => openJob(job.id)}
                                             onKeyDown={event => handleRowKeyDown(event, job.id)}
-                                            className="group cursor-pointer bg-white/70 transition hover:bg-sky-50/70 focus:bg-sky-50/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-300"
+                                            className={ui.interactiveTableRow}
                                         >
                                             <td className="px-5 py-4">
-                                                <div className="font-mono text-sm font-semibold text-slate-900">
+                                                <div className={cx(ui.strong, 'font-mono text-sm font-semibold')}>
                                                     {job.id.slice(0, 8)}…
                                                 </div>
-                                                <div className="mt-1 text-xs text-slate-400">
+                                                <div className={cx(ui.soft, 'mt-1 text-xs')}>
                                                     Created <RelativeTime value={job.createdAt} now={now} />
                                                 </div>
                                             </td>
@@ -246,27 +237,27 @@ export default function JobsList() {
                                                 <StatusPill status={job.status} />
                                             </td>
                                             <td className="px-5 py-4">
-                                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                                <span className={ui.softChip}>
                                                     {job.queueKey}
                                                 </span>
-                                                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                                                <div className={cx(ui.muted, 'mt-2 flex items-center gap-2 text-xs')}>
                                                     <span className="max-w-36 truncate">
                                                         {job.partitionKey ? `Partition ${job.partitionKey}` : 'Unpartitioned'}
                                                     </span>
                                                     {job.sequenceNumber !== null && (
-                                                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-600">
+                                                        <span className={ui.softChipPurple}>
                                                             #{formatNumber(job.sequenceNumber)}
                                                         </span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-5 py-4 text-slate-600">{formatNumber(job.attempts)}</td>
-                                            <td className="px-5 py-4 text-slate-600">
+                                            <td className={cx(ui.defaultText, 'px-5 py-4')}>{formatNumber(job.attempts)}</td>
+                                            <td className={cx(ui.defaultText, 'px-5 py-4')}>
                                                 <JobTiming job={job} now={now} />
                                             </td>
                                             <td className="max-w-xs px-5 py-4">
-                                                <div className="truncate text-slate-700">{job.payloadTypeName}</div>
-                                                <div className="mt-1 text-xs font-semibold text-sky-600 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                                                <div className={cx(ui.defaultText, 'truncate')}>{job.payloadTypeName}</div>
+                                                <div className={ui.rowAction}>
                                                     Open details →
                                                 </div>
                                             </td>
@@ -283,7 +274,7 @@ export default function JobsList() {
                             />
                         )}
 
-                        <div className="flex flex-col gap-3 border-t border-slate-200/80 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                        <div className={ui.footer}>
                             <span>
                                 Showing {pageWindow.label} of {formatNumber(data.totalCount)} matching jobs · page size{' '}
                                 {take} · auto-refresh{' '}
@@ -293,14 +284,14 @@ export default function JobsList() {
                                 <button
                                     disabled={filters.skip === 0}
                                     onClick={() => setPage(Math.max(0, (filters.skip ?? 0) - take))}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                    className={ui.smallButton}
                                 >
                                     ← Prev
                                 </button>
                                 <button
                                     disabled={(filters.skip ?? 0) + take >= data.totalCount}
                                     onClick={() => setPage((filters.skip ?? 0) + take)}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                    className={ui.smallButton}
                                 >
                                     Next →
                                 </button>

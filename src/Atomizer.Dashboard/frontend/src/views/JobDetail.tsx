@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { useJob } from '../api/hooks';
 import { routePrefix } from '../config';
-import { MetricCard, PageHeader, Panel, RelativeTime, StatusPill } from '../components/DashboardUi';
+import { cx, MetricCard, PageHeader, Panel, RelativeTime, StatusPill, ui } from '../components/DashboardUi';
 import { useNow } from '../hooks/useNow';
 
 export default function JobDetail() {
@@ -9,12 +9,12 @@ export default function JobDetail() {
     const now = useNow(15_000);
     const { data: job, isLoading, error } = useJob(id!);
 
-    if (isLoading) return <div className="rounded-3xl bg-white/90 p-8 text-sm text-slate-500">Loading job…</div>;
+    if (isLoading) return <Panel className={ui.loading}>Loading job…</Panel>;
     if (error || !job)
         return (
             <Panel className="p-8">
-                <p className="text-sm font-medium text-rose-600">Job not found.</p>
-                <Link to={`${routePrefix}/jobs`} className="mt-3 inline-block text-sm font-semibold text-sky-600 hover:text-sky-700">
+                <p className="danger-text text-sm font-medium">Job not found.</p>
+                <Link to={`${routePrefix}/jobs`} className="row-action mt-3 inline-block text-sm font-semibold opacity-100">
                     ← Back to jobs
                 </Link>
             </Panel>
@@ -41,7 +41,7 @@ export default function JobDetail() {
                         <StatusPill status={job.status} className="px-3 py-1.5 text-sm" />
                         <Link
                             to={`${routePrefix}/jobs`}
-                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
+                            className={ui.secondaryButton}
                         >
                             ← Jobs
                         </Link>
@@ -73,9 +73,9 @@ export default function JobDetail() {
             </div>
 
             <Panel>
-                <div className="border-b border-slate-200/80 bg-gradient-to-r from-white via-cyan-50/70 to-violet-50/60 p-5">
-                    <h2 className="text-base font-semibold text-slate-950">Timeline</h2>
-                    <p className="mt-1 text-sm text-slate-500">Relative job lifecycle timestamps.</p>
+                <div className={ui.panelHeadingAccent}>
+                    <h2 className={ui.sectionTitle}>Timeline</h2>
+                    <p className={ui.sectionDescription}>Relative job lifecycle timestamps.</p>
                 </div>
                 <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
                     <TimelineItem label="Created" value={job.createdAt} now={now} />
@@ -87,11 +87,11 @@ export default function JobDetail() {
 
             {formattedPayload && (
                 <Panel>
-                    <div className="border-b border-slate-200/80 bg-gradient-to-r from-white via-slate-50 to-sky-50/70 p-5">
-                        <h2 className="text-base font-semibold text-slate-950">Payload</h2>
-                        <p className="mt-1 text-sm text-slate-500">Formatted job payload for quick inspection.</p>
+                    <div className={ui.panelHeadingAccent}>
+                        <h2 className={ui.sectionTitle}>Payload</h2>
+                        <p className={ui.sectionDescription}>Formatted job payload for quick inspection.</p>
                     </div>
-                    <pre className="max-h-[34rem] overflow-auto bg-slate-950 p-5 text-xs leading-6 text-slate-100">
+                    <pre className="code-block max-h-[34rem] overflow-auto p-5 text-xs leading-6">
                         {formattedPayload}
                     </pre>
                 </Panel>
@@ -99,9 +99,9 @@ export default function JobDetail() {
 
             {job.errors.length > 0 && (
                 <Panel>
-                    <div className="border-b border-rose-100 bg-rose-50/80 p-5">
-                        <h2 className="text-base font-semibold text-rose-950">Error history</h2>
-                        <p className="mt-1 text-sm text-rose-700">
+                    <div className="danger-heading border-b p-5">
+                        <h2 className="danger-title text-base font-semibold">Error history</h2>
+                        <p className="danger-text mt-1 text-sm">
                             {job.errors.length} recorded failure{job.errors.length === 1 ? '' : 's'} across attempts.
                         </p>
                     </div>
@@ -109,23 +109,23 @@ export default function JobDetail() {
                         {job.errors.map(err => (
                             <details
                                 key={err.attempt}
-                                className="group overflow-hidden rounded-2xl border border-rose-100 bg-white shadow-sm shadow-rose-950/5"
+                                className="danger-card group overflow-hidden rounded-2xl border"
                             >
-                                <summary className="flex cursor-pointer list-none flex-col gap-2 px-4 py-3 text-sm font-semibold text-rose-900 transition hover:bg-rose-50 sm:flex-row sm:items-center sm:justify-between">
+                                <summary className="danger-title flex cursor-pointer list-none flex-col gap-2 px-4 py-3 text-sm font-semibold transition sm:flex-row sm:items-center sm:justify-between">
                                     <span>
                                         Attempt {err.attempt} · {err.exceptionType}
                                     </span>
-                                    <span className="text-xs font-medium text-rose-500">
+                                    <span className="danger-text text-xs font-medium">
                                         <RelativeTime value={err.occurredAt} now={now} />
                                     </span>
                                 </summary>
-                                <div className="space-y-3 border-t border-rose-100 px-4 pb-4 pt-3 text-sm">
-                                    <p className="text-rose-700">{err.message}</p>
+                                <div className="space-y-3 border-t border-[var(--danger-border)] px-4 pb-4 pt-3 text-sm">
+                                    <p className="danger-text">{err.message}</p>
                                     {err.runtimeIdentity && (
-                                        <p className="text-xs font-medium text-slate-500">Runtime: {err.runtimeIdentity}</p>
+                                        <p className={cx(ui.muted, 'text-xs font-medium')}>Runtime: {err.runtimeIdentity}</p>
                                     )}
                                     {err.stackTrace && (
-                                        <pre className="max-h-80 overflow-auto rounded-2xl border border-slate-200 bg-slate-950 p-4 text-xs leading-5 text-slate-100">
+                                        <pre className="code-block max-h-80 overflow-auto rounded-2xl border border-[var(--border-soft)] p-4 text-xs leading-5">
                                             {err.stackTrace}
                                         </pre>
                                     )}
@@ -151,9 +151,9 @@ function TimelineItem({
     empty?: string;
 }) {
     return (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--chip)] p-4">
+            <p className={cx(ui.soft, 'text-xs font-semibold uppercase tracking-[0.18em]')}>{label}</p>
+            <p className={cx(ui.strong, 'mt-2 text-sm font-semibold')}>
                 <RelativeTime value={value} now={now} fallback={empty} />
             </p>
         </div>

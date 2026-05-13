@@ -1,3 +1,4 @@
+import { useLayoutEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { routePrefix, title } from './config';
@@ -7,6 +8,7 @@ import SchedulesList from './views/SchedulesList';
 import QueueStats from './views/QueueStats';
 import Servers from './views/Servers';
 import { cx } from './components/DashboardUi';
+import { applyTheme, readStoredTheme, type ThemeMode, writeStoredTheme } from './theme';
 
 const queryClient = new QueryClient();
 const navItems = [
@@ -17,27 +19,43 @@ const navItems = [
 ];
 
 function AppShell() {
+    const [theme, setTheme] = useState<ThemeMode>(readStoredTheme);
+
+    useLayoutEffect(() => {
+        applyTheme(theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(currentTheme => {
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            writeStoredTheme(nextTheme);
+
+            return nextTheme;
+        });
+    };
+
     return (
-        <div className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-950">
-            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.22),_transparent_34rem),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.16),_transparent_30rem)]" />
-            <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-gradient-to-b from-white/10 to-transparent" />
+        <div className="app-shell min-h-screen overflow-x-hidden">
+            <div className="app-backdrop pointer-events-none fixed inset-0" />
+            <div className="app-top-sheen pointer-events-none fixed inset-x-0 top-0 h-64" />
 
             <div className="relative flex min-h-screen flex-col lg:flex-row">
                 <aside className="p-4 lg:w-80 lg:p-6">
                     <nav className="sticky top-6 space-y-4">
-                        <div className="rounded-[2rem] border border-white/15 bg-white/10 p-5 text-white shadow-2xl shadow-slate-950/20 backdrop-blur">
+                        <div className="brand-card rounded-[2rem] border p-5 backdrop-blur">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl font-black tracking-tight text-slate-950 shadow-lg shadow-sky-950/20">
+                                <div className="brand-logo flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-black tracking-tight shadow-lg shadow-sky-950/20">
                                     A
                                 </div>
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-200">Atomizer</p>
+                                    <p className="brand-eyebrow text-xs font-semibold uppercase tracking-[0.3em]">Atomizer</p>
                                     <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
                                 </div>
                             </div>
-                            <p className="mt-4 text-sm leading-6 text-slate-300">
+                            <p className="text-muted mt-4 text-sm leading-6">
                                 Real-time background job observability with queue, schedule, and worker heartbeat context.
                             </p>
+                            <ThemeSwitch theme={theme} onToggle={toggleTheme} />
                         </div>
 
                         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
@@ -47,19 +65,15 @@ function AppShell() {
                                         to={link.to}
                                         className={({ isActive }) =>
                                             cx(
-                                                'group flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition-all duration-200',
-                                                isActive
-                                                    ? 'active border-white/80 bg-white text-slate-950 shadow-xl shadow-slate-950/20'
-                                                    : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/30 hover:bg-white/10 hover:text-white',
+                                                'nav-item group flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition-all duration-200',
+                                                isActive && 'active',
                                             )
                                         }
                                     >
                                         <span className={cx('h-2.5 w-2.5 rounded-full shadow-sm', link.accent)} />
                                         <span>
                                             <span className="block font-semibold">{link.label}</span>
-                                            <span className="block text-xs text-slate-400 group-[.active]:text-slate-500">
-                                                {link.description}
-                                            </span>
+                                            <span className="nav-description block text-xs">{link.description}</span>
                                         </span>
                                     </NavLink>
                                 </li>
@@ -82,6 +96,31 @@ function AppShell() {
                 </main>
             </div>
         </div>
+    );
+}
+
+function ThemeSwitch({ theme, onToggle }: { theme: ThemeMode; onToggle: () => void }) {
+    const isLight = theme === 'light';
+
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={isLight}
+            aria-label={`Switch to ${isLight ? 'dark' : 'light'} mode`}
+            onClick={onToggle}
+            className="theme-switch mt-5 flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-semibold transition"
+        >
+            <span>{isLight ? 'Light mode' : 'Dark mode'}</span>
+            <span className="theme-switch-track relative h-6 w-11 rounded-full p-0.5">
+                <span
+                    className={cx(
+                        'theme-switch-thumb block h-5 w-5 rounded-full transition-transform duration-200',
+                        isLight && 'translate-x-5',
+                    )}
+                />
+            </span>
+        </button>
     );
 }
 

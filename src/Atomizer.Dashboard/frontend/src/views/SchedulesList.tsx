@@ -10,6 +10,8 @@ import {
     Panel,
     RelativeTime,
     StatusPill,
+    ui,
+    cx,
 } from '../components/DashboardUi';
 import { useNow } from '../hooks/useNow';
 
@@ -58,19 +60,19 @@ export default function SchedulesList() {
             </div>
 
             <Panel>
-                <div className="border-b border-slate-200/80 p-5">
-                    <h2 className="text-base font-semibold text-slate-950">Schedule table</h2>
-                    <p className="mt-1 text-sm text-slate-500">Open a row to see jobs created by that queue and payload type.</p>
+                <div className={ui.panelHeading}>
+                    <h2 className={ui.sectionTitle}>Schedule table</h2>
+                    <p className={ui.sectionDescription}>Open a row to see jobs created by that queue and payload type.</p>
                 </div>
 
-                {isLoading && <div className="p-8 text-sm text-slate-500">Loading schedules…</div>}
-                {error && <div className="p-8 text-sm font-medium text-rose-600">Error loading schedules.</div>}
+                {isLoading && <div className={ui.loading}>Loading schedules…</div>}
+                {error && <div className={ui.error}>Error loading schedules.</div>}
                 {data && (
                     <>
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[980px] text-left text-sm">
                                 <thead>
-                                    <tr className="border-b border-slate-200/80 bg-slate-50/80 text-xs uppercase tracking-[0.16em] text-slate-400">
+                                    <tr className={ui.tableHeadRow}>
                                         <th className="px-5 py-4 font-semibold">Job</th>
                                         <th className="px-5 py-4 font-semibold">Cron</th>
                                         <th className="px-5 py-4 font-semibold">Queue</th>
@@ -81,7 +83,7 @@ export default function SchedulesList() {
                                         <th className="px-5 py-4 font-semibold">State</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className={ui.tableBody}>
                                     {schedules.map(schedule => (
                                         <tr
                                             key={schedule.id}
@@ -92,32 +94,32 @@ export default function SchedulesList() {
                                             onKeyDown={event =>
                                                 handleRowKeyDown(event, schedule.queueKey, schedule.payloadTypeName)
                                             }
-                                            className="group cursor-pointer bg-white/70 transition hover:bg-sky-50/70 focus:bg-sky-50/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-300"
+                                            className={ui.interactiveTableRow}
                                         >
                                             <td className="px-5 py-4">
-                                                <div className="font-mono text-xs font-semibold text-slate-900">
+                                                <div className={cx(ui.strong, 'font-mono text-xs font-semibold')}>
                                                     {schedule.jobKey}
                                                 </div>
-                                                <div className="mt-1 text-xs font-semibold text-sky-600 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                                                <div className={ui.rowAction}>
                                                     View jobs →
                                                 </div>
                                             </td>
-                                            <td className="px-5 py-4 font-mono text-xs text-slate-600">{schedule.cron}</td>
+                                            <td className={cx(ui.defaultText, 'px-5 py-4 font-mono text-xs')}>{schedule.cron}</td>
                                             <td className="px-5 py-4">
-                                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                                <span className={ui.softChip}>
                                                     {schedule.queueKey}
                                                 </span>
                                             </td>
                                             <td className="max-w-xs px-5 py-4">
-                                                <div className="truncate text-slate-700">{schedule.payloadTypeName}</div>
+                                                <div className={cx(ui.defaultText, 'truncate')}>{schedule.payloadTypeName}</div>
                                             </td>
-                                            <td className="px-5 py-4 font-medium text-slate-700">
+                                            <td className={cx(ui.defaultText, 'px-5 py-4 font-medium')}>
                                                 <RelativeTime value={schedule.nextRunAt} now={now} fallback="Not planned" />
                                             </td>
-                                            <td className="px-5 py-4 text-slate-500">
+                                            <td className={cx(ui.muted, 'px-5 py-4')}>
                                                 <RelativeTime value={schedule.lastRunAt} now={now} fallback="Never" />
                                             </td>
-                                            <td className="px-5 py-4 text-slate-500">{schedule.misfirePolicy}</td>
+                                            <td className={cx(ui.muted, 'px-5 py-4')}>{schedule.misfirePolicy}</td>
                                             <td className="px-5 py-4">
                                                 <StatusPill status={schedule.enabled ? 'Enabled' : 'Disabled'} />
                                             </td>
