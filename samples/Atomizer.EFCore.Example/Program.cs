@@ -72,7 +72,7 @@ var atomizer = app.Services.GetRequiredService<IAtomizerClient>();
 await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
     "LoggerJob",
-    Schedule.EveryMinute
+    Schedule.Every(2).Minutes()
 );
 
 await atomizer.ScheduleRecurringAsync(
