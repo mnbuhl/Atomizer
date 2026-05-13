@@ -8,7 +8,7 @@ namespace Atomizer.Dashboard.StaticFiles;
 
 internal static class EmbeddedSpaFileProvider
 {
-    private static readonly Assembly _assembly = typeof(EmbeddedSpaFileProvider).Assembly;
+    private static readonly Assembly Assembly = typeof(EmbeddedSpaFileProvider).Assembly;
     private const string ResourcePrefix = "Atomizer.Dashboard.Spa.";
     private static string? _cachedIndexHtml;
 
@@ -21,7 +21,7 @@ internal static class EmbeddedSpaFileProvider
         var path = context.Request.Path.Value?.TrimStart('/') ?? string.Empty;
         var resourceName = ResourcePrefix + path.Replace('/', '.');
 
-        using var stream = _assembly.GetManifestResourceStream(resourceName);
+        using var stream = Assembly.GetManifestResourceStream(resourceName);
         if (stream is not null)
         {
             context.Response.ContentType = GetContentType(path);
@@ -46,7 +46,7 @@ internal static class EmbeddedSpaFileProvider
 
     private static string BuildIndexHtml(DashboardOptions options, string routePrefix)
     {
-        using var stream = _assembly.GetManifestResourceStream(ResourcePrefix + "index.html");
+        using var stream = Assembly.GetManifestResourceStream(ResourcePrefix + "index.html");
         if (stream is null)
             throw new InvalidOperationException("Embedded index.html not found in Atomizer.Dashboard assembly.");
 
@@ -61,7 +61,7 @@ internal static class EmbeddedSpaFileProvider
 
     private static string GetETag()
     {
-        var name = _assembly.GetName();
+        var name = Assembly.GetName();
         return $"\"{name.Version?.ToString() ?? name.FullName.GetHashCode().ToString("x")}\"";
     }
 
