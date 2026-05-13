@@ -1,3 +1,4 @@
+using Atomizer.Abstractions;
 using Atomizer.Storage;
 
 namespace Atomizer.Dashboard.Storage;
@@ -6,9 +7,9 @@ internal sealed class InMemoryDashboardStorage : IAtomizerDashboardStorage
 {
     private readonly InMemoryStorage _storage;
 
-    public InMemoryDashboardStorage(InMemoryStorage storage)
+    public InMemoryDashboardStorage(IAtomizerStorage storage)
     {
-        _storage = storage;
+        _storage = (InMemoryStorage)storage;
     }
 
     public Task<PagedResult<AtomizerJob>> GetJobsAsync(JobQuery query, CancellationToken cancellationToken)

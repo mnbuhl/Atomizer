@@ -18,8 +18,12 @@ internal static class EmbeddedSpaFileProvider
     /// </summary>
     public static async Task ServeAsync(HttpContext context, string routePrefix)
     {
-        var path = context.Request.Path.Value?.TrimStart('/') ?? string.Empty;
-        var resourceName = ResourcePrefix + path.Replace('/', '.');
+        var rawPath = context.Request.Path.Value ?? string.Empty;
+        var prefix = routePrefix.TrimEnd('/');
+        var path = rawPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? rawPath[prefix.Length..].TrimStart('/')
+            : rawPath.TrimStart('/');
+        var resourceName = ResourcePrefix + path;
 
         using var stream = Assembly.GetManifestResourceStream(resourceName);
         if (stream is not null)
@@ -50,9 +54,12 @@ internal static class EmbeddedSpaFileProvider
         if (stream is null)
             throw new InvalidOperationException("Embedded index.html not found in Atomizer.Dashboard assembly.");
 
+        var baseHref = routePrefix.TrimEnd('/') + "/";
+
         using var reader = new StreamReader(stream);
         return reader
             .ReadToEnd()
+            .Replace("<head>", $"<head>\n    <base href=\"{baseHref}\">")
             .Replace("{{ROUTE_PREFIX}}", routePrefix)
             .Replace("{{TITLE}}", options.Title)
             .Replace("{{STATS_REFRESH_MS}}", ((int)options.StatsRefreshInterval.TotalMilliseconds).ToString())
