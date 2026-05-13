@@ -3,9 +3,11 @@ import {
     EmptyState,
     formatNumber,
     MetricCard,
+    MetricCardSkeleton,
     PageHeader,
     Panel,
     RelativeTime,
+    TableSkeleton,
     StatusPill,
     ui,
     cx,
@@ -32,11 +34,19 @@ export default function Servers() {
                 }
             />
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <MetricCard label="Registered" value={formatNumber(servers.length)} helper="Workers seen by dashboard" tone="blue" />
-                <MetricCard label="Active" value={formatNumber(active)} helper="Heartbeat within 60s" tone="green" />
-                <MetricCard label="Stale" value={formatNumber(stale)} helper="Heartbeat older than 60s" tone="red" />
-            </div>
+            {isLoading ? (
+                <div className="grid gap-4 md:grid-cols-3">
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                </div>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-3">
+                    <MetricCard label="Registered" value={formatNumber(servers.length)} helper="Workers seen by dashboard" tone="blue" />
+                    <MetricCard label="Active" value={formatNumber(active)} helper="Heartbeat within 60s" tone="green" />
+                    <MetricCard label="Stale" value={formatNumber(stale)} helper="Heartbeat older than 60s" tone="red" />
+                </div>
+            )}
 
             <Panel>
                 <div className={ui.panelHeading}>
@@ -44,7 +54,7 @@ export default function Servers() {
                     <p className={ui.sectionDescription}>Each worker appears once with its latest heartbeat.</p>
                 </div>
 
-                {isLoading && <div className={ui.loading}>Loading servers…</div>}
+                {isLoading && <TableSkeleton columns={3} rows={4} />}
                 {error && <div className={ui.error}>Error loading servers.</div>}
                 {data && (
                     <>

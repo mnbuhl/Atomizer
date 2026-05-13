@@ -254,6 +254,27 @@ input:focus-visible {
     box-shadow: 0 18px 46px var(--shadow);
 }
 
+.skeleton-block {
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--chip) 72%, transparent),
+        color-mix(in srgb, var(--text-soft) 22%, transparent),
+        color-mix(in srgb, var(--chip) 72%, transparent)
+    );
+    background-size: 220% 100%;
+    animation: skeleton-pulse 1.35s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+    0% {
+        background-position: 120% 0;
+    }
+
+    100% {
+        background-position: -120% 0;
+    }
+}
+
 .panel-heading {
     border-color: var(--border-soft);
     background: var(--panel-header-subtle);

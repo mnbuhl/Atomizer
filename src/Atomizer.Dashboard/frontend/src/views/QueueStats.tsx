@@ -7,8 +7,10 @@ import {
     EmptyState,
     formatNumber,
     MetricCard,
+    MetricCardSkeleton,
     PageHeader,
     Panel,
+    TableSkeleton,
     StatusPill,
     ui,
 } from '../components/DashboardUi';
@@ -50,12 +52,21 @@ export default function QueueStats() {
                 }
             />
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label="Queues" value={formatNumber(queues.length)} helper="Configured queues with data" tone="blue" />
-                <MetricCard label="Pending" value={formatNumber(totals.pending)} helper="Total backlog" tone="amber" />
-                <MetricCard label="Processing" value={formatNumber(totals.processing)} helper="Active leases" tone="cyan" />
-                <MetricCard label="Failed" value={formatNumber(totals.failed)} helper="Completed with failure" tone="red" />
-            </div>
+            {isLoading ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                </div>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <MetricCard label="Queues" value={formatNumber(queues.length)} helper="Configured queues with data" tone="blue" />
+                    <MetricCard label="Pending" value={formatNumber(totals.pending)} helper="Total backlog" tone="amber" />
+                    <MetricCard label="Processing" value={formatNumber(totals.processing)} helper="Active leases" tone="cyan" />
+                    <MetricCard label="Failed" value={formatNumber(totals.failed)} helper="Completed with failure" tone="red" />
+                </div>
+            )}
 
             <Panel>
                 <div className={ui.panelHeading}>
@@ -63,7 +74,7 @@ export default function QueueStats() {
                     <p className={ui.sectionDescription}>Counts are grouped by queue and job status.</p>
                 </div>
 
-                {isLoading && <div className={ui.loading}>Loading queue stats…</div>}
+                {isLoading && <TableSkeleton columns={7} rows={5} />}
                 {error && <div className={ui.error}>Error loading queue stats.</div>}
                 {data && (
                     <>

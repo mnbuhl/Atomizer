@@ -61,7 +61,6 @@ export const ui = {
     softChipPurple: 'soft-chip soft-chip-purple rounded-full px-2 py-0.5 font-semibold',
     rowAction: 'row-action mt-1 text-xs font-semibold opacity-0 transition group-hover:opacity-100 group-focus:opacity-100',
     footer: 'table-footer flex flex-col gap-3 border-t px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between',
-    loading: 'text-muted p-8 text-sm',
     error: 'danger-text p-8 text-sm font-medium',
 };
 
@@ -140,6 +139,16 @@ export function MetricCard({
     );
 }
 
+export function MetricCardSkeleton() {
+    return (
+        <div className="metric-card relative overflow-hidden rounded-3xl border p-5">
+            <SkeletonBlock className="h-1.5 w-20" />
+            <SkeletonBlock className="mt-4 h-9 w-28" />
+            <SkeletonBlock className="mt-3 h-4 w-36" />
+        </div>
+    );
+}
+
 export function StatusPill({ status, tone, className }: { status: string; tone?: Tone; className?: string }) {
     return (
         <span
@@ -188,6 +197,40 @@ export function EmptyState({ title, description }: { title: string; description:
             </div>
             <h3 className="text-strong mt-4 text-sm font-semibold">{title}</h3>
             <p className="text-muted mt-1 text-sm">{description}</p>
+        </div>
+    );
+}
+
+export function SkeletonBlock({ className }: { className: string }) {
+    return <div aria-hidden="true" className={cx('skeleton-block rounded-full', className)} />;
+}
+
+export function TableSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }) {
+    return (
+        <div className="overflow-x-auto" aria-hidden="true">
+            <table className="w-full min-w-[720px] text-left text-sm">
+                <thead>
+                    <tr className={ui.tableHeadRow}>
+                        {Array.from({ length: columns }, (_, index) => (
+                            <th key={index} className="px-5 py-4">
+                                <SkeletonBlock className="h-3 w-20" />
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className={ui.tableBody}>
+                    {Array.from({ length: rows }, (_, rowIndex) => (
+                        <tr key={rowIndex} className={ui.tableRow}>
+                            {Array.from({ length: columns }, (_, columnIndex) => (
+                                <td key={columnIndex} className="px-5 py-4">
+                                    <SkeletonBlock className={columnIndex === 0 ? 'h-4 w-36' : 'h-4 w-24'} />
+                                    {columnIndex === 0 && <SkeletonBlock className="mt-2 h-3 w-24" />}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }

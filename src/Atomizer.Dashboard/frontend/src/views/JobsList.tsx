@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useJobs, useJobStatusCounts, type JobFilters } from '../api/hooks';
 import { routePrefix, jobsRefreshMs } from '../config';
@@ -9,12 +9,15 @@ import {
     EmptyState,
     formatNumber,
     MetricCard,
+    MetricCardSkeleton,
     PageHeader,
     Panel,
     RelativeTime,
+    TableSkeleton,
     StatusPill,
     ui,
 } from '../components/DashboardUi';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useNow } from '../hooks/useNow';
 import { getJobPageWindow } from './jobsPagination';
 
@@ -40,6 +43,10 @@ export default function JobsList() {
         payload: searchParams.get('payload') ?? undefined,
         status: searchParams.getAll('status').length > 0 ? searchParams.getAll('status') : undefined,
     }));
+    const [queueSearch, setQueueSearch] = useState(filters.queue ?? '');
+    const [payloadSearch, setPayloadSearch] = useState(filters.payload ?? '');
+    const debouncedQueueSearch = useDebouncedValue(queueSearch, 300);
+    const debouncedPayloadSearch = useDebouncedValue(payloadSearch, 300);
     const { data, isLoading, error, refetch, dataUpdatedAt, isFetching } = useJobs(filters);
     const { counts, isLoading: countsLoading } = useJobStatusCounts(filters);
 
@@ -50,6 +57,15 @@ export default function JobsList() {
 
     const setPage = (skip: number) => setFilters(f => ({ ...f, skip }));
     const openJob = (jobId: string) => navigate(`${routePrefix}/jobs/${jobId}`);
+
+    useEffect(() => {
+        setFilters(f => ({
+            ...f,
+            skip: 0,
+            queue: debouncedQueueSearch || undefined,
+            payload: debouncedPayloadSearch || undefined,
+        }));
+    }, [debouncedPayloadSearch, debouncedQueueSearch]);
 
     const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, jobId: string) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -66,6 +82,8 @@ export default function JobsList() {
 
     const clearFilters = () => {
         setTimeFilter('all');
+        setQueueSearch('');
+        setPayloadSearch('');
         setFilters({ skip: 0, take: PAGE_SIZE });
     };
 
@@ -92,30 +110,46 @@ export default function JobsList() {
             />
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard
-                    label="Matching jobs"
-                    value={formatNumber(data?.totalCount ?? 0, true)}
-                    helper={`${formatNumber(visibleCount)} visible on page ${currentPage}`}
-                    tone="blue"
-                />
-                <MetricCard
-                    label="Pending"
-                    value={countsLoading ? '—' : formatNumber(counts.Pending)}
-                    helper="Matching queued backlog"
-                    tone="amber"
-                />
-                <MetricCard
-                    label="Processing"
-                    value={countsLoading ? '—' : formatNumber(counts.Processing)}
-                    helper="Matching leased work"
-                    tone="cyan"
-                />
-                <MetricCard
-                    label="Failed"
-                    value={countsLoading ? '—' : formatNumber(counts.Failed)}
-                    helper="Matching jobs needing attention"
-                    tone="red"
-                />
+                {isLoading ? (
+                    <MetricCardSkeleton />
+                ) : (
+                    <MetricCard
+                        label="Matching jobs"
+                        value={formatNumber(data?.totalCount ?? 0, true)}
+                        helper={`${formatNumber(visibleCount)} visible on page ${currentPage}`}
+                        tone="blue"
+                    />
+                )}
+                {countsLoading ? (
+                    <MetricCardSkeleton />
+                ) : (
+                    <MetricCard
+                        label="Pending"
+                        value={formatNumber(counts.Pending)}
+                        helper="Matching queued backlog"
+                        tone="amber"
+                    />
+                )}
+                {countsLoading ? (
+                    <MetricCardSkeleton />
+                ) : (
+                    <MetricCard
+                        label="Processing"
+                        value={formatNumber(counts.Processing)}
+                        helper="Matching leased work"
+                        tone="cyan"
+                    />
+                )}
+                {countsLoading ? (
+                    <MetricCardSkeleton />
+                ) : (
+                    <MetricCard
+                        label="Failed"
+                        value={formatNumber(counts.Failed)}
+                        helper="Matching jobs needing attention"
+                        tone="red"
+                    />
+                )}
             </div>
 
             <Panel>
@@ -150,8 +184,8 @@ export default function JobsList() {
                                 type="text"
                                 placeholder="default"
                                 className={ui.input}
-                                value={filters.queue ?? ''}
-                                onChange={e => setFilters(f => ({ ...f, skip: 0, queue: e.target.value || undefined }))}
+                                value={queueSearch}
+                                onChange={e => setQueueSearch(e.target.value)}
                             />
                         </label>
 
@@ -161,8 +195,8 @@ export default function JobsList() {
                                 type="text"
                                 placeholder="Namespace.JobPayload"
                                 className={ui.input}
-                                value={filters.payload ?? ''}
-                                onChange={e => setFilters(f => ({ ...f, skip: 0, payload: e.target.value || undefined }))}
+                                value={payloadSearch}
+                                onChange={e => setPayloadSearch(e.target.value)}
                             />
                         </label>
 
@@ -198,7 +232,7 @@ export default function JobsList() {
                     </div>
                 </div>
 
-                {isLoading && <div className={ui.loading}>Loading jobs…</div>}
+                {isLoading && <TableSkeleton columns={6} rows={6} />}
                 {error && <div className={ui.error}>Error loading jobs.</div>}
                 {data && (
                     <>

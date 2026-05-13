@@ -6,9 +6,11 @@ import {
     EmptyState,
     formatNumber,
     MetricCard,
+    MetricCardSkeleton,
     PageHeader,
     Panel,
     RelativeTime,
+    TableSkeleton,
     StatusPill,
     ui,
     cx,
@@ -52,12 +54,21 @@ export default function SchedulesList() {
                 description="Cron-driven jobs with next run, last run, queue, and payload context in one operator table."
             />
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label="Schedules" value={formatNumber(schedules.length)} helper="Registered recurring jobs" tone="purple" />
-                <MetricCard label="Enabled" value={formatNumber(enabled)} helper="Allowed to enqueue work" tone="green" />
-                <MetricCard label="Paused" value={formatNumber(paused)} helper="Currently disabled" tone="slate" />
-                <MetricCard label="Due soon" value={formatNumber(dueSoon)} helper="Next hour" tone="amber" />
-            </div>
+            {isLoading ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                    <MetricCardSkeleton />
+                </div>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <MetricCard label="Schedules" value={formatNumber(schedules.length)} helper="Registered recurring jobs" tone="purple" />
+                    <MetricCard label="Enabled" value={formatNumber(enabled)} helper="Allowed to enqueue work" tone="green" />
+                    <MetricCard label="Paused" value={formatNumber(paused)} helper="Currently disabled" tone="slate" />
+                    <MetricCard label="Due soon" value={formatNumber(dueSoon)} helper="Next hour" tone="amber" />
+                </div>
+            )}
 
             <Panel>
                 <div className={ui.panelHeading}>
@@ -65,7 +76,7 @@ export default function SchedulesList() {
                     <p className={ui.sectionDescription}>Open a row to see jobs created by that queue and payload type.</p>
                 </div>
 
-                {isLoading && <div className={ui.loading}>Loading schedules…</div>}
+                {isLoading && <TableSkeleton columns={8} rows={5} />}
                 {error && <div className={ui.error}>Error loading schedules.</div>}
                 {data && (
                     <>

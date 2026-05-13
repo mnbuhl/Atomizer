@@ -1,7 +1,17 @@
 import { Link, useParams } from 'react-router-dom';
 import { useJob } from '../api/hooks';
 import { routePrefix } from '../config';
-import { cx, MetricCard, PageHeader, Panel, RelativeTime, StatusPill, ui } from '../components/DashboardUi';
+import {
+    cx,
+    MetricCard,
+    MetricCardSkeleton,
+    PageHeader,
+    Panel,
+    RelativeTime,
+    SkeletonBlock,
+    StatusPill,
+    ui,
+} from '../components/DashboardUi';
 import { useNow } from '../hooks/useNow';
 
 export default function JobDetail() {
@@ -9,7 +19,7 @@ export default function JobDetail() {
     const now = useNow(15_000);
     const { data: job, isLoading, error } = useJob(id!);
 
-    if (isLoading) return <Panel className={ui.loading}>Loading job…</Panel>;
+    if (isLoading) return <JobDetailSkeleton />;
     if (error || !job)
         return (
             <Panel className="p-8">
@@ -135,6 +145,39 @@ export default function JobDetail() {
                     </div>
                 </Panel>
             )}
+        </div>
+    );
+}
+
+function JobDetailSkeleton() {
+    return (
+        <div className="space-y-6">
+            <div className="page-header relative overflow-hidden rounded-[2rem] border p-6">
+                <SkeletonBlock className="h-3 w-28" />
+                <SkeletonBlock className="mt-4 h-10 w-48" />
+                <SkeletonBlock className="mt-4 h-4 w-80 max-w-full" />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <MetricCardSkeleton />
+                <MetricCardSkeleton />
+                <MetricCardSkeleton />
+                <MetricCardSkeleton />
+                <MetricCardSkeleton />
+            </div>
+
+            <Panel>
+                <div className={ui.panelHeadingAccent}>
+                    <SkeletonBlock className="h-5 w-24" />
+                    <SkeletonBlock className="mt-3 h-4 w-56" />
+                </div>
+                <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
+                    <SkeletonBlock className="h-20 rounded-2xl" />
+                    <SkeletonBlock className="h-20 rounded-2xl" />
+                    <SkeletonBlock className="h-20 rounded-2xl" />
+                    <SkeletonBlock className="h-20 rounded-2xl" />
+                </div>
+            </Panel>
         </div>
     );
 }
