@@ -34,8 +34,9 @@
     --chip: rgba(148, 163, 184, 0.13);
     --chip-hover: rgba(148, 163, 184, 0.2);
     --brand-card: linear-gradient(145deg, rgba(30, 41, 59, 0.74), rgba(15, 23, 42, 0.58));
-    --brand-logo-bg: #f8fafc;
-    --brand-logo-text: #020617;
+    --brand-logo-bg: linear-gradient(145deg, #ffffff, #edf7ff);
+    --brand-logo-border: rgba(226, 232, 240, 0.82);
+    --brand-logo-shadow: rgba(14, 116, 144, 0.24);
     --code-bg: #030712;
     --code-text: #e2e8f0;
     --danger-surface: rgba(127, 29, 29, 0.22);
@@ -77,8 +78,9 @@
     --chip: rgba(226, 232, 240, 0.85);
     --chip-hover: rgba(241, 245, 249, 0.98);
     --brand-card: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(224, 242, 254, 0.58));
-    --brand-logo-bg: #0f172a;
-    --brand-logo-text: #ffffff;
+    --brand-logo-bg: linear-gradient(145deg, #ffffff, #eef6ff);
+    --brand-logo-border: rgba(148, 163, 184, 0.36);
+    --brand-logo-shadow: rgba(15, 23, 42, 0.12);
     --code-bg: #0f172a;
     --code-text: #e2e8f0;
     --danger-surface: rgba(255, 241, 242, 0.92);
@@ -151,14 +153,29 @@ input:focus-visible {
 
 .brand-logo {
     background: var(--brand-logo-bg);
-    color: var(--brand-logo-text);
+    border: 1px solid var(--brand-logo-border);
+    box-shadow:
+        0 16px 34px var(--brand-logo-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
-.brand-eyebrow {
+.brand-logo-image {
+    display: block;
+    height: 100%;
+    filter: drop-shadow(0 5px 8px rgba(45, 41, 223, 0.16));
+    transform: scale(1.12);
+    width: 100%;
+}
+
+.brand-wordmark {
+    color: var(--text-strong);
+}
+
+.brand-subtitle {
     color: #7dd3fc;
 }
 
-[data-theme="light"] .brand-eyebrow {
+[data-theme="light"] .brand-subtitle {
     color: #0369a1;
 }
 

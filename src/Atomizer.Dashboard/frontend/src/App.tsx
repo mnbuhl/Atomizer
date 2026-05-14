@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { routePrefix, title } from './config';
+import atomizerLogoUrl from './assets/atomizer-logo.svg';
 import JobsList from './views/JobsList';
 import JobDetail from './views/JobDetail';
 import SchedulesList from './views/SchedulesList';
@@ -20,6 +21,7 @@ const navItems = [
 
 function AppShell() {
     const [theme, setTheme] = useState<ThemeMode>(readStoredTheme);
+    const productLabel = title === 'Atomizer Dashboard' ? 'Dashboard' : title;
 
     useLayoutEffect(() => {
         applyTheme(theme);
@@ -44,12 +46,12 @@ function AppShell() {
                     <nav className="sticky top-6 space-y-4">
                         <div className="brand-card rounded-[2rem] border p-5 backdrop-blur">
                             <div className="flex items-center gap-3">
-                                <div className="brand-logo flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-black tracking-tight shadow-lg shadow-sky-950/20">
-                                    A
+                                <div className="brand-logo flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] p-1">
+                                    <img className="brand-logo-image" src={atomizerLogoUrl} alt="" aria-hidden="true" />
                                 </div>
-                                <div>
-                                    <p className="brand-eyebrow text-xs font-semibold uppercase tracking-[0.3em]">Atomizer</p>
-                                    <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+                                <div className="min-w-0">
+                                    <p className="brand-wordmark text-xl font-bold leading-tight">Atomizer</p>
+                                    <h1 className="brand-subtitle truncate text-sm font-semibold leading-5">{productLabel}</h1>
                                 </div>
                             </div>
                             <p className="text-muted mt-4 text-sm leading-6">

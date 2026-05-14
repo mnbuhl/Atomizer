@@ -181,7 +181,7 @@ app.MapAtomizerDashboard("/atomizer");
 
 Then browse to `/atomizer` to inspect jobs, job details, schedules, queue statistics, and active worker heartbeats. The dashboard is read-only in the current release; it does not retry, cancel, or dead-letter jobs.
 
-![Atomizer Dashboard jobs view](assets/atomizer-dashboard-jobs.png)
+![Atomizer Dashboard jobs view](assets/atomizer-dashboard-logo-branding-dark.png)
 
 If no authorization filters are configured, dashboard requests are restricted to localhost by default. Add an `IAtomizerDashboardAuthorizationFilter` through `AddAtomizerDashboard(options => options.Authorization.Add(...))` before exposing it outside local development.
 
