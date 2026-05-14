@@ -90,7 +90,11 @@ export function PageHeader({
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white md:text-4xl">{title}</h1>
                 {description && <p className="page-description mt-3 text-sm leading-6 md:text-base">{description}</p>}
             </div>
-            {actions && <div className="relative mt-5 flex flex-wrap items-center gap-3 md:mt-0">{actions}</div>}
+            {actions && (
+                <div className="relative mt-5 flex flex-wrap items-center gap-3 sm:justify-end md:ml-6 md:mt-0 md:shrink-0 md:flex-col md:items-end">
+                    {actions}
+                </div>
+            )}
         </div>
     );
 }
