@@ -52,14 +52,14 @@ public sealed class BasicAuthenticationDashboardAuthorizationFilter : IAtomizerD
 
         if (!TryReadCredentials(context, out var username, out var password))
         {
-            Challenge(context);
+            DashboardAuthorizationChallenge.RegisterBasic(context, _options.Realm);
             return DashboardAuthorizationResult.Unauthorized;
         }
 
         if (await _validateCredentials(context, username, password))
             return DashboardAuthorizationResult.Authorized;
 
-        Challenge(context);
+        DashboardAuthorizationChallenge.RegisterBasic(context, _options.Realm);
         return DashboardAuthorizationResult.Unauthorized;
     }
 
@@ -111,12 +111,6 @@ public sealed class BasicAuthenticationDashboardAuthorizationFilter : IAtomizerD
         return true;
     }
 
-    private void Challenge(HttpContext context)
-    {
-        context.Response.Headers.WWWAuthenticate =
-            $"Basic realm=\"{EscapeHeaderValue(_options.Realm)}\", charset=\"UTF-8\"";
-    }
-
     private static bool FixedTimeEquals(string expected, string actual)
     {
         var expectedBytes = Encoding.UTF8.GetBytes(expected);
@@ -125,6 +119,4 @@ public sealed class BasicAuthenticationDashboardAuthorizationFilter : IAtomizerD
         return expectedBytes.Length == actualBytes.Length
             && CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
     }
-
-    private static string EscapeHeaderValue(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
 }

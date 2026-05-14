@@ -39,6 +39,18 @@ public class AuthorizationTests
     }
 
     [Fact]
+    public async Task GetJobs_WhenBasicAuthenticationRejects_ShouldReturn401WithChallenge()
+    {
+        using var host = new BasicAuthenticationTestHost();
+        var client = host.CreateClient();
+
+        var response = await client.GetAsync("/atomizer/api/jobs", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.Headers.WwwAuthenticate.Should().Contain(header => header.Scheme == "Basic");
+    }
+
+    [Fact]
     public async Task GetJobById_WhenAuthFilterRejectsForbidden_ShouldReturn403()
     {
         using var host = new DenyAllTestHost();

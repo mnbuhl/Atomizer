@@ -67,6 +67,20 @@ public sealed class UnauthorizedTestHost : DashboardHostBase
     protected override IAtomizerDashboardAuthorizationFilter AuthFilter { get; } = new UnauthorizedAuthFilter();
 }
 
+public sealed class BasicAuthenticationTestHost : DashboardHostBase
+{
+    protected override IAtomizerDashboardAuthorizationFilter AuthFilter { get; } = new UnauthorizedAuthFilter();
+
+    protected override void ConfigureDashboard(DashboardOptions options)
+    {
+        options.Authorization.RequireBasicAuthentication(
+            "operator",
+            "secret",
+            basicOptions => basicOptions.RequireHttps = false
+        );
+    }
+}
+
 public sealed class ClientRequestHeaderTestHost : DashboardHostBase
 {
     protected override IAtomizerDashboardAuthorizationFilter AuthFilter { get; } = new AlwaysAllowAuthFilter();

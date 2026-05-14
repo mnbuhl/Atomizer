@@ -28,7 +28,14 @@ internal static class DashboardAuthorizationFilter
                 return;
             }
 
-            context.Response.StatusCode = result == DashboardAuthorizationResult.Unauthorized ? 401 : 403;
+            if (result == DashboardAuthorizationResult.Unauthorized)
+            {
+                DashboardAuthorizationChallenge.Apply(context);
+                context.Response.StatusCode = 401;
+                return;
+            }
+
+            context.Response.StatusCode = 403;
         };
 
         return routeHandler;

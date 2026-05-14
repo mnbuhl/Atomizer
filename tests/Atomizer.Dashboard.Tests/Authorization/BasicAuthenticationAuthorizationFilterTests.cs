@@ -22,7 +22,7 @@ public class BasicAuthenticationAuthorizationFilterTests
     }
 
     [Fact]
-    public async Task AuthorizeAsync_WhenBasicAuthCredentialsDoNotMatch_ShouldReturnUnauthorizedAndChallenge()
+    public async Task AuthorizeAsync_WhenBasicAuthCredentialsDoNotMatchAndChallengeApplied_ShouldReturnUnauthorizedAndChallenge()
     {
         var options = new DashboardOptions();
         options.Authorization.RequireBasicAuthentication("operator", "secret");
@@ -31,8 +31,26 @@ public class BasicAuthenticationAuthorizationFilterTests
         var result = await options.Authorization.AuthorizeAsync(context);
 
         result.Should().Be(DashboardAuthorizationResult.Unauthorized);
+        context.Response.Headers.WWWAuthenticate.Should().BeEmpty();
+
+        DashboardAuthorizationChallenge.Apply(context);
+
         context.Response.Headers.WWWAuthenticate.ToString().Should().Contain("Basic");
         context.Response.Headers.WWWAuthenticate.ToString().Should().Contain("Atomizer Dashboard");
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_WhenBasicAuthRejectsButLaterFilterAuthorizes_ShouldNotWriteChallenge()
+    {
+        var options = new DashboardOptions();
+        options.Authorization.RequireBasicAuthentication("operator", "secret");
+        options.Authorization.Add(_ => DashboardAuthorizationResult.Authorized);
+        var context = CreateContext("operator", "wrong");
+
+        var result = await options.Authorization.AuthorizeAsync(context);
+
+        result.Should().Be(DashboardAuthorizationResult.Authorized);
+        context.Response.Headers.WWWAuthenticate.Should().BeEmpty();
     }
 
     [Fact]
