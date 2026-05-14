@@ -25,8 +25,9 @@ export default function QueueStats() {
             processing: acc.processing + queue.processing,
             completed: acc.completed + queue.completed,
             failed: acc.failed + queue.failed,
+            cancelled: acc.cancelled + queue.cancelled,
         }),
-        { pending: 0, processing: 0, completed: 0, failed: 0 },
+        { pending: 0, processing: 0, completed: 0, failed: 0, cancelled: 0 },
     );
 
     const openQueueJobs = (queueKey: string) =>
@@ -74,7 +75,7 @@ export default function QueueStats() {
                     <p className={ui.sectionDescription}>Counts are grouped by queue and job status.</p>
                 </div>
 
-                {isLoading && <TableSkeleton columns={7} rows={5} />}
+                {isLoading && <TableSkeleton columns={8} rows={5} />}
                 {error && <div className={ui.error}>Error loading queue stats.</div>}
                 {data && (
                     <>
@@ -88,12 +89,18 @@ export default function QueueStats() {
                                         <th className="px-5 py-4 font-semibold">Processing</th>
                                         <th className="px-5 py-4 font-semibold">Completed</th>
                                         <th className="px-5 py-4 font-semibold">Failed</th>
+                                        <th className="px-5 py-4 font-semibold">Cancelled</th>
                                         <th className="px-5 py-4 font-semibold">Work mix</th>
                                     </tr>
                                 </thead>
                                 <tbody className={ui.tableBody}>
                                     {queues.map(queue => {
-                                        const total = queue.pending + queue.processing + queue.completed + queue.failed;
+                                        const total =
+                                            queue.pending +
+                                            queue.processing +
+                                            queue.completed +
+                                            queue.failed +
+                                            queue.cancelled;
                                         const hasBacklog = queue.pending > 0;
                                         const hasFailures = queue.failed > 0;
                                         const state = hasFailures ? 'Attention' : hasBacklog ? 'Backlog' : queue.processing > 0 ? 'Active' : 'Idle';
@@ -124,11 +131,13 @@ export default function QueueStats() {
                                                 <CountCell value={queue.processing} tone="count-sky" />
                                                 <CountCell value={queue.completed} tone="count-emerald" />
                                                 <CountCell value={queue.failed} tone="count-rose" />
+                                                <CountCell value={queue.cancelled} tone="count-slate" />
                                                 <td className="px-5 py-4">
                                                     <div className="flex h-2 w-40 overflow-hidden rounded-full bg-[var(--chip)]">
                                                         <WorkMixSegment value={queue.pending} total={total} className="bg-amber-400" />
                                                         <WorkMixSegment value={queue.processing} total={total} className="bg-sky-400" />
                                                         <WorkMixSegment value={queue.failed} total={total} className="bg-rose-400" />
+                                                        <WorkMixSegment value={queue.cancelled} total={total} className="bg-slate-400" />
                                                         <WorkMixSegment value={queue.completed} total={total} className="bg-emerald-400" />
                                                     </div>
                                                     <div className={cx(ui.soft, 'mt-1 text-xs')}>{formatNumber(total)} total</div>

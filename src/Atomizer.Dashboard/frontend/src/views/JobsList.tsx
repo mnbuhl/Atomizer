@@ -1,7 +1,9 @@
-import type { KeyboardEvent } from 'react';
+import type { FormEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useJobs, type JobFilters } from '../api/hooks';
+import { api } from '../api/client';
+import { useJobs, useJobTypes, type JobFilters } from '../api/hooks';
 import { routePrefix, jobsRefreshMs } from '../config';
 import type { JobDto } from '../api/types';
 import {
@@ -21,8 +23,9 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useNow } from '../hooks/useNow';
 import { getJobPageWindow } from './jobsPagination';
 
-const STATUS_OPTIONS = ['Pending', 'Processing', 'Completed', 'Failed'] as const;
+const STATUS_OPTIONS = ['Pending', 'Processing', 'Completed', 'Failed', 'Cancelled'] as const;
 const PAGE_SIZE = 20;
+const QueueKeyDefault = 'default';
 const TIME_FILTERS = [
     { key: 'all', label: 'All time', getFrom: () => undefined },
     { key: '15m', label: '15m', getFrom: () => new Date(Date.now() - 15 * 60 * 1000).toISOString() },
@@ -34,7 +37,12 @@ const TIME_FILTERS = [
 export default function JobsList() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const now = useNow(1_000);
+    const [isTriggerOpen, setIsTriggerOpen] = useState(false);
+    const [triggerPayloadTypeId, setTriggerPayloadTypeId] = useState('');
+    const [triggerQueueKey, setTriggerQueueKey] = useState(QueueKeyDefault);
+    const [triggerPayload, setTriggerPayload] = useState('{\n  "message": ""\n}');
     const [timeFilter, setTimeFilter] = useState<(typeof TIME_FILTERS)[number]['key']>('all');
     const [filters, setFilters] = useState<JobFilters>(() => ({
         skip: 0,
@@ -48,7 +56,23 @@ export default function JobsList() {
     const debouncedQueueSearch = useDebouncedValue(queueSearch, 300);
     const debouncedPayloadSearch = useDebouncedValue(payloadSearch, 300);
     const { data, isLoading, error, refetch, dataUpdatedAt, isFetching } = useJobs(filters);
-    const counts = data?.statusCounts ?? { pending: 0, processing: 0, completed: 0, failed: 0 };
+    const { data: jobTypes = [] } = useJobTypes();
+    const counts = data?.statusCounts ?? { pending: 0, processing: 0, completed: 0, failed: 0, cancelled: 0 };
+    const retryMutation = useMutation({
+        mutationFn: api.retryJob,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+    });
+    const cancelMutation = useMutation({
+        mutationFn: api.cancelJob,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+    });
+    const triggerMutation = useMutation({
+        mutationFn: api.triggerJob,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+            setIsTriggerOpen(false);
+        },
+    });
 
     const take = filters.take ?? PAGE_SIZE;
     const currentPage = Math.floor((filters.skip ?? 0) / take) + 1;
@@ -67,11 +91,29 @@ export default function JobsList() {
         }));
     }, [debouncedPayloadSearch, debouncedQueueSearch]);
 
+    useEffect(() => {
+        if (!triggerPayloadTypeId && jobTypes.length > 0) {
+            setTriggerPayloadTypeId(jobTypes[0].id);
+        }
+    }, [jobTypes, triggerPayloadTypeId]);
+
     const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, jobId: string) => {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             openJob(jobId);
         }
+    };
+
+    const stopRowAction = (event: MouseEvent<HTMLButtonElement>) => event.stopPropagation();
+    const stopRowKeyboardAction = (event: KeyboardEvent<HTMLButtonElement>) => event.stopPropagation();
+
+    const submitTriggerJob = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        triggerMutation.mutate({
+            payloadTypeId: triggerPayloadTypeId,
+            queueKey: triggerQueueKey,
+            payload: triggerPayload,
+        });
     };
 
     const applyTimeFilter = (key: (typeof TIME_FILTERS)[number]['key']) => {
@@ -105,9 +147,79 @@ export default function JobsList() {
                         >
                             {isFetching ? 'Refreshing…' : 'Refresh'}
                         </button>
+                        <button
+                            onClick={() => setIsTriggerOpen(open => !open)}
+                            className={ui.secondaryButton}
+                            disabled={jobTypes.length === 0}
+                        >
+                            Trigger job
+                        </button>
                     </>
                 }
             />
+
+            {isTriggerOpen && (
+                <Panel>
+                    <form onSubmit={submitTriggerJob} className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_12rem]">
+                        <label className="block">
+                            <span className={ui.fieldLabel}>Payload type</span>
+                            <select
+                                className={ui.input}
+                                value={triggerPayloadTypeId}
+                                onChange={event => setTriggerPayloadTypeId(event.target.value)}
+                            >
+                                {jobTypes.map(option => (
+                                    <option key={option.id} value={option.id}>
+                                        {option.payloadTypeFullName}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="block">
+                            <span className={ui.fieldLabel}>Queue</span>
+                            <input
+                                type="text"
+                                className={ui.input}
+                                value={triggerQueueKey}
+                                onChange={event => setTriggerQueueKey(event.target.value)}
+                            />
+                        </label>
+
+                        <label className="block xl:col-span-2">
+                            <span className={ui.fieldLabel}>Payload JSON</span>
+                            <textarea
+                                className="input-field mt-2 h-44 w-full rounded-2xl border px-4 py-3 font-mono text-sm outline-none transition"
+                                value={triggerPayload}
+                                onChange={event => setTriggerPayload(event.target.value)}
+                            />
+                        </label>
+
+                        {triggerMutation.error && (
+                            <div className="danger-text text-sm font-medium xl:col-span-2">
+                                {triggerMutation.error.message}
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 xl:col-span-2">
+                            <button
+                                type="submit"
+                                className={ui.primaryButton}
+                                disabled={triggerMutation.isPending || !triggerPayloadTypeId}
+                            >
+                                {triggerMutation.isPending ? 'Triggering…' : 'Trigger'}
+                            </button>
+                            <button
+                                type="button"
+                                className={ui.secondaryButton}
+                                onClick={() => setIsTriggerOpen(false)}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </Panel>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {isLoading ? (
@@ -232,8 +344,13 @@ export default function JobsList() {
                     </div>
                 </div>
 
-                {isLoading && <TableSkeleton columns={6} rows={6} />}
+                {isLoading && <TableSkeleton columns={7} rows={6} />}
                 {error && <div className={ui.error}>Error loading jobs.</div>}
+                {(retryMutation.error || cancelMutation.error) && (
+                    <div className="danger-text border-t border-[var(--border-soft)] px-5 py-3 text-sm font-medium">
+                        {(retryMutation.error ?? cancelMutation.error)?.message}
+                    </div>
+                )}
                 {data && (
                     <>
                         <div className="overflow-x-auto">
@@ -246,6 +363,7 @@ export default function JobsList() {
                                         <th className="px-5 py-4 font-semibold">Attempts</th>
                                         <th className="px-5 py-4 font-semibold">Timing</th>
                                         <th className="px-5 py-4 font-semibold">Payload</th>
+                                        <th className="px-5 py-4 font-semibold">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className={ui.tableBody}>
@@ -295,6 +413,41 @@ export default function JobsList() {
                                                     Open details →
                                                 </div>
                                             </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {job.status === 'Failed' && (
+                                                        <button
+                                                            type="button"
+                                                            className={ui.smallButton}
+                                                            disabled={retryMutation.isPending}
+                                                            onKeyDown={stopRowKeyboardAction}
+                                                            onClick={event => {
+                                                                stopRowAction(event);
+                                                                retryMutation.mutate(job.id);
+                                                            }}
+                                                        >
+                                                            Retry
+                                                        </button>
+                                                    )}
+                                                    {job.status === 'Pending' && (
+                                                        <button
+                                                            type="button"
+                                                            className={ui.smallButton}
+                                                            disabled={cancelMutation.isPending}
+                                                            onKeyDown={stopRowKeyboardAction}
+                                                            onClick={event => {
+                                                                stopRowAction(event);
+                                                                cancelMutation.mutate(job.id);
+                                                            }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    )}
+                                                    {job.status !== 'Failed' && job.status !== 'Pending' && (
+                                                        <span className={cx(ui.muted, 'text-xs')}>No action</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -339,6 +492,14 @@ export default function JobsList() {
 }
 
 function JobTiming({ job, now }: { job: JobDto; now: number }) {
+    if (job.status === 'Cancelled') {
+        return (
+            <span>
+                Cancelled <RelativeTime value={job.updatedAt} now={now} />
+            </span>
+        );
+    }
+
     if (job.failedAt) {
         return (
             <span>

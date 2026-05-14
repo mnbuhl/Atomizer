@@ -360,7 +360,19 @@ public sealed class InMemoryStorage : IAtomizerStorage
         try
         {
             var now = _clock.UtcNow;
-            schedule.CreatedAt = schedule.CreatedAt == default ? now : schedule.CreatedAt;
+            if (_schedules.TryGetValue(schedule.JobKey, out var existing))
+            {
+                schedule.Id = existing.Id;
+                schedule.CreatedAt = existing.CreatedAt;
+                schedule.Enabled = existing.Enabled;
+                schedule.NextRunAt = existing.NextRunAt;
+                schedule.LastEnqueueAt = existing.LastEnqueueAt;
+            }
+            else
+            {
+                schedule.CreatedAt = schedule.CreatedAt == default ? now : schedule.CreatedAt;
+            }
+
             schedule.UpdatedAt = now;
             _schedules[schedule.JobKey] = schedule;
             _logger.LogDebug("UpsertSchedule: upserted schedule for jobKey={JobKey}", schedule.JobKey);
@@ -465,6 +477,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 Processing = jobs.Count(j => j.Status == AtomizerJobStatus.Processing),
                 Completed = jobs.Count(j => j.Status == AtomizerJobStatus.Completed),
                 Failed = jobs.Count(j => j.Status == AtomizerJobStatus.Failed),
+                Cancelled = jobs.Count(j => j.Status == AtomizerJobStatus.Cancelled),
             }
         );
     }
@@ -541,6 +554,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 Processing = g.Count(j => j.Status == AtomizerJobStatus.Processing),
                 Completed = g.Count(j => j.Status == AtomizerJobStatus.Completed),
                 Failed = g.Count(j => j.Status == AtomizerJobStatus.Failed),
+                Cancelled = g.Count(j => j.Status == AtomizerJobStatus.Cancelled),
             })
             .ToList();
 
@@ -614,7 +628,11 @@ public sealed class InMemoryStorage : IAtomizerStorage
 
         // Snapshot enumeration is safe on ConcurrentDictionary
         var terminal = _jobs
-            .Values.Where(j => j.Status == AtomizerJobStatus.Completed || j.Status == AtomizerJobStatus.Failed)
+            .Values.Where(j =>
+                j.Status == AtomizerJobStatus.Completed
+                || j.Status == AtomizerJobStatus.Failed
+                || j.Status == AtomizerJobStatus.Cancelled
+            )
             .OrderByDescending(j => j.UpdatedAt)
             .ToList();
 
@@ -647,7 +665,7 @@ public sealed class InMemoryStorage : IAtomizerStorage
         if (removed > 0)
         {
             _logger.LogDebug(
-                "Evicted {Count} completed/failed jobs; retaining {Retain} most-recent terminal jobs",
+                "Evicted {Count} terminal jobs; retaining {Retain} most-recent terminal jobs",
                 removed,
                 retain
             );

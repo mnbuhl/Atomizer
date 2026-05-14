@@ -183,10 +183,8 @@ internal sealed class PostgreSqlDialect(EntityMap jobs, EntityMap schedules) : B
                 {{_sTimeZone}} = EXCLUDED.{{_sTimeZone}},
                 {{_sMisfirePolicy}} = EXCLUDED.{{_sMisfirePolicy}},
                 {{_sMaxCatchUp}} = EXCLUDED.{{_sMaxCatchUp}},
-                {{_sEnabled}} = EXCLUDED.{{_sEnabled}},
                 {{_sPartitionKey}} = EXCLUDED.{{_sPartitionKey}},
                 {{_sRetryIntervals}} = EXCLUDED.{{_sRetryIntervals}},
-                {{_sNextRunAt}} = EXCLUDED.{{_sNextRunAt}},
                 {{_sUpdatedAt}} = EXCLUDED.{{_sUpdatedAt}};
             """;
         return FormattableStringFactory.Create(

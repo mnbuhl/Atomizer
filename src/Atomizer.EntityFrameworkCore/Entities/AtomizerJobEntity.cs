@@ -79,6 +79,9 @@ public enum AtomizerEntityJobStatus
 
     /// <summary>The job failed and all retry attempts have been exhausted.</summary>
     Failed = 4,
+
+    /// <summary>The job was cancelled before processing.</summary>
+    Cancelled = 5,
 }
 
 /// <summary>

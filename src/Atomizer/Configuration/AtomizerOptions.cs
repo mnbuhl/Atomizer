@@ -18,6 +18,12 @@ public sealed class AtomizerOptions
 
     internal List<QueueOptions> Queues { get; } = new List<QueueOptions>();
     internal List<ServiceDescriptor> Handlers { get; } = new List<ServiceDescriptor>();
+    private readonly List<AtomizerJobHandlerDescriptor> _jobHandlers = new List<AtomizerJobHandlerDescriptor>();
+
+    /// <summary>
+    /// Gets the registered job handler descriptors discovered through <see cref="AddHandlersFrom(Assembly[])"/>.
+    /// </summary>
+    public IReadOnlyList<AtomizerJobHandlerDescriptor> JobHandlers => _jobHandlers;
 
     /// <summary>
     /// Adds a named queue with optional configuration.
@@ -76,6 +82,11 @@ public sealed class AtomizerOptions
                 foreach (var handlerInterface in handlerInterfaces)
                 {
                     Handlers.Add(new ServiceDescriptor(handlerInterface, impl, ServiceLifetime.Scoped));
+                    var payloadType = handlerInterface.GenericTypeArguments[0];
+                    if (!_jobHandlers.Any(j => j.PayloadType == payloadType && j.HandlerType == impl))
+                    {
+                        _jobHandlers.Add(new AtomizerJobHandlerDescriptor(payloadType, impl));
+                    }
                 }
             }
         }

@@ -18,6 +18,7 @@ const statusTones: Record<string, Tone> = {
     Processing: 'blue',
     Completed: 'green',
     Failed: 'red',
+    Cancelled: 'slate',
     Enabled: 'green',
     Disabled: 'slate',
     Healthy: 'green',

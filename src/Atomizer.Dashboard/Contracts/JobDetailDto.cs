@@ -8,6 +8,7 @@ internal sealed class JobDetailDto
     public string Status { get; init; } = string.Empty;
     public int Attempts { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset UpdatedAt { get; init; }
     public DateTimeOffset ScheduledAt { get; init; }
     public DateTimeOffset? CompletedAt { get; init; }
     public DateTimeOffset? FailedAt { get; init; }
@@ -25,6 +26,7 @@ internal sealed class JobDetailDto
             Status = job.Status.ToString(),
             Attempts = job.Attempts,
             CreatedAt = job.CreatedAt,
+            UpdatedAt = job.UpdatedAt,
             ScheduledAt = job.ScheduledAt,
             CompletedAt = job.CompletedAt,
             FailedAt = job.FailedAt,

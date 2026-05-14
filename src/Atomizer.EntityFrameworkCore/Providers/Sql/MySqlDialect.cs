@@ -183,10 +183,8 @@ internal sealed class MySqlDialect(EntityMap jobs, EntityMap schedules) : BaseSq
                 {{_sTimeZone}} = VALUES({{_sTimeZone}}),
                 {{_sMisfirePolicy}} = VALUES({{_sMisfirePolicy}}),
                 {{_sMaxCatchUp}} = VALUES({{_sMaxCatchUp}}),
-                {{_sEnabled}} = VALUES({{_sEnabled}}),
                 {{_sPartitionKey}} = VALUES({{_sPartitionKey}}),
                 {{_sRetryIntervals}} = VALUES({{_sRetryIntervals}}),
-                {{_sNextRunAt}} = VALUES({{_sNextRunAt}}),
                 {{_sUpdatedAt}} = {15};
             """;
         return FormattableStringFactory.Create(

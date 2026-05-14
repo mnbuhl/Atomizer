@@ -147,10 +147,8 @@ internal sealed class SqlServerDialect(EntityMap jobs, EntityMap schedules) : Ba
                 {{_sTimeZone}} = {5},
                 {{_sMisfirePolicy}} = {6},
                 {{_sMaxCatchUp}} = {7},
-                {{_sEnabled}} = {8},
                 {{_sPartitionKey}} = {9},
                 {{_sRetryIntervals}} = {10},
-                {{_sNextRunAt}} = {11},
                 {{_sUpdatedAt}} = {12}
             WHEN NOT MATCHED THEN INSERT (
                 {{_sId}},

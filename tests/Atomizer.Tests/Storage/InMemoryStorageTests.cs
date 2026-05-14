@@ -223,6 +223,53 @@ namespace Atomizer.Tests.Storage
             schedules[schedule.JobKey].Should().Be(schedule);
         }
 
+        [Fact]
+        public async Task UpsertScheduleAsync_WhenScheduleExists_ShouldPreserveOperationalState()
+        {
+            // Arrange
+            var schedule = AtomizerSchedule.Create(
+                new JobKey("job1"),
+                QueueKey.Default,
+                typeof(string),
+                "payload",
+                Schedule.Default,
+                TimeZoneInfo.Utc,
+                _now,
+                enabled: true
+            );
+            await _sut.UpsertScheduleAsync(schedule, CancellationToken.None);
+            schedule.Disable(_now.AddMinutes(1));
+            schedule.NextRunAt = _now.AddHours(-1);
+            schedule.LastEnqueueAt = _now.AddHours(-2);
+            await _sut.UpdateSchedulesAsync([schedule], CancellationToken.None);
+
+            var registration = AtomizerSchedule.Create(
+                schedule.JobKey,
+                QueueKey.Default,
+                typeof(string),
+                "updated payload",
+                Schedule.Every().Minute(),
+                TimeZoneInfo.Utc,
+                _now.AddHours(1),
+                enabled: true
+            );
+
+            // Act
+            var id = await _sut.UpsertScheduleAsync(registration, CancellationToken.None);
+
+            // Assert
+            id.Should().Be(schedule.Id);
+            var schedules = NonPublicSpy.GetFieldValue<InMemoryStorage, Dictionary<JobKey, AtomizerSchedule>>(
+                "_schedules",
+                _sut
+            );
+            var stored = schedules[schedule.JobKey];
+            stored.Enabled.Should().BeFalse();
+            stored.NextRunAt.Should().Be(_now.AddHours(-1));
+            stored.LastEnqueueAt.Should().Be(_now.AddHours(-2));
+            stored.Payload.Should().Be("updated payload");
+        }
+
         /// <summary>
         /// Verifies that LeaseDueSchedulesAsync leases due schedules and updates their state.
         /// </summary>

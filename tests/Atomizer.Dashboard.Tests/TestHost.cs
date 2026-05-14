@@ -28,6 +28,7 @@ public abstract class DashboardHostBase : WebApplicationFactory<Program>
                     {
                         options.UseInMemoryStorage();
                         options.AddQueue("test-queue", _ => { });
+                        options.AddHandlersFrom(typeof(DashboardHostBase).Assembly);
                     });
                     services.AddSingleton(sp =>
                         (Atomizer.Storage.InMemoryStorage)sp.GetRequiredService<IAtomizerStorage>()
@@ -105,4 +106,14 @@ public sealed class UnauthorizedAuthFilter : IAtomizerDashboardAuthorizationFilt
 internal sealed class AlwaysAllowAuthFilter : IAtomizerDashboardAuthorizationFilter
 {
     public DashboardAuthorizationResult Authorize(HttpContext context) => DashboardAuthorizationResult.Authorized;
+}
+
+internal sealed class DashboardActionPayload
+{
+    public string Message { get; init; } = string.Empty;
+}
+
+internal sealed class DashboardActionJob : IAtomizerJob<DashboardActionPayload>
+{
+    public Task HandleAsync(DashboardActionPayload payload, JobContext context) => Task.CompletedTask;
 }

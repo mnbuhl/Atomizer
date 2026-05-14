@@ -1,5 +1,6 @@
 using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Endpoints;
+using Atomizer.Dashboard.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -24,6 +25,7 @@ public static class DashboardServiceCollectionExtensions
     )
     {
         services.AddOptions<DashboardOptions>().Configure(configure ?? (_ => { }));
+        services.TryAddScoped<DashboardCommandService>();
         services.TryAddScoped<JobsEndpointHandler>();
         services.TryAddScoped<SchedulesEndpointHandler>();
         services.TryAddScoped<QueueStatsEndpointHandler>();
