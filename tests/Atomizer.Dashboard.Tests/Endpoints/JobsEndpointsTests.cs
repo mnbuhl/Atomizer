@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Atomizer.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -244,6 +245,24 @@ public class JobsEndpointsTests : IClassFixture<DashboardTestHost>
         job!.QueueKey.Should().Be(new QueueKey("test-queue"));
         job.Payload.Should().Be("""{"message":"from-dashboard"}""");
         job.PayloadType.Should().Be(typeof(DashboardActionPayload));
+    }
+
+    [Fact]
+    public async Task TriggerJob_WhenRequestBodyMalformedJson_ShouldReturnBadRequest()
+    {
+        using var freshHost = new DashboardTestHost();
+        var client = freshHost.CreateClient();
+        using var content = new StringContent("{", Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync(
+            "/atomizer/api/jobs/trigger",
+            content,
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.Should().Contain("Malformed JSON request body.");
     }
 
     private static async Task InsertJobAsync(InMemoryStorage storage, QueueKey queue, AtomizerJobStatus status)

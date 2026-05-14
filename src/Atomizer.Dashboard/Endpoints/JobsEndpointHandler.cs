@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Atomizer.Abstractions;
 using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Contracts;
@@ -116,14 +117,23 @@ internal sealed class JobsEndpointHandler
 
     public async Task TriggerAsync(HttpContext context)
     {
-        var request = await context.Request.ReadFromJsonAsync<TriggerJobRequest>(
-            DashboardJsonOptions.CamelCase,
-            context.RequestAborted
-        );
+        TriggerJobRequest? request;
+        try
+        {
+            request = await context.Request.ReadFromJsonAsync<TriggerJobRequest>(
+                DashboardJsonOptions.CamelCase,
+                context.RequestAborted
+            );
+        }
+        catch (JsonException)
+        {
+            await WriteBadRequestAsync(context, "Malformed JSON request body.");
+            return;
+        }
 
         if (request is null)
         {
-            context.Response.StatusCode = 400;
+            await WriteBadRequestAsync(context, "Request body is required.");
             return;
         }
 
@@ -133,6 +143,12 @@ internal sealed class JobsEndpointHandler
 
     private static bool TryGetJobId(HttpContext context, out Guid id) =>
         Guid.TryParse(context.Request.RouteValues["id"]?.ToString(), out id);
+
+    private static Task WriteBadRequestAsync(HttpContext context, string message)
+    {
+        context.Response.StatusCode = 400;
+        return DashboardJsonResponse.WriteAsync(context, new { error = message }, context.RequestAborted);
+    }
 
     private static async Task WriteCommandResultAsync<T>(HttpContext context, DashboardCommandResult<T> result)
     {

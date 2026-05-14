@@ -93,7 +93,15 @@ internal sealed class DashboardCommandService
             return DashboardCommandResult<JobActionResponse>.Conflict("Only pending jobs can be cancelled.");
         }
 
-        job.Cancel(_clock.UtcNow);
+        try
+        {
+            job.Cancel(_clock.UtcNow);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return DashboardCommandResult<JobActionResponse>.Conflict(ex.Message);
+        }
+
         await _storage.UpdateJobsAsync([job], cancellationToken);
         return DashboardCommandResult<JobActionResponse>.Ok(JobActionResponse.From(job));
     }
