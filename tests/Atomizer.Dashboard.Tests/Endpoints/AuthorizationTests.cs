@@ -50,4 +50,17 @@ public class AuthorizationTests
         );
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task Index_WhenClientRequestHeaderConfigured_ShouldRenderApiRequestHeaderConfiguration()
+    {
+        using var host = new ClientRequestHeaderTestHost();
+        var client = host.CreateClient();
+
+        var html = await client.GetStringAsync("/atomizer", TestContext.Current.CancellationToken);
+
+        html.Should().Contain("data-api-request-headers=");
+        html.Should().Contain("X-Atomizer-Dashboard-Request");
+        html.Should().Contain("test-token");
+    }
 }

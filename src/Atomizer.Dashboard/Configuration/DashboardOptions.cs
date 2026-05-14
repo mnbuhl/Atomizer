@@ -31,6 +31,10 @@ public sealed class DashboardOptions
     /// Authorization filters applied to all dashboard requests.
     /// If empty, only localhost requests are allowed by default.
     /// </summary>
-    public IList<IAtomizerDashboardAuthorizationFilter> Authorization { get; } =
-        new List<IAtomizerDashboardAuthorizationFilter>();
+    public DashboardAuthorizationOptions Authorization { get; } = new();
+
+    /// <summary>
+    /// Client-side options for the embedded dashboard frontend.
+    /// </summary>
+    public DashboardClientOptions Client { get; } = new();
 }

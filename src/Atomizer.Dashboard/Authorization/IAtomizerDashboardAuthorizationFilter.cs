@@ -12,6 +12,23 @@ namespace Atomizer.Dashboard.Authorization;
 /// </summary>
 public interface IAtomizerDashboardAuthorizationFilter
 {
-    /// <summary>Evaluates whether the request should be allowed.</summary>
-    DashboardAuthorizationResult Authorize(HttpContext context);
+    /// <summary>
+    /// Asynchronously evaluates whether the request should be allowed.
+    /// </summary>
+    /// <param name="context">The current HTTP context.</param>
+    ValueTask<DashboardAuthorizationResult> AuthorizeAsync(HttpContext context) =>
+        ValueTask.FromResult(Authorize(context));
+
+    /// <summary>
+    /// Evaluates whether the request should be allowed.
+    /// </summary>
+    /// <param name="context">The current HTTP context.</param>
+    /// <remarks>
+    /// Implement this for simple synchronous filters. Implement <see cref="AuthorizeAsync"/> for filters that
+    /// need asynchronous work.
+    /// </remarks>
+    DashboardAuthorizationResult Authorize(HttpContext context) =>
+        throw new NotSupportedException(
+            $"Implement {nameof(AuthorizeAsync)} for asynchronous dashboard authorization filters."
+        );
 }

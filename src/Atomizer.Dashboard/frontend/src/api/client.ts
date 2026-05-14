@@ -1,12 +1,22 @@
-import { routePrefix } from '../config';
+import { apiRequestHeaders, routePrefix } from '../config';
 import type { PagedResponse, JobDto, JobDetailDto, ScheduleDto, QueueStatsResponse, ServerDto } from './types';
 
 const baseUrl = `${window.location.origin}${routePrefix}/api`;
 
+function buildHeaders(initHeaders?: HeadersInit): Headers {
+    const headers = new Headers({ Accept: 'application/json' });
+
+    Object.entries(apiRequestHeaders).forEach(([name, value]) => headers.set(name, value));
+    new Headers(initHeaders).forEach((value, name) => headers.set(name, value));
+
+    return headers;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${baseUrl}${path}`, {
-        headers: { Accept: 'application/json', ...init?.headers },
         ...init,
+        credentials: init?.credentials ?? 'same-origin',
+        headers: buildHeaders(init?.headers),
     });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path}`);
     return res.json() as Promise<T>;

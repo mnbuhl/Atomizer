@@ -17,26 +17,18 @@ internal static class DashboardAuthorizationFilter
             options
         ) =>
         {
-            var filters =
+            var result =
                 options.Value.Authorization.Count > 0
-                    ? options.Value.Authorization
-                    : (IEnumerable<IAtomizerDashboardAuthorizationFilter>)[DefaultFilter];
+                    ? await options.Value.Authorization.AuthorizeAsync(context)
+                    : await ((IAtomizerDashboardAuthorizationFilter)DefaultFilter).AuthorizeAsync(context);
 
-            var denial = DashboardAuthorizationResult.Forbidden;
-            foreach (var filter in filters)
+            if (result == DashboardAuthorizationResult.Authorized)
             {
-                var result = filter.Authorize(context);
-                if (result == DashboardAuthorizationResult.Authorized)
-                {
-                    await handler(endpointHandler, context);
-                    return;
-                }
-
-                if (result == DashboardAuthorizationResult.Unauthorized)
-                    denial = DashboardAuthorizationResult.Unauthorized;
+                await handler(endpointHandler, context);
+                return;
             }
 
-            context.Response.StatusCode = denial == DashboardAuthorizationResult.Unauthorized ? 401 : 403;
+            context.Response.StatusCode = result == DashboardAuthorizationResult.Unauthorized ? 401 : 403;
         };
 
         return routeHandler;

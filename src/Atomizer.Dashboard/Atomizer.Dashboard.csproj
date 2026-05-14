@@ -27,11 +27,15 @@
     <PropertyGroup>
         <SpaProjectDir>$(MSBuildProjectDirectory)/frontend</SpaProjectDir>
     </PropertyGroup>
+    <ItemGroup>
+        <SpaSourceFiles Include="$(SpaProjectDir)/index.html" />
+        <SpaSourceFiles Include="$(SpaProjectDir)/src/**/*.*" />
+    </ItemGroup>
     <Target
         Name="BuildSpa"
         BeforeTargets="DispatchToInnerBuilds"
         Condition=" '$(SkipSpaBuild)' != 'true' AND Exists('$(SpaProjectDir)/package.json') AND '$(TargetFramework)' == '' "
-        Inputs="$(SpaProjectDir)/package-lock.json;$(SpaProjectDir)/tsconfig.json;$(SpaProjectDir)/vite.config.ts"
+        Inputs="$(SpaProjectDir)/package-lock.json;$(SpaProjectDir)/tsconfig.json;$(SpaProjectDir)/vite.config.ts;@(SpaSourceFiles)"
         Outputs="$(SpaProjectDir)/dist/index.html"
     >
         <Exec Command="node --version" ConsoleToMSBuild="true" />

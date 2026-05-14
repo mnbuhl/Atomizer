@@ -15,8 +15,8 @@ public static class DashboardServiceCollectionExtensions
     /// Call <see cref="DashboardEndpointRouteExtensions.MapAtomizerDashboard"/> to map routes.
     /// </summary>
     /// <remarks>
-    /// WARNING: The dashboard exposes job payloads and is not authenticated in v1.
-    /// Do not use in production environments without configuring authorization filters.
+    /// The dashboard exposes job payloads. If no authorization is configured, requests are limited to localhost.
+    /// Configure <see cref="DashboardOptions.Authorization"/> before exposing the dashboard outside local development.
     /// </remarks>
     public static IServiceCollection AddAtomizerDashboard(
         this IServiceCollection services,
