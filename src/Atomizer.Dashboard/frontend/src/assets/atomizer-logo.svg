@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Orbit Hexagon Logo</title>
+  <desc id="desc">A blue-purple hexagon with a circular center cutout, surrounded by three orbit arcs and three dots.</desc>
+  <defs>
+    <linearGradient id="markGradient" x1="126" y1="120" x2="338" y2="372" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5a45ff"/>
+      <stop offset="0.55" stop-color="#402ff0"/>
+      <stop offset="1" stop-color="#2d29df"/>
+    </linearGradient>
+    <linearGradient id="dotGradient" x1="74" y1="82" x2="336" y2="326" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6b4fff"/>
+      <stop offset="1" stop-color="#3328e6"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="#101942" stroke-width="10" stroke-linecap="round">
+    <path d="M126 168A170 170 0 0 1 317 92"/>
+    <path d="M395 148A170 170 0 0 1 394 357"/>
+    <path d="M105 270A170 170 0 0 0 303 416"/>
+  </g>
+  <g fill="url(#dotGradient)">
+    <circle cx="113" cy="221" r="28"/>
+    <circle cx="361" cy="115" r="28"/>
+    <circle cx="349" cy="382" r="28"/>
+  </g>
+  <path
+    fill="url(#markGradient)"
+    fill-rule="evenodd"
+    d="
+      M257 147
+      C263 144 270 144 276 148
+      L347 191
+      C354 195 358 203 358 211
+      L358 300
+      C358 308 354 316 347 320
+      L276 364
+      C270 368 262 368 256 364
+      L185 320
+      C178 316 174 309 174 300
+      L174 211
+      C174 203 178 195 185 191
+      L257 147
+      Z
+      M266 222
+      A34 34 0 1 0 266 290
+      A34 34 0 1 0 266 222
+      Z
+    "/>
+</svg>
