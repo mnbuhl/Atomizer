@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Atomizer.Dashboard.Configuration;
 using Microsoft.AspNetCore.Http;
 
@@ -8,7 +10,7 @@ internal static class EmbeddedSpaFileProvider
 {
     private static readonly Assembly Assembly = typeof(EmbeddedSpaFileProvider).Assembly;
     private const string ResourcePrefix = "Atomizer.Dashboard.Spa.";
-    private static string? _cachedIndexHtml;
+    private static string? _cachedIndexHtmlTemplate;
 
     /// <summary>
     /// Serves the embedded SPA asset matching the request path, or falls back to
@@ -37,29 +39,45 @@ internal static class EmbeddedSpaFileProvider
 
     public static async Task ServeIndexAsync(HttpContext context, string routePrefix, DashboardOptions options)
     {
-        var html = _cachedIndexHtml ??= BuildIndexHtml(options, routePrefix);
+        var html = await BuildIndexHtmlAsync(context, options, routePrefix);
 
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.Headers.ETag = GetETag();
         await context.Response.WriteAsync(html);
     }
 
-    private static string BuildIndexHtml(DashboardOptions options, string routePrefix)
+    private static async ValueTask<string> BuildIndexHtmlAsync(
+        HttpContext context,
+        DashboardOptions options,
+        string routePrefix
+    )
     {
+        var baseHref = routePrefix.TrimEnd('/') + "/";
+        var apiRequestHeaders = await options.Client.RequestHeaders.BuildAsync(context);
+        var apiRequestHeadersJson = JsonSerializer.Serialize(apiRequestHeaders);
+        var encoder = HtmlEncoder.Default;
+
+        return ReadIndexHtmlTemplate()
+            .Replace("<head>", $"<head>\n    <base href=\"{encoder.Encode(baseHref)}\">")
+            .Replace("{{ROUTE_PREFIX}}", encoder.Encode(routePrefix))
+            .Replace("{{TITLE}}", encoder.Encode(options.Title))
+            .Replace("{{STATS_REFRESH_MS}}", ((int)options.StatsRefreshInterval.TotalMilliseconds).ToString())
+            .Replace("{{JOBS_REFRESH_MS}}", ((int)options.JobsRefreshInterval.TotalMilliseconds).ToString())
+            .Replace("{{API_REQUEST_HEADERS}}", encoder.Encode(apiRequestHeadersJson));
+    }
+
+    private static string ReadIndexHtmlTemplate()
+    {
+        if (_cachedIndexHtmlTemplate is not null)
+            return _cachedIndexHtmlTemplate;
+
         using var stream = Assembly.GetManifestResourceStream(ResourcePrefix + "index.html");
         if (stream is null)
             throw new InvalidOperationException("Embedded index.html not found in Atomizer.Dashboard assembly.");
 
-        var baseHref = routePrefix.TrimEnd('/') + "/";
-
         using var reader = new StreamReader(stream);
-        return reader
-            .ReadToEnd()
-            .Replace("<head>", $"<head>\n    <base href=\"{baseHref}\">")
-            .Replace("{{ROUTE_PREFIX}}", routePrefix)
-            .Replace("{{TITLE}}", options.Title)
-            .Replace("{{STATS_REFRESH_MS}}", ((int)options.StatsRefreshInterval.TotalMilliseconds).ToString())
-            .Replace("{{JOBS_REFRESH_MS}}", ((int)options.JobsRefreshInterval.TotalMilliseconds).ToString());
+        _cachedIndexHtmlTemplate = reader.ReadToEnd();
+        return _cachedIndexHtmlTemplate;
     }
 
     private static string GetETag()

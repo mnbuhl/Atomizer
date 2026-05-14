@@ -2,6 +2,7 @@ using System.Reflection;
 using Atomizer;
 using Atomizer.Abstractions;
 using Atomizer.Dashboard.Authorization;
+using Atomizer.Dashboard.Configuration;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -31,7 +32,7 @@ public abstract class DashboardHostBase : WebApplicationFactory<Program>
                     services.AddSingleton(sp =>
                         (Atomizer.Storage.InMemoryStorage)sp.GetRequiredService<IAtomizerStorage>()
                     );
-                    services.AddAtomizerDashboard(options => options.Authorization.Add(AuthFilter));
+                    services.AddAtomizerDashboard(ConfigureDashboard);
                 });
                 web.Configure(app =>
                 {
@@ -44,6 +45,11 @@ public abstract class DashboardHostBase : WebApplicationFactory<Program>
         builder.UseContentRoot(AppContext.BaseDirectory);
 
     protected override IEnumerable<Assembly> GetTestAssemblies() => [];
+
+    protected virtual void ConfigureDashboard(DashboardOptions options)
+    {
+        options.Authorization.Add(AuthFilter);
+    }
 }
 
 public sealed class DashboardTestHost : DashboardHostBase
@@ -59,6 +65,31 @@ public sealed class DenyAllTestHost : DashboardHostBase
 public sealed class UnauthorizedTestHost : DashboardHostBase
 {
     protected override IAtomizerDashboardAuthorizationFilter AuthFilter { get; } = new UnauthorizedAuthFilter();
+}
+
+public sealed class BasicAuthenticationTestHost : DashboardHostBase
+{
+    protected override IAtomizerDashboardAuthorizationFilter AuthFilter { get; } = new UnauthorizedAuthFilter();
+
+    protected override void ConfigureDashboard(DashboardOptions options)
+    {
+        options.Authorization.RequireBasicAuthentication(
+            "operator",
+            "secret",
+            basicOptions => basicOptions.RequireHttps = false
+        );
+    }
+}
+
+public sealed class ClientRequestHeaderTestHost : DashboardHostBase
+{
+    protected override IAtomizerDashboardAuthorizationFilter AuthFilter { get; } = new AlwaysAllowAuthFilter();
+
+    protected override void ConfigureDashboard(DashboardOptions options)
+    {
+        base.ConfigureDashboard(options);
+        options.Client.RequestHeaders.Add("X-Atomizer-Dashboard-Request", _ => "test-token");
+    }
 }
 
 public sealed class DenyAllAuthFilter : IAtomizerDashboardAuthorizationFilter

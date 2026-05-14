@@ -39,6 +39,18 @@ public class AuthorizationTests
     }
 
     [Fact]
+    public async Task GetJobs_WhenBasicAuthenticationRejects_ShouldReturn401WithChallenge()
+    {
+        using var host = new BasicAuthenticationTestHost();
+        var client = host.CreateClient();
+
+        var response = await client.GetAsync("/atomizer/api/jobs", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.Headers.WwwAuthenticate.Should().Contain(header => header.Scheme == "Basic");
+    }
+
+    [Fact]
     public async Task GetJobById_WhenAuthFilterRejectsForbidden_ShouldReturn403()
     {
         using var host = new DenyAllTestHost();
@@ -49,5 +61,18 @@ public class AuthorizationTests
             TestContext.Current.CancellationToken
         );
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Index_WhenClientRequestHeaderConfigured_ShouldRenderApiRequestHeaderConfiguration()
+    {
+        using var host = new ClientRequestHeaderTestHost();
+        var client = host.CreateClient();
+
+        var html = await client.GetStringAsync("/atomizer", TestContext.Current.CancellationToken);
+
+        html.Should().Contain("data-api-request-headers=");
+        html.Should().Contain("X-Atomizer-Dashboard-Request");
+        html.Should().Contain("test-token");
     }
 }

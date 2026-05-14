@@ -15,6 +15,21 @@ function readNumber(value: string | undefined, fallback: number): number {
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function readStringRecord(value: string | undefined): Record<string, string> {
+    const raw = readString(value, '{}');
+
+    try {
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+        return Object.fromEntries(
+            Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+        );
+    } catch {
+        return {};
+    }
+}
+
 function normalizeRoutePrefix(value: string): string {
     const trimmed = value.trim();
     if (!trimmed || trimmed === '/') return '';
@@ -31,3 +46,4 @@ export const title: string = readString(
 );
 export const statsRefreshMs: number = readNumber(meta?.dataset.statsRefreshMs, 5000);
 export const jobsRefreshMs: number = readNumber(meta?.dataset.jobsRefreshMs, 30000);
+export const apiRequestHeaders: Record<string, string> = readStringRecord(meta?.dataset.apiRequestHeaders);

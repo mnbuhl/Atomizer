@@ -185,6 +185,93 @@ Then browse to `/atomizer` to inspect jobs, job details, schedules, queue statis
 
 If no authorization filters are configured, dashboard requests are restricted to localhost by default. Add an `IAtomizerDashboardAuthorizationFilter` through `AddAtomizerDashboard(options => options.Authorization.Add(...))` before exposing it outside local development.
 
+For production, prefer integrating with ASP.NET Core authorization:
+
+```csharp
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AtomizerDashboard", policy =>
+        policy.RequireAuthenticatedUser().RequireRole("Operations"));
+});
+
+builder.Services.AddAtomizerDashboard(options =>
+{
+    options.Authorization.RequirePolicy("AtomizerDashboard");
+});
+```
+
+Make sure the host app runs its authentication middleware before mapping the dashboard:
+
+```csharp
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapAtomizerDashboard("/atomizer");
+```
+
+The dashboard also provides shortcuts for common requirements:
+
+```csharp
+builder.Services.AddAtomizerDashboard(options =>
+{
+    options.Authorization.RequireAuthenticatedUser();
+    // or: options.Authorization.RequireRoles("Operations", "Admin");
+    // or: options.Authorization.RequireClaim("scope", "atomizer.dashboard.read");
+});
+```
+
+Multiple dashboard authorization filters are evaluated as alternatives; the first filter that authorizes a request allows it.
+
+Basic authentication is available as an explicit opt-in filter. It requires HTTPS by default:
+
+```csharp
+builder.Services.AddAtomizerDashboard(options =>
+{
+    options.Authorization.RequireBasicAuthentication(
+        builder.Configuration["AtomizerDashboard:Username"]!,
+        builder.Configuration["AtomizerDashboard:Password"]!);
+});
+```
+
+For credentials stored outside configuration, use the async validator overload:
+
+```csharp
+builder.Services.AddAtomizerDashboard(options =>
+{
+    options.Authorization.RequireBasicAuthentication(async (context, username, password) =>
+    {
+        var validator = context.RequestServices.GetRequiredService<IDashboardCredentialValidator>();
+        return await validator.ValidateAsync(username, password, context.RequestAborted);
+    });
+});
+```
+
+Custom authorization filters can also do asynchronous work:
+
+```csharp
+public sealed class DashboardAuthorizationFilter : IAtomizerDashboardAuthorizationFilter
+{
+    public async ValueTask<DashboardAuthorizationResult> AuthorizeAsync(HttpContext context)
+    {
+        var access = context.RequestServices.GetRequiredService<IDashboardAccessService>();
+        return await access.CanReadDashboardAsync(context.User, context.RequestAborted)
+            ? DashboardAuthorizationResult.Authorized
+            : DashboardAuthorizationResult.Forbidden;
+    }
+}
+```
+
+Dashboard API calls are same-origin requests and include same-origin credentials, so cookie, Windows, and other host-level authentication schemes can flow naturally. If your setup needs the embedded frontend to attach an extra request header, configure it when serving the dashboard HTML:
+
+```csharp
+builder.Services.AddAtomizerDashboard(options =>
+{
+    options.Authorization.RequirePolicy("AtomizerDashboard");
+    options.Client.RequestHeaders.Add("X-CSRF-TOKEN", context => context.Request.Cookies["X-CSRF-TOKEN"]);
+});
+```
+
+Do not put long-lived shared secrets in `Client.RequestHeaders`; those values are rendered into the dashboard page and are visible to the browser. Use them for request metadata such as CSRF tokens or short-lived per-user tokens.
+
 ## Contributing
 1. Fork the repository.
 2. Create a new branch (feature/xyz).
