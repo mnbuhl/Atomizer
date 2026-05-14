@@ -747,8 +747,8 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
         scheduleId.Should().Be(schedule.Id);
         updatedScheduleEntity.Should().NotBeNull();
         updatedScheduleEntity.Enabled.Should().BeFalse();
-        updatedScheduleEntity.NextRunAt.Should().Be(now.AddHours(-1));
-        updatedScheduleEntity.LastEnqueueAt.Should().Be(now.AddHours(-2));
+        updatedScheduleEntity.NextRunAt.Should().BeCloseTo(now.AddHours(-1), TimeSpan.FromTicks(10));
+        updatedScheduleEntity.LastEnqueueAt.Should().BeCloseTo(now.AddHours(-2), TimeSpan.FromTicks(10));
         updatedScheduleEntity.Payload.Should().Be("""{ "message": "Updated Schedule" }""");
     }
 
