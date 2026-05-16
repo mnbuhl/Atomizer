@@ -68,21 +68,34 @@ await using var sqlServer = scope.ServiceProvider.GetRequiredService<ExampleSqlS
 await Task.WhenAll(postgres.Database.MigrateAsync(), mysql.Database.MigrateAsync(), sqlServer.Database.MigrateAsync());
 
 var atomizer = app.Services.GetRequiredService<IAtomizerClient>();
+const string recurringLoggerJob = "LoggerJob";
+const string recurringLoggerCatchUpJob = "LoggerJobCatchUp";
 
 await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
-    "LoggerJob",
+    recurringLoggerJob,
     Schedule.Every(2).Minutes()
 );
 
 await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Recurring job started", LogLevel.Information),
-    "LoggerJobCatchUp",
+    recurringLoggerCatchUpJob,
     Schedule.Cron("0/5 * * * * *"), // Every 5 seconds,
     options =>
     {
         options.MisfirePolicy = MisfirePolicy.CatchUp;
         options.PartitionKey = new PartitionKey("LoggerJobCatchUp");
+    }
+);
+
+app.MapPost(
+    "/execute/log",
+    async ([FromServices] IAtomizerClient atomizerClient) =>
+    {
+        var jobId = await atomizerClient.ExecuteAsync(
+            new LoggerJobPayload("Executed immediately from the EF Core sample API", LogLevel.Information)
+        );
+        return Results.Ok(new { jobId });
     }
 );
 
@@ -162,6 +175,26 @@ app.MapPost(
             options => options.PartitionKey = new PartitionKey(stockEvent.ProductId.ToString())
         );
         return Results.Accepted($"/jobs/{jobId}");
+    }
+);
+
+app.MapDelete(
+    "/jobs/{jobId:guid}",
+    async (Guid jobId, [FromServices] IAtomizerClient atomizerClient) =>
+    {
+        var dequeued = await atomizerClient.DequeueAsync(jobId);
+        return dequeued
+            ? Results.NoContent()
+            : Results.Conflict(new { message = "The job was not pending or was not found." });
+    }
+);
+
+app.MapDelete(
+    "/recurring/{name}",
+    async (string name, [FromServices] IAtomizerClient atomizerClient) =>
+    {
+        await atomizerClient.DeleteRecurringAsync(name);
+        return Results.NoContent();
     }
 );
 

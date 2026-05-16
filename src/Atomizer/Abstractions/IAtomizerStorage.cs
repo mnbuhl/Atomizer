@@ -71,6 +71,14 @@ public interface IAtomizerStorage
     Task<Guid> UpsertScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Deletes the recurring schedule identified by the supplied job key when it exists.
+    /// </summary>
+    /// <param name="jobKey">The unique recurring schedule key to delete.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns><see langword="true"/> when a schedule was deleted; otherwise <see langword="false"/>.</returns>
+    Task<bool> DeleteScheduleAsync(JobKey jobKey, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Updates a range of existing Atomizer schedules in the storage.
     /// </summary>
     /// <param name="schedules">The collection of Atomizer schedules to be updated.</param>

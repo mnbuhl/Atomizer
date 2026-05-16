@@ -63,10 +63,11 @@ if (app.Environment.IsDevelopment())
 }
 
 var atomizer = app.Services.GetRequiredService<IAtomizerClient>();
+const string redisRecurringLoggerJob = "RedisRecurringLogger";
 
 await atomizer.ScheduleRecurringAsync(
     new LoggerJobPayload("Redis recurring job started", LogLevel.Information),
-    "RedisRecurringLogger",
+    redisRecurringLoggerJob,
     Schedule.Cron("0/30 * * * * *")
 );
 
@@ -78,6 +79,17 @@ app.MapPost(
             new LoggerJobPayload("Hello from the Redis storage sample", LogLevel.Information)
         );
         return Results.Accepted($"/jobs/{jobId}", new { jobId });
+    }
+);
+
+app.MapPost(
+    "/execute/log",
+    async ([FromServices] IAtomizerClient atomizerClient) =>
+    {
+        var jobId = await atomizerClient.ExecuteAsync(
+            new LoggerJobPayload("Executed immediately from the Redis sample API", LogLevel.Information)
+        );
+        return Results.Ok(new { jobId });
     }
 );
 
@@ -130,6 +142,26 @@ app.MapPost(
             }
         );
         return Results.Accepted($"/jobs/{jobId}", new { jobId });
+    }
+);
+
+app.MapDelete(
+    "/jobs/{jobId:guid}",
+    async (Guid jobId, [FromServices] IAtomizerClient atomizerClient) =>
+    {
+        var dequeued = await atomizerClient.DequeueAsync(jobId);
+        return dequeued
+            ? Results.NoContent()
+            : Results.Conflict(new { message = "The job was not pending or was not found." });
+    }
+);
+
+app.MapDelete(
+    "/recurring/{name}",
+    async (string name, [FromServices] IAtomizerClient atomizerClient) =>
+    {
+        await atomizerClient.DeleteRecurringAsync(name);
+        return Results.NoContent();
     }
 );
 

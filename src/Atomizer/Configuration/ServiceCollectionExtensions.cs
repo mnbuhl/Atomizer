@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
         services.Add(options.Handlers);
         services.AddSingleton<IAtomizerClient, AtomizerClient>();
         services.AddSingleton<IAtomizerClock, AtomizerClock>();
+        services.TryAddSingleton<AtomizerRuntimeIdentity>();
         services.AddSingleton<IAtomizerJobTypeResolver, DefaultJobTypeResolver>();
         services.AddSingleton<IAtomizerJobDispatcher, DefaultJobDispatcher>();
         services.AddSingleton<IAtomizerJobSerializer, DefaultJobSerializer>();
@@ -76,7 +77,7 @@ public static class ServiceCollectionExtensions
         options.Validate();
 
         services.AddSingleton(options);
-        services.AddSingleton<AtomizerRuntimeIdentity>();
+        services.TryAddSingleton<AtomizerRuntimeIdentity>();
         services.AddHostedService<AtomizerHeartbeatRecoveryService>();
         services.AddHostedService<AtomizerQueueService>();
         if (options.JobRetention is not null)

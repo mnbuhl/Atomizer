@@ -385,6 +385,29 @@ public sealed class InMemoryStorage : IAtomizerStorage
     }
 
     /// <inheritdoc/>
+    public async Task<bool> DeleteScheduleAsync(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var scheduleLock = _semaphores.GetOrAdd(QueueKey.Scheduler, _ => new SemaphoreSlim(1, 1));
+        await scheduleLock.WaitAsync(cancellationToken);
+        try
+        {
+            var removed = _schedules.Remove(jobKey);
+            if (removed)
+            {
+                _logger.LogDebug("DeleteSchedule: deleted schedule for jobKey={JobKey}", jobKey);
+            }
+
+            return removed;
+        }
+        finally
+        {
+            scheduleLock.Release();
+        }
+    }
+
+    /// <inheritdoc/>
     public Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

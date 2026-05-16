@@ -53,6 +53,43 @@ public interface IAtomizerClient
         Action<RecurringOptions>? configure = null,
         CancellationToken cancellation = default
     );
+
+    /// <summary>
+    /// Dequeues a pending job so it will not be processed.
+    /// </summary>
+    /// <param name="jobId">The unique identifier of the job to dequeue.</param>
+    /// <param name="cancellation">Cancellation token to cancel the operation.</param>
+    /// <returns>
+    /// <see langword="true"/> when a pending job was dequeued; otherwise <see langword="false"/> when the job
+    /// does not exist or is no longer pending.
+    /// </returns>
+    Task<bool> DequeueAsync(Guid jobId, CancellationToken cancellation = default);
+
+    /// <summary>
+    /// Idempotently deletes a recurring schedule.
+    /// </summary>
+    /// <param name="name">The unique key identifying the recurring schedule.</param>
+    /// <param name="cancellation">Cancellation token to cancel the operation.</param>
+    /// <returns><see langword="true"/> when a schedule was deleted; otherwise <see langword="false"/>.</returns>
+    Task<bool> DeleteRecurringAsync(JobKey name, CancellationToken cancellation = default);
+
+    /// <summary>
+    /// Executes a job immediately in the current process while recording it in Atomizer as completed or failed.
+    /// </summary>
+    /// <typeparam name="TPayload">The type of the payload to execute.</typeparam>
+    /// <param name="payload">The payload to execute.</param>
+    /// <param name="configure">Optional delegate to configure execution options such as queue, idempotency key, and retry strategy.</param>
+    /// <param name="cancellation">Cancellation token to cancel the operation.</param>
+    /// <returns>The unique identifier of the executed job.</returns>
+    /// <remarks>
+    /// If the job handler throws, Atomizer records the job as failed and then rethrows the original exception.
+    /// Direct execution does not schedule background retries.
+    /// </remarks>
+    Task<Guid> ExecuteAsync<TPayload>(
+        TPayload payload,
+        Action<EnqueueOptions>? configure = null,
+        CancellationToken cancellation = default
+    );
 }
 
 /// <summary>

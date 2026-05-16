@@ -23,8 +23,12 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - ⏳ **Visibility Timeout** — Prevent job duplication by locking jobs during processing.
 - 🕒 **FIFO Partitioned Processing** — Guarantee strict in-order, one-at-a-time execution per partition key (e.g. per customer, per entity).
 - 🧪 **In-Memory Driver** — Perfect for local development and testing; spin up queues instantly with zero setup.
-- 📈 **Dashboard** — Optional read-only dashboard for jobs, schedules, queue statistics, and worker heartbeats.
+- 📈 **Dashboard** — Optional operational dashboard for jobs, schedules, queue statistics, worker heartbeats, and built-in job/schedule actions.
 - 🔔 **ASP.NET Core Integration** — Works with DI, logging, and modern C# idioms.
+
+The dashboard gives teams a focused operational view of Atomizer: inspect queue health, review job and schedule details, watch active workers, and trigger common actions without building a custom admin UI.
+
+![Atomizer Dashboard jobs view](assets/atomizer-dashboard-logo-branding-dark.png)
 
 ## Quick Start
 Get up and running in minutes:
@@ -114,7 +118,7 @@ builder.Services.AddAtomizer(options =>
 
 Redis storage implements the same `IAtomizerStorage` monitoring methods as the other backends, so it works with `Atomizer.Dashboard` without referencing the dashboard package from `Atomizer.Redis`.
 
-The Redis sample includes the dashboard and a few endpoints for creating jobs:
+The Redis sample includes the dashboard and a few endpoints for creating and operating on jobs:
 
 ```bash
 docker compose up -d redis
@@ -122,6 +126,12 @@ dotnet run --project samples/Atomizer.Redis.Example/Atomizer.Redis.Example.cspro
 ```
 
 Open `http://localhost:5053/atomizer` to inspect Redis-backed jobs, schedules, queues, and workers.
+
+The sample projects include `.http` files with example requests for enqueueing jobs, executing handlers directly, dequeuing pending jobs, and deleting recurring schedules:
+
+- `samples/Atomizer.Example/Atomizer.Example.http`
+- `samples/Atomizer.EFCore.Example/Atomizer.EFCore.Example.http`
+- `samples/Atomizer.Redis.Example/Atomizer.Redis.Example.http`
 
 ### 3. Define a Job Handler
 Create a handler for your job payload:
@@ -146,7 +156,7 @@ public class SendNewsletterJob(INewsletterService newsletterService, IEmailServi
 }
 ```
 
-### 4. Enqueue or schedule a Job
+### 4. Enqueue, schedule, execute, or dequeue a Job
 Add jobs to the queue from your application code:
 ```csharp
 app.MapPost(
@@ -163,6 +173,22 @@ app.MapPost(
     }
 );
 ```
+
+Use `ExecuteAsync` when the job should run immediately in the current process but still be recorded in Atomizer as completed or failed:
+
+```csharp
+var jobId = await atomizerClient.ExecuteAsync(new SendNewsletterCommand(product));
+```
+
+If the handler throws, Atomizer records the job as failed and then rethrows the exception to the caller.
+
+Use `DequeueAsync` to cancel a job that is still pending:
+
+```csharp
+var dequeued = await atomizerClient.DequeueAsync(jobId);
+```
+
+It returns `false` when the job does not exist or is no longer pending.
 
 ### 5. FIFO Processing (Partitioned Jobs)
 To guarantee jobs for the same entity execute one-at-a-time in enqueue order, assign a `PartitionKey`:
@@ -191,6 +217,10 @@ await atomizer.ScheduleRecurringAsync(
     Schedule.Every(2).Minutes()
 );
 
+// Later, when the recurring schedule should stop:
+// safe to call even when the schedule has already been deleted or never existed.
+await atomizer.DeleteRecurringAsync("LoggerJob");
+
 ...
 ```
 
@@ -203,9 +233,7 @@ var app = builder.Build();
 app.MapAtomizerDashboard("/atomizer");
 ```
 
-Then browse to `/atomizer` to inspect jobs, job details, schedules, queue statistics, and active worker heartbeats. The dashboard is read-only in the current release; it does not retry, cancel, or dead-letter jobs.
-
-![Atomizer Dashboard jobs view](assets/atomizer-dashboard-logo-branding-dark.png)
+Then browse to `/atomizer` to inspect jobs, job details, schedules, queue statistics, and active worker heartbeats. The dashboard also includes operational actions such as triggering registered job types, retrying failed jobs, cancelling pending jobs, enabling or disabling schedules, and running schedules immediately.
 
 If no authorization filters are configured, dashboard requests are restricted to localhost by default. Add an `IAtomizerDashboardAuthorizationFilter` through `AddAtomizerDashboard(options => options.Authorization.Add(...))` before exposing it outside local development.
 
