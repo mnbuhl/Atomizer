@@ -507,6 +507,7 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         var expiredFailed = CreateJob();
         var expiredCancelled = CreateJob();
         var oldPending = CreateJob();
+        var expiredAt = cutoff.AddSeconds(-1);
 
         await _sut.InsertAsync(expiredCompleted, CancellationToken.None);
         await _sut.InsertAsync(retainedCompleted, CancellationToken.None);
@@ -515,12 +516,12 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         await _sut.InsertAsync(oldPending, CancellationToken.None);
 
         expiredCompleted.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
-        expiredCompleted.MarkAsCompleted(cutoff.AddTicks(-1));
+        expiredCompleted.MarkAsCompleted(expiredAt);
         retainedCompleted.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
         retainedCompleted.MarkAsCompleted(cutoff);
         expiredFailed.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
-        expiredFailed.MarkAsFailed(cutoff.AddTicks(-1));
-        expiredCancelled.Cancel(cutoff.AddTicks(-1));
+        expiredFailed.MarkAsFailed(expiredAt);
+        expiredCancelled.Cancel(expiredAt);
         oldPending.CreatedAt = cutoff.AddDays(-30);
         oldPending.UpdatedAt = cutoff.AddDays(-30);
 
