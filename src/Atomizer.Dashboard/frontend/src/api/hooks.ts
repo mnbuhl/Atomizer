@@ -37,10 +37,11 @@ export function useJob(id: string) {
     });
 }
 
-export function useJobTypes() {
+export function useJobTypes(enabled = true) {
     return useQuery<JobTypeOption[]>({
         queryKey: ['jobTypes'],
         queryFn: api.getJobTypes,
+        enabled,
     });
 }
 
