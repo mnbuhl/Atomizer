@@ -211,7 +211,7 @@ namespace Atomizer.Tests.Processing
         {
             // Arrange
             var channel = Channel.CreateUnbounded<JobBatch>();
-            var leaseAttemptCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cts = new CancellationTokenSource();
             _storage
                 .ExecuteInLeaseAsync(
                     Arg.Any<QueueKey>(),
@@ -222,19 +222,15 @@ namespace Atomizer.Tests.Processing
                 {
                     var callback = callInfo.ArgAt<Func<CancellationToken, Task<List<AtomizerJob>>>>(1);
                     var jobs = await callback(CancellationToken.None);
-                    leaseAttemptCompleted.TrySetResult();
+                    cts.Cancel();
                     return jobs;
                 });
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob>());
 
-            using var cts = new CancellationTokenSource();
-
             // Act
             var runTask = _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
-            await leaseAttemptCompleted.Task.WaitAsync(Timeout, TestContext.Current.CancellationToken);
-            cts.Cancel();
             (await WaitOrTimeout(runTask, Timeout)).Should().BeTrue();
 
             // Assert
