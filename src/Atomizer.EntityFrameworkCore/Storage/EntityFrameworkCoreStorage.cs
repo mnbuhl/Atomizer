@@ -403,34 +403,13 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var expiredJobIds = await JobEntities
-            .AsNoTracking()
-            .Where(job =>
-                (job.Status == AtomizerEntityJobStatus.Completed && (job.CompletedAt ?? job.UpdatedAt) < terminalBefore)
-                || (job.Status == AtomizerEntityJobStatus.Failed && (job.FailedAt ?? job.UpdatedAt) < terminalBefore)
-                || (job.Status == AtomizerEntityJobStatus.Cancelled && job.UpdatedAt < terminalBefore)
-            )
-            .Select(job => job.Id)
-            .ToListAsync(cancellationToken);
-
-        if (expiredJobIds.Count == 0)
+        if (_providerCache.Dialect is not null)
         {
-            return 0;
+            var sql = _providerCache.Dialect.DeleteExpiredJobs(terminalBefore);
+            return await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
         }
 
-        _dbContext.ChangeTracker.Clear();
-        JobEntities.RemoveRange(expiredJobIds.Select(id => new AtomizerJobEntity { Id = id }));
-
-        try
-        {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-            return expiredJobIds.Count;
-        }
-        catch (DbUpdateException ex)
-        {
-            _logger.LogError(ex, "Failed to delete expired jobs");
-            throw;
-        }
+        throw UnsupportedProviderException(_providerCache.ProviderName);
     }
 
     public async Task<IReadOnlyList<AtomizerSchedule>> GetSchedulesAsync(CancellationToken cancellationToken)
