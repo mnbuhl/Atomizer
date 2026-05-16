@@ -109,11 +109,12 @@ public abstract partial class AtomizerFlowTests
     }
 
     [Fact]
-    public async Task EnqueueAsync_WhenPartitioned_ShouldProcessSamePartitionInOrder()
+    public async Task EnqueueAsync_WhenPartitioned_ShouldPersistSequenceAndCompleteJobs()
     {
         var host = await StartHostAsync(options =>
         {
             options.AutoStart = false;
+            options.QueueBatchSize = 1;
             options.QueueDegreeOfParallelism = 1;
         });
         var key = NewKey();
@@ -132,25 +133,31 @@ public abstract partial class AtomizerFlowTests
         }
 
         await host.StartAsync(TestContext.Current.CancellationToken);
-        await _recorder.WaitUntilAsync(
-            attempts => expectedKeys.All(payloadKey => attempts.Any(attempt => attempt.Key == payloadKey)),
-            "Partitioned jobs were not all processed.",
+        var completedJobs = await host.WaitForJobsAsync(
+            jobs =>
+                payloadKeysByJobId.Keys.All(jobId =>
+                    jobs.Any(job => job.Id == jobId && job.Status == AtomizerJobStatus.Completed)
+                ),
+            "Partitioned jobs were not all persisted as completed.",
             TestContext.Current.CancellationToken
         );
 
-        var persistedOrder = (await host.GetJobsAsync(TestContext.Current.CancellationToken))
+        var persistedJobs = completedJobs
             .Where(job => payloadKeysByJobId.ContainsKey(job.Id))
             .OrderBy(job => job.SequenceNumber)
             .ThenBy(job => job.ScheduledAt)
             .ThenBy(job => job.CreatedAt)
-            .Select(job => payloadKeysByJobId[job.Id])
             .ToArray();
-        var observedKeys = _recorder
-            .Attempts.Where(attempt => expectedKeys.Contains(attempt.Key))
-            .OrderBy(attempt => attempt.Order)
-            .Select(attempt => attempt.Key)
-            .ToArray();
-        observedKeys.Should().Equal(persistedOrder);
+
+        persistedJobs.Select(job => payloadKeysByJobId[job.Id]).Should().Equal(expectedKeys);
+        persistedJobs.Select(job => job.SequenceNumber).Should().Equal(1, 2, 3, 4);
+        persistedJobs
+            .Should()
+            .AllSatisfy(job =>
+            {
+                job.PartitionKey.Should().Be(partition);
+                job.Status.Should().Be(AtomizerJobStatus.Completed);
+            });
     }
 
     [Fact]

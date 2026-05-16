@@ -187,21 +187,46 @@ internal sealed class FlowTestHost : IAsyncDisposable
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(FlowTestTimings.WaitTimeout);
+        Exception? lastProbeException = null;
 
         while (true)
         {
-            var value = await probe(timeout.Token);
-            if (predicate(value))
-                return value;
-
+            T value;
             try
             {
-                await Task.Delay(FlowTestTimings.PollInterval, timeout.Token);
+                value = await probe(timeout.Token);
             }
             catch (OperationCanceledException) when (timeout.IsCancellationRequested)
             {
-                throw new TimeoutException(timeoutMessage);
+                throw new TimeoutException(timeoutMessage, lastProbeException);
             }
+            catch (Exception ex) when (!timeout.IsCancellationRequested)
+            {
+                lastProbeException = ex;
+                await DelayOrTimeoutAsync(timeout.Token, timeoutMessage, lastProbeException);
+                continue;
+            }
+
+            if (predicate(value))
+                return value;
+
+            await DelayOrTimeoutAsync(timeout.Token, timeoutMessage, lastProbeException);
+        }
+    }
+
+    private static async Task DelayOrTimeoutAsync(
+        CancellationToken cancellationToken,
+        string timeoutMessage,
+        Exception? innerException
+    )
+    {
+        try
+        {
+            await Task.Delay(FlowTestTimings.PollInterval, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(timeoutMessage, innerException);
         }
     }
 

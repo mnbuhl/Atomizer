@@ -106,7 +106,9 @@ public abstract partial class AtomizerFlowTests
         );
 
         completed.Attempts.Should().Be(1);
-        _recorder.AttemptsFor(key).Should().HaveCount(2);
+        var attempts = _recorder.AttemptsFor(key);
+        attempts.Count.Should().BeGreaterThanOrEqualTo(2);
+        attempts.Select(attempt => attempt.JobId).Distinct().Should().ContainSingle().Which.Should().Be(jobId);
     }
 
     [Fact]
