@@ -15,6 +15,8 @@ public sealed class HeartbeatConfigurationTests
         options.HeartbeatInterval.Should().Be(TimeSpan.FromSeconds(30));
         options.StaleServerTimeout.Should().Be(TimeSpan.FromMinutes(3));
         options.EffectiveStaleSweepInterval.Should().Be(options.HeartbeatInterval);
+        options.JobRetention.Should().BeNull();
+        options.JobRetentionSweepInterval.Should().Be(TimeSpan.FromHours(1));
     }
 
     [Fact]
@@ -29,6 +31,30 @@ public sealed class HeartbeatConfigurationTests
         var act = options.Validate;
 
         act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*six times*");
+    }
+
+    [Fact]
+    public void AtomizerProcessingOptions_WhenJobRetentionIsNotPositive_ShouldThrow()
+    {
+        var options = new AtomizerProcessingOptions { JobRetention = TimeSpan.Zero };
+
+        var act = options.Validate;
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*Job retention*positive*");
+    }
+
+    [Fact]
+    public void AtomizerProcessingOptions_WhenJobRetentionSweepIntervalIsNotPositive_ShouldThrow()
+    {
+        var options = new AtomizerProcessingOptions
+        {
+            JobRetention = TimeSpan.FromDays(7),
+            JobRetentionSweepInterval = TimeSpan.Zero,
+        };
+
+        var act = options.Validate;
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*Job retention sweep interval*positive*");
     }
 
     [Fact]

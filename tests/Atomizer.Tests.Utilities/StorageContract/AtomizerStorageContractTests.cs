@@ -492,6 +492,54 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
     }
 
     // ------------------------------------------------------------------
+    // Job retention cleanup
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Retention cleanup deletes only terminal jobs older than the supplied cutoff.
+    /// </summary>
+    [Fact]
+    public async Task DeleteExpiredJobsAsync_WhenJobsAreOutsideRetention_ShouldDeleteOnlyExpiredTerminalJobs()
+    {
+        var cutoff = _now.AddDays(-7);
+        var expiredCompleted = CreateJob();
+        var retainedCompleted = CreateJob();
+        var expiredFailed = CreateJob();
+        var expiredCancelled = CreateJob();
+        var oldPending = CreateJob();
+
+        await _sut.InsertAsync(expiredCompleted, CancellationToken.None);
+        await _sut.InsertAsync(retainedCompleted, CancellationToken.None);
+        await _sut.InsertAsync(expiredFailed, CancellationToken.None);
+        await _sut.InsertAsync(expiredCancelled, CancellationToken.None);
+        await _sut.InsertAsync(oldPending, CancellationToken.None);
+
+        expiredCompleted.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        expiredCompleted.MarkAsCompleted(cutoff.AddTicks(-1));
+        retainedCompleted.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        retainedCompleted.MarkAsCompleted(cutoff);
+        expiredFailed.Lease(FakeDataFactory.LeaseToken(), _now, TimeSpan.FromMinutes(10));
+        expiredFailed.MarkAsFailed(cutoff.AddTicks(-1));
+        expiredCancelled.Cancel(cutoff.AddTicks(-1));
+        oldPending.CreatedAt = cutoff.AddDays(-30);
+        oldPending.UpdatedAt = cutoff.AddDays(-30);
+
+        await _sut.UpdateJobsAsync(
+            [expiredCompleted, retainedCompleted, expiredFailed, expiredCancelled, oldPending],
+            CancellationToken.None
+        );
+
+        var deleted = await _sut.DeleteExpiredJobsAsync(cutoff, CancellationToken.None);
+
+        deleted.Should().Be(3);
+        (await _sut.GetJobByIdAsync(expiredCompleted.Id, CancellationToken.None)).Should().BeNull();
+        (await _sut.GetJobByIdAsync(expiredFailed.Id, CancellationToken.None)).Should().BeNull();
+        (await _sut.GetJobByIdAsync(expiredCancelled.Id, CancellationToken.None)).Should().BeNull();
+        (await _sut.GetJobByIdAsync(retainedCompleted.Id, CancellationToken.None)).Should().NotBeNull();
+        (await _sut.GetJobByIdAsync(oldPending.Id, CancellationToken.None)).Should().NotBeNull();
+    }
+
+    // ------------------------------------------------------------------
     // Helper
     // ------------------------------------------------------------------
 
