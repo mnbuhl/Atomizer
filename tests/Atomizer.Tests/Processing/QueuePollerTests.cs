@@ -211,15 +211,31 @@ namespace Atomizer.Tests.Processing
         {
             // Arrange
             var channel = Channel.CreateUnbounded<JobBatch>();
+            var leaseAttemptCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _storage
+                .ExecuteInLeaseAsync(
+                    Arg.Any<QueueKey>(),
+                    Arg.Any<Func<CancellationToken, Task<List<AtomizerJob>>>>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(async callInfo =>
+                {
+                    var callback = callInfo.ArgAt<Func<CancellationToken, Task<List<AtomizerJob>>>>(1);
+                    var jobs = await callback(CancellationToken.None);
+                    leaseAttemptCompleted.TrySetResult();
+                    return jobs;
+                });
             _storage
                 .GetDueJobsAsync(_queueOptions.QueueKey, _now, _queueOptions.BatchSize, Arg.Any<CancellationToken>())
                 .Returns(new List<AtomizerJob>());
 
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(100);
+            using var cts = new CancellationTokenSource();
 
             // Act
-            await _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+            var runTask = _sut.RunAsync(_queueOptions, _leaseToken, channel, cts.Token);
+            await leaseAttemptCompleted.Task.WaitAsync(Timeout, TestContext.Current.CancellationToken);
+            cts.Cancel();
+            (await WaitOrTimeout(runTask, Timeout)).Should().BeTrue();
 
             // Assert
             _logger.Received().LogDebug($"Queue '{_queueOptions.QueueKey}' found no jobs to lease");
