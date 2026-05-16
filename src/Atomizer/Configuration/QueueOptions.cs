@@ -36,9 +36,12 @@ public sealed class QueueOptions
 
     /// <summary>
     /// Gets the interval at which the internal processing loop ticks.
-    /// <remarks>Default is 1 second.</remarks>
+    /// <remarks>
+    /// Default is 1 second. The setter is internal so that test assemblies (via InternalsVisibleTo)
+    /// can reduce the tick interval for timing-sensitive flow tests without exposing mutation to external consumers.
+    /// </remarks>
     /// </summary>
-    public TimeSpan TickInterval { get; private set; } = TimeSpan.FromSeconds(1);
+    public TimeSpan TickInterval { get; internal set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Initializes a new <see cref="QueueOptions"/> with the specified queue key.
