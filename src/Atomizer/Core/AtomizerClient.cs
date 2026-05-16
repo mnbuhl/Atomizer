@@ -15,24 +15,9 @@ public sealed class AtomizerClient : IAtomizerClient
     private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
     private readonly IAtomizerJobSerializer _jobSerializer;
     private readonly IAtomizerClock _clock;
-    private readonly IAtomizerJobDispatcher? _dispatcher;
+    private readonly IAtomizerJobDispatcher _dispatcher;
     private readonly AtomizerRuntimeIdentity _identity;
     private readonly ILogger<AtomizerClient> _logger;
-
-    /// <summary>
-    /// Initializes a new <see cref="AtomizerClient"/> with the required dependencies.
-    /// </summary>
-    /// <param name="serviceScopeFactory">Factory used to create storage scopes.</param>
-    /// <param name="jobSerializer">Serializer used to serialize job payloads.</param>
-    /// <param name="clock">Clock abstraction for obtaining the current UTC time.</param>
-    /// <param name="logger">Logger for diagnostic output.</param>
-    public AtomizerClient(
-        IAtomizerServiceScopeFactory serviceScopeFactory,
-        IAtomizerJobSerializer jobSerializer,
-        IAtomizerClock clock,
-        ILogger<AtomizerClient> logger
-    )
-        : this(serviceScopeFactory, jobSerializer, clock, null, new AtomizerRuntimeIdentity(), logger) { }
 
     /// <summary>
     /// Initializes a new <see cref="AtomizerClient"/> with the required dependencies.
@@ -47,7 +32,7 @@ public sealed class AtomizerClient : IAtomizerClient
         IAtomizerServiceScopeFactory serviceScopeFactory,
         IAtomizerJobSerializer jobSerializer,
         IAtomizerClock clock,
-        IAtomizerJobDispatcher? dispatcher,
+        IAtomizerJobDispatcher dispatcher,
         AtomizerRuntimeIdentity identity,
         ILogger<AtomizerClient> logger
     )
@@ -55,7 +40,7 @@ public sealed class AtomizerClient : IAtomizerClient
         _serviceScopeFactory = serviceScopeFactory;
         _jobSerializer = jobSerializer;
         _clock = clock;
-        _dispatcher = dispatcher;
+        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _identity = identity;
         _logger = logger;
     }
@@ -156,13 +141,6 @@ public sealed class AtomizerClient : IAtomizerClient
         CancellationToken cancellation = default
     )
     {
-        if (_dispatcher is null)
-        {
-            throw new InvalidOperationException(
-                "Direct job execution requires IAtomizerJobDispatcher. Use AddAtomizer to construct IAtomizerClient."
-            );
-        }
-
         var options = new EnqueueOptions();
         configure?.Invoke(options);
 

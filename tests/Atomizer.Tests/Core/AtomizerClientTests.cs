@@ -26,6 +26,16 @@ public class AtomizerClientTests
     }
 
     [Fact]
+    public void Constructor_WhenDispatcherIsNull_ShouldThrow()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new AtomizerClient(_serviceScopeFactory, _jobSerializer, _clock, null!, _identity, _logger)
+        );
+
+        exception.ParamName.Should().Be("dispatcher");
+    }
+
+    [Fact]
     public async Task DequeueAsync_WhenJobIsPending_ShouldCancelJobAndPersist()
     {
         var job = AtomizerJob.Create(QueueKey.Default, typeof(DirectPayload), "{}", _now, _now);
