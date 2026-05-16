@@ -10,7 +10,7 @@ public abstract partial class AtomizerFlowTests
     {
         var host = await StartHostAsync();
         var key = NewKey();
-        var runAt = DateTimeOffset.UtcNow.AddSeconds(2);
+        var runAt = TruncateToMilliseconds(DateTimeOffset.UtcNow.AddSeconds(2));
 
         var jobId = await host.Client.ScheduleAsync(
             new FlowPayload(key),
@@ -33,6 +33,9 @@ public abstract partial class AtomizerFlowTests
         completed.ScheduledAt.Should().Be(runAt);
         _recorder.AttemptsFor(key).Should().ContainSingle();
     }
+
+    private static DateTimeOffset TruncateToMilliseconds(DateTimeOffset value) =>
+        new(value.Ticks - value.Ticks % TimeSpan.TicksPerMillisecond, value.Offset);
 
     [Fact]
     public async Task ScheduleRecurringAsync_WhenOccurrenceIsDue_ShouldEnqueueProcessAndAdvanceSchedule()
