@@ -1,7 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from './client';
 import { statsRefreshMs, jobsRefreshMs } from '../config';
-import type { JobDto, JobDetailDto, ScheduleDto, QueueStatsResponse, ServerDto, PagedResponse } from './types';
+import type {
+    JobDto,
+    JobDetailDto,
+    ScheduleDto,
+    QueueStatsResponse,
+    ServerDto,
+    PagedResponse,
+    JobTypeOption,
+} from './types';
 
 export interface JobFilters {
     status?: string[];
@@ -26,6 +34,13 @@ export function useJob(id: string) {
         queryKey: ['job', id],
         queryFn: () => api.getJob(id),
         enabled: !!id,
+    });
+}
+
+export function useJobTypes() {
+    return useQuery<JobTypeOption[]>({
+        queryKey: ['jobTypes'],
+        queryFn: api.getJobTypes,
     });
 }
 

@@ -1,4 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '../api/client';
 import { useJob } from '../api/hooks';
 import { routePrefix } from '../config';
 import {
@@ -16,8 +18,15 @@ import { useNow } from '../hooks/useNow';
 
 export default function JobDetail() {
     const { id } = useParams<{ id: string }>();
+    const queryClient = useQueryClient();
     const now = useNow(15_000);
     const { data: job, isLoading, error } = useJob(id!);
+    const refreshJobQueries = () => {
+        queryClient.invalidateQueries({ queryKey: ['job', id] });
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    };
+    const retryMutation = useMutation({ mutationFn: api.retryJob, onSuccess: refreshJobQueries });
+    const cancelMutation = useMutation({ mutationFn: api.cancelJob, onSuccess: refreshJobQueries });
 
     if (isLoading) return <JobDetailSkeleton />;
     if (error || !job)
@@ -37,8 +46,10 @@ export default function JobDetail() {
         /* not valid JSON, show raw */
     }
 
-    const finalTimestamp = job.failedAt ?? job.completedAt ?? job.scheduledAt ?? job.createdAt;
-    const finalLabel = job.failedAt ? 'Failed' : job.completedAt ? 'Completed' : job.scheduledAt ? 'Scheduled' : 'Created';
+    const finalTimestamp =
+        job.status === 'Cancelled' ? job.updatedAt : job.failedAt ?? job.completedAt ?? job.scheduledAt ?? job.createdAt;
+    const finalLabel =
+        job.status === 'Cancelled' ? 'Cancelled' : job.failedAt ? 'Failed' : job.completedAt ? 'Completed' : job.scheduledAt ? 'Scheduled' : 'Created';
 
     return (
         <div className="space-y-6">
@@ -49,6 +60,26 @@ export default function JobDetail() {
                 actions={
                     <>
                         <StatusPill status={job.status} className="px-3 py-1.5 text-sm" />
+                        {job.status === 'Failed' && (
+                            <button
+                                type="button"
+                                className={ui.primaryButton}
+                                disabled={retryMutation.isPending}
+                                onClick={() => retryMutation.mutate(job.id)}
+                            >
+                                {retryMutation.isPending ? 'Retrying…' : 'Retry'}
+                            </button>
+                        )}
+                        {job.status === 'Pending' && (
+                            <button
+                                type="button"
+                                className={ui.secondaryButton}
+                                disabled={cancelMutation.isPending}
+                                onClick={() => cancelMutation.mutate(job.id)}
+                            >
+                                {cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
+                            </button>
+                        )}
                         <Link
                             to={`${routePrefix}/jobs`}
                             className={ui.secondaryButton}
@@ -58,6 +89,14 @@ export default function JobDetail() {
                     </>
                 }
             />
+
+            {(retryMutation.error || cancelMutation.error) && (
+                <Panel className="p-5">
+                    <p className="danger-text text-sm font-medium">
+                        {(retryMutation.error ?? cancelMutation.error)?.message}
+                    </p>
+                </Panel>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <MetricCard label="Queue" value={job.queueKey} helper="Assigned queue" tone="blue" />
@@ -78,7 +117,7 @@ export default function JobDetail() {
                     label={finalLabel}
                     value={<RelativeTime value={finalTimestamp} now={now} />}
                     helper="Most relevant transition"
-                    tone={job.status === 'Failed' ? 'red' : job.status === 'Completed' ? 'green' : 'purple'}
+                    tone={job.status === 'Failed' ? 'red' : job.status === 'Completed' ? 'green' : job.status === 'Cancelled' ? 'slate' : 'purple'}
                 />
             </div>
 
@@ -92,6 +131,12 @@ export default function JobDetail() {
                     <TimelineItem label="Scheduled" value={job.scheduledAt} now={now} empty="Not scheduled" />
                     <TimelineItem label="Completed" value={job.completedAt} now={now} empty="Not completed" />
                     <TimelineItem label="Failed" value={job.failedAt} now={now} empty="No failure recorded" />
+                    <TimelineItem
+                        label="Updated"
+                        value={job.updatedAt}
+                        now={now}
+                        empty="No update recorded"
+                    />
                 </div>
             </Panel>
 

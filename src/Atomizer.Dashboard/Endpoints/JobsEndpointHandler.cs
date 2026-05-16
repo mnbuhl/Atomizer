@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Atomizer.Abstractions;
 using Atomizer.Dashboard.Configuration;
 using Atomizer.Dashboard.Contracts;
+using Atomizer.Dashboard.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
@@ -9,11 +11,17 @@ namespace Atomizer.Dashboard.Endpoints;
 internal sealed class JobsEndpointHandler
 {
     private readonly DashboardOptions _options;
+    private readonly DashboardCommandService _commands;
     private readonly IAtomizerStorage _storage;
 
-    public JobsEndpointHandler(IAtomizerStorage storage, IOptions<DashboardOptions> options)
+    public JobsEndpointHandler(
+        IAtomizerStorage storage,
+        DashboardCommandService commands,
+        IOptions<DashboardOptions> options
+    )
     {
         _storage = storage;
+        _commands = commands;
         _options = options.Value;
     }
 
@@ -76,5 +84,82 @@ internal sealed class JobsEndpointHandler
         }
 
         await DashboardJsonResponse.WriteAsync(context, JobDetailDto.FromDetail(job), context.RequestAborted);
+    }
+
+    public async Task ListJobTypesAsync(HttpContext context)
+    {
+        await DashboardJsonResponse.WriteAsync(context, _commands.GetJobTypeOptions(), context.RequestAborted);
+    }
+
+    public async Task RetryAsync(HttpContext context)
+    {
+        if (!TryGetJobId(context, out var id))
+        {
+            context.Response.StatusCode = 400;
+            return;
+        }
+
+        var result = await _commands.RetryJobAsync(id, context.RequestAborted);
+        await WriteCommandResultAsync(context, result);
+    }
+
+    public async Task CancelAsync(HttpContext context)
+    {
+        if (!TryGetJobId(context, out var id))
+        {
+            context.Response.StatusCode = 400;
+            return;
+        }
+
+        var result = await _commands.CancelJobAsync(id, context.RequestAborted);
+        await WriteCommandResultAsync(context, result);
+    }
+
+    public async Task TriggerAsync(HttpContext context)
+    {
+        TriggerJobRequest? request;
+        try
+        {
+            request = await context.Request.ReadFromJsonAsync<TriggerJobRequest>(
+                DashboardJsonOptions.CamelCase,
+                context.RequestAborted
+            );
+        }
+        catch (JsonException)
+        {
+            await WriteBadRequestAsync(context, "Malformed JSON request body.");
+            return;
+        }
+
+        if (request is null)
+        {
+            await WriteBadRequestAsync(context, "Request body is required.");
+            return;
+        }
+
+        var result = await _commands.TriggerJobAsync(request, context.RequestAborted);
+        await WriteCommandResultAsync(context, result);
+    }
+
+    private static bool TryGetJobId(HttpContext context, out Guid id) =>
+        Guid.TryParse(context.Request.RouteValues["id"]?.ToString(), out id);
+
+    private static Task WriteBadRequestAsync(HttpContext context, string message)
+    {
+        context.Response.StatusCode = 400;
+        return DashboardJsonResponse.WriteAsync(context, new { error = message }, context.RequestAborted);
+    }
+
+    private static async Task WriteCommandResultAsync<T>(HttpContext context, DashboardCommandResult<T> result)
+    {
+        context.Response.StatusCode = result.StatusCode;
+        if (result.Value is not null)
+        {
+            await DashboardJsonResponse.WriteAsync(context, result.Value, context.RequestAborted);
+        }
+        else if (result.Message is not null)
+        {
+            await DashboardJsonResponse.WriteAsync(context, new { error = result.Message }, context.RequestAborted);
+        }
     }
 }

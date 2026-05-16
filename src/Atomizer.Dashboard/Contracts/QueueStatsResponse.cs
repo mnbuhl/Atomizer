@@ -14,6 +14,7 @@ internal sealed class QueueStatsDto
     public int Processing { get; init; }
     public int Completed { get; init; }
     public int Failed { get; init; }
+    public int Cancelled { get; init; }
 
     internal static QueueStatsDto From(QueueStats s) =>
         new()
@@ -23,5 +24,6 @@ internal sealed class QueueStatsDto
             Processing = s.Processing,
             Completed = s.Completed,
             Failed = s.Failed,
+            Cancelled = s.Cancelled,
         };
 }

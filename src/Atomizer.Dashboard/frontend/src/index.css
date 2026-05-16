@@ -465,6 +465,10 @@ input:focus-visible {
     color: #fb7185;
 }
 
+.count-slate {
+    color: #94a3b8;
+}
+
 [data-theme="light"] .count-amber {
     color: #d97706;
 }
@@ -479,6 +483,10 @@ input:focus-visible {
 
 [data-theme="light"] .count-rose {
     color: #e11d48;
+}
+
+[data-theme="light"] .count-slate {
+    color: #475569;
 }
 
 .status-pill {

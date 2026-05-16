@@ -356,6 +356,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
             Processing = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Processing)?.Count ?? 0,
             Completed = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Completed)?.Count ?? 0,
             Failed = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Failed)?.Count ?? 0,
+            Cancelled = counts.FirstOrDefault(c => c.Status == AtomizerEntityJobStatus.Cancelled)?.Count ?? 0,
         };
     }
 
@@ -435,6 +436,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 Processing = g.Count(e => e.Status == AtomizerEntityJobStatus.Processing),
                 Completed = g.Count(e => e.Status == AtomizerEntityJobStatus.Completed),
                 Failed = g.Count(e => e.Status == AtomizerEntityJobStatus.Failed),
+                Cancelled = g.Count(e => e.Status == AtomizerEntityJobStatus.Cancelled),
             })
             .ToListAsync(cancellationToken);
 
@@ -446,6 +448,7 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
                 Processing = s.Processing,
                 Completed = s.Completed,
                 Failed = s.Failed,
+                Cancelled = s.Cancelled,
             })
             .ToList();
     }

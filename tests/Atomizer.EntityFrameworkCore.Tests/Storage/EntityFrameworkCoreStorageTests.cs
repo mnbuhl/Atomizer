@@ -700,6 +700,59 @@ public abstract class EntityFrameworkCoreStorageTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpsertScheduleAsync_WhenScheduleExists_ShouldPreserveOperationalState()
+    {
+        // Arrange
+        var now = _clock.UtcNow;
+        var schedule = AtomizerSchedule.Create(
+            new JobKey("WriteLineMessage-preserve-state"),
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Initial Schedule" }""",
+            Schedule.Every().Minute(),
+            TimeZoneInfo.Utc,
+            now,
+            enabled: true
+        );
+
+        await using var dbContext = _dbContextFactory();
+        var storage = _storageFactory(dbContext);
+
+        await storage.UpsertScheduleAsync(schedule, CancellationToken.None);
+        schedule.Disable(now.AddMinutes(1));
+        schedule.NextRunAt = now.AddHours(-1);
+        schedule.LastEnqueueAt = now.AddHours(-2);
+        await storage.UpdateSchedulesAsync([schedule], CancellationToken.None);
+
+        dbContext.ChangeTracker.Clear();
+
+        var registration = AtomizerSchedule.Create(
+            schedule.JobKey,
+            QueueKey.Default,
+            typeof(WriteLineMessage),
+            """{ "message": "Updated Schedule" }""",
+            Schedule.Every().Minute(),
+            TimeZoneInfo.Utc,
+            now.AddHours(1),
+            enabled: true
+        );
+
+        // Act
+        var scheduleId = await storage.UpsertScheduleAsync(registration, CancellationToken.None);
+        var updatedScheduleEntity = await dbContext
+            .Set<AtomizerScheduleEntity>()
+            .FirstOrDefaultAsync(s => s.Id == scheduleId, TestContext.Current.CancellationToken);
+
+        // Assert
+        scheduleId.Should().Be(schedule.Id);
+        updatedScheduleEntity.Should().NotBeNull();
+        updatedScheduleEntity.Enabled.Should().BeFalse();
+        updatedScheduleEntity.NextRunAt.Should().BeCloseTo(now.AddHours(-1), TimeSpan.FromTicks(10));
+        updatedScheduleEntity.LastEnqueueAt.Should().BeCloseTo(now.AddHours(-2), TimeSpan.FromTicks(10));
+        updatedScheduleEntity.Payload.Should().Be("""{ "message": "Updated Schedule" }""");
+    }
+
+    [Fact]
     public async Task HeartbeatUpsert_WhenRepeated_ShouldPersistSingleActiveServerRecord()
     {
         // Arrange

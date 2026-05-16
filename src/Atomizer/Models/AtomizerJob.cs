@@ -257,6 +257,23 @@ public class AtomizerJob : Model
         UpdatedAt = now;
         LeaseToken = null;
     }
+
+    /// <summary>
+    /// Cancels a pending job so it is no longer eligible for processing.
+    /// </summary>
+    /// <param name="cancelledAt">The UTC time the job was cancelled.</param>
+    public void Cancel(DateTimeOffset cancelledAt)
+    {
+        if (Status != AtomizerJobStatus.Pending)
+        {
+            throw new InvalidOperationException("Job must be in Pending status to cancel.");
+        }
+
+        Status = AtomizerJobStatus.Cancelled;
+        UpdatedAt = cancelledAt;
+        LeaseToken = null;
+        VisibleAt = null;
+    }
 }
 
 /// <summary>
@@ -283,4 +300,9 @@ public enum AtomizerJobStatus
     /// The job exhausted all retry attempts and will not be retried.
     /// </summary>
     Failed = 4,
+
+    /// <summary>
+    /// The job was cancelled before processing.
+    /// </summary>
+    Cancelled = 5,
 }

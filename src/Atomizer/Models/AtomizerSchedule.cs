@@ -202,6 +202,16 @@ public class AtomizerSchedule : Model
         Enabled = false;
         UpdatedAt = now;
     }
+
+    /// <summary>
+    /// Enables this schedule so it can be polled again.
+    /// </summary>
+    /// <param name="now">The current UTC time used to set <see cref="AtomizerSchedule.UpdatedAt"/>.</param>
+    public void Enable(DateTimeOffset now)
+    {
+        Enabled = true;
+        UpdatedAt = now;
+    }
 }
 
 /// <summary>

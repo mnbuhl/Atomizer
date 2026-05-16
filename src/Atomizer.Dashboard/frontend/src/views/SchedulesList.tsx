@@ -1,5 +1,7 @@
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../api/client';
 import { useSchedules } from '../api/hooks';
 import { routePrefix, statsRefreshMs } from '../config';
 import {
@@ -20,7 +22,21 @@ import { useNow } from '../hooks/useNow';
 export default function SchedulesList() {
     const { data, isLoading, error, dataUpdatedAt } = useSchedules();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const now = useNow(1_000);
+    const invalidateScheduleActions = () => {
+        queryClient.invalidateQueries({ queryKey: ['schedules'] });
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['queueStats'] });
+    };
+    const toggleMutation = useMutation({
+        mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => api.setScheduleEnabled(id, enabled),
+        onSuccess: invalidateScheduleActions,
+    });
+    const runNowMutation = useMutation({
+        mutationFn: api.runScheduleNow,
+        onSuccess: invalidateScheduleActions,
+    });
     const schedules = data ?? [];
     const enabled = schedules.filter(schedule => schedule.enabled).length;
     const paused = schedules.length - enabled;
@@ -45,6 +61,9 @@ export default function SchedulesList() {
             openScheduleJobs(queueKey, payloadTypeName);
         }
     };
+
+    const stopRowAction = (event: MouseEvent<HTMLButtonElement>) => event.stopPropagation();
+    const stopRowKeyboardAction = (event: KeyboardEvent<HTMLButtonElement>) => event.stopPropagation();
 
     return (
         <div className="space-y-6">
@@ -81,8 +100,13 @@ export default function SchedulesList() {
                     <p className={ui.sectionDescription}>Open a row to see jobs created by that queue and payload type.</p>
                 </div>
 
-                {isLoading && <TableSkeleton columns={8} rows={5} />}
+                {isLoading && <TableSkeleton columns={9} rows={5} />}
                 {error && <div className={ui.error}>Error loading schedules.</div>}
+                {(toggleMutation.error || runNowMutation.error) && (
+                    <div className="danger-text border-t border-[var(--border-soft)] px-5 py-3 text-sm font-medium">
+                        {(toggleMutation.error ?? runNowMutation.error)?.message}
+                    </div>
+                )}
                 {data && (
                     <>
                         <div className="overflow-x-auto">
@@ -97,6 +121,7 @@ export default function SchedulesList() {
                                         <th className="px-5 py-4 font-semibold">Last run</th>
                                         <th className="px-5 py-4 font-semibold">Misfire</th>
                                         <th className="px-5 py-4 font-semibold">State</th>
+                                        <th className="px-5 py-4 font-semibold">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className={ui.tableBody}>
@@ -142,6 +167,37 @@ export default function SchedulesList() {
                                             <td className={cx(ui.muted, 'px-5 py-4')}>{schedule.misfirePolicy}</td>
                                             <td className="px-5 py-4">
                                                 <StatusPill status={schedule.enabled ? 'Enabled' : 'Disabled'} />
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className={ui.smallButton}
+                                                        disabled={toggleMutation.isPending}
+                                                        onKeyDown={stopRowKeyboardAction}
+                                                        onClick={event => {
+                                                            stopRowAction(event);
+                                                            toggleMutation.mutate({
+                                                                id: schedule.id,
+                                                                enabled: !schedule.enabled,
+                                                            });
+                                                        }}
+                                                    >
+                                                        {schedule.enabled ? 'Disable' : 'Enable'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={ui.smallButton}
+                                                        disabled={runNowMutation.isPending}
+                                                        onKeyDown={stopRowKeyboardAction}
+                                                        onClick={event => {
+                                                            stopRowAction(event);
+                                                            runNowMutation.mutate(schedule.id);
+                                                        }}
+                                                    >
+                                                        Run now
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

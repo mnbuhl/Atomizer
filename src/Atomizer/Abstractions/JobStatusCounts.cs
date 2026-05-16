@@ -16,4 +16,7 @@ public sealed class JobStatusCounts
 
     /// <summary>Number of jobs with status Failed.</summary>
     public int Failed { get; init; }
+
+    /// <summary>Number of jobs with status Cancelled.</summary>
+    public int Cancelled { get; init; }
 }

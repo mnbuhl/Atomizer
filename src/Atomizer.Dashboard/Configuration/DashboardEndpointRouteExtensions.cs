@@ -31,8 +31,32 @@ public static class DashboardEndpointRouteExtensions
             DashboardAuthorizationFilter.Wrap<JobsEndpointHandler>((handler, ctx) => handler.GetByIdAsync(ctx))
         );
         endpoints.MapGet(
+            prefix + "/api/job-types",
+            DashboardAuthorizationFilter.Wrap<JobsEndpointHandler>((handler, ctx) => handler.ListJobTypesAsync(ctx))
+        );
+        endpoints.MapPost(
+            prefix + "/api/jobs/trigger",
+            DashboardAuthorizationFilter.Wrap<JobsEndpointHandler>((handler, ctx) => handler.TriggerAsync(ctx))
+        );
+        endpoints.MapPost(
+            prefix + "/api/jobs/{id:guid}/retry",
+            DashboardAuthorizationFilter.Wrap<JobsEndpointHandler>((handler, ctx) => handler.RetryAsync(ctx))
+        );
+        endpoints.MapPost(
+            prefix + "/api/jobs/{id:guid}/cancel",
+            DashboardAuthorizationFilter.Wrap<JobsEndpointHandler>((handler, ctx) => handler.CancelAsync(ctx))
+        );
+        endpoints.MapGet(
             prefix + "/api/schedules",
             DashboardAuthorizationFilter.Wrap<SchedulesEndpointHandler>((handler, ctx) => handler.ListAsync(ctx))
+        );
+        endpoints.MapPost(
+            prefix + "/api/schedules/{id:guid}/enabled",
+            DashboardAuthorizationFilter.Wrap<SchedulesEndpointHandler>((handler, ctx) => handler.SetEnabledAsync(ctx))
+        );
+        endpoints.MapPost(
+            prefix + "/api/schedules/{id:guid}/run-now",
+            DashboardAuthorizationFilter.Wrap<SchedulesEndpointHandler>((handler, ctx) => handler.RunNowAsync(ctx))
         );
         endpoints.MapGet(
             prefix + "/api/queues/stats",

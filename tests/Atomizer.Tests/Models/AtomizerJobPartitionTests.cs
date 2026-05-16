@@ -71,4 +71,37 @@ public class AtomizerJobPartitionTests
         // Assert
         job.IsPartitionBlocked.Should().BeTrue();
     }
+
+    [Fact]
+    public void Cancel_WhenJobIsPending_ShouldMarkJobCancelled()
+    {
+        // Arrange
+        var job = CreateJob();
+        var cancelledAt = DateTimeOffset.UtcNow;
+
+        // Act
+        job.Cancel(cancelledAt);
+
+        // Assert
+        job.Status.Should().Be(AtomizerJobStatus.Cancelled);
+        job.UpdatedAt.Should().Be(cancelledAt);
+    }
+
+    [Fact]
+    public void Cancel_WhenJobIsProcessing_ShouldThrow()
+    {
+        // Arrange
+        var job = CreateJob();
+        job.Lease(
+            new LeaseToken($"worker:*:default:*:{Guid.NewGuid()}"),
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromMinutes(10)
+        );
+
+        // Act
+        Action act = () => job.Cancel(DateTimeOffset.UtcNow);
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Pending status*");
+    }
 }
