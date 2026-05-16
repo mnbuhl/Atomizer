@@ -1,6 +1,42 @@
 @Atomizer.Example_HostAddress = http://localhost:5191
+@PendingJobId = 00000000-0000-0000-0000-000000000000
 
-GET {{Atomizer.Example_HostAddress}}/weatherforecast/
+POST {{Atomizer.Example_HostAddress}}/log
 Accept: application/json
 
 ###
+
+POST {{Atomizer.Example_HostAddress}}/execute/log
+Accept: application/json
+
+###
+
+POST {{Atomizer.Example_HostAddress}}/exception
+Accept: application/json
+
+###
+
+POST {{Atomizer.Example_HostAddress}}/schedule?runInSeconds=60
+Accept: application/json
+
+###
+
+POST {{Atomizer.Example_HostAddress}}/log-to-queue?queue=priority-queue
+Accept: application/json
+
+###
+
+POST {{Atomizer.Example_HostAddress}}/long-running?durationInSeconds=10
+Accept: application/json
+
+###
+
+# Replace @PendingJobId with a job id returned by /schedule before the job is picked up.
+DELETE {{Atomizer.Example_HostAddress}}/jobs/{{PendingJobId}}
+Accept: application/json
+
+###
+
+# Idempotent: returns no content even when the recurring schedule is already gone.
+DELETE {{Atomizer.Example_HostAddress}}/recurring/LoggerJob
+Accept: application/json

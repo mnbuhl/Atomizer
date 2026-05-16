@@ -278,6 +278,21 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         throw UnsupportedProviderException(_providerCache.ProviderName);
     }
 
+    public async Task<bool> DeleteScheduleAsync(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var entity = await ScheduleEntities.FirstOrDefaultAsync(s => s.JobKey == jobKey.ToString(), cancellationToken);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        ScheduleEntities.Remove(entity);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
         try
