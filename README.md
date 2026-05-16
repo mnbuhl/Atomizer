@@ -118,11 +118,6 @@ builder.Services.AddAtomizer(options =>
 
 Redis storage implements the same `IAtomizerStorage` monitoring methods as the other backends, so it works with `Atomizer.Dashboard` without referencing the dashboard package from `Atomizer.Redis`.
 
-The sample projects include `.http` files with example requests for enqueueing jobs, executing handlers directly, dequeuing pending jobs, and deleting recurring schedules:
-
-- `samples/Atomizer.Example/Atomizer.Example.http`
-- `samples/Atomizer.EFCore.Example/Atomizer.EFCore.Example.http`
-- `samples/Atomizer.Redis.Example/Atomizer.Redis.Example.http`
 
 ### 3. Define a Job Handler
 Create a handler for your job payload:
