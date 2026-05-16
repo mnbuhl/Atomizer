@@ -20,6 +20,9 @@ public class AtomizerClientTests
         _clock.UtcNow.Returns(_now);
         _serviceScope.Storage.Returns(_storage);
         _serviceScopeFactory.CreateScope().Returns(_serviceScope);
+        _storage
+            .UpsertHeartbeatAsync(Arg.Any<AtomizerActiveServer>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
     }
 
     [Fact]
@@ -96,13 +99,21 @@ public class AtomizerClientTests
         var queue = new QueueKey("critical");
         AtomizerJob? finalJob = null;
         AtomizerJobStatus? statusAtInsert = null;
+        int? attemptsAtInsert = null;
         AtomizerJobStatus? statusAtDispatch = null;
         _jobSerializer.Serialize(payload).Returns("{\"Message\":\"send\"}");
         _dispatcher
             .DispatchAsync(Arg.Do<AtomizerJob>(job => statusAtDispatch = job.Status), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         _storage
-            .InsertAsync(Arg.Do<AtomizerJob>(job => statusAtInsert = job.Status), Arg.Any<CancellationToken>())
+            .InsertAsync(
+                Arg.Do<AtomizerJob>(job =>
+                {
+                    statusAtInsert = job.Status;
+                    attemptsAtInsert = job.Attempts;
+                }),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(call => ((AtomizerJob)call[0]!).Id);
         _storage
             .UpdateJobsAsync(
@@ -121,6 +132,7 @@ public class AtomizerClientTests
         finalJob.Should().NotBeNull();
         jobId.Should().Be(finalJob!.Id);
         statusAtInsert.Should().Be(AtomizerJobStatus.Processing);
+        attemptsAtInsert.Should().Be(0);
         statusAtDispatch.Should().Be(AtomizerJobStatus.Processing);
         finalJob.QueueKey.Should().Be(queue);
         finalJob.PayloadType.Should().Be(typeof(DirectPayload));
@@ -165,6 +177,76 @@ public class AtomizerClientTests
         finalJob.CompletedAt.Should().BeNull();
         finalJob.Errors.Should().ContainSingle();
         finalJob.Errors.Single().ExceptionType.Should().Be(typeof(InvalidOperationException).FullName);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCancellationIsRequested_ShouldReleaseJobWithoutFailure()
+    {
+        using var cts = new CancellationTokenSource();
+        var payload = new DirectPayload("send");
+        AtomizerJob? finalJob = null;
+        _jobSerializer.Serialize(payload).Returns("{\"Message\":\"send\"}");
+        _dispatcher
+            .DispatchAsync(Arg.Any<AtomizerJob>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                cts.Cancel();
+                return Task.FromException(new OperationCanceledException(cts.Token));
+            });
+        _storage
+            .InsertAsync(Arg.Any<AtomizerJob>(), Arg.Any<CancellationToken>())
+            .Returns(call => ((AtomizerJob)call[0]!).Id);
+        _storage
+            .UpdateJobsAsync(
+                Arg.Do<IEnumerable<AtomizerJob>>(jobs => finalJob = jobs.Single()),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Task.CompletedTask);
+        var sut = CreateSut();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => sut.ExecuteAsync(payload, cancellation: cts.Token));
+
+        finalJob.Should().NotBeNull();
+        finalJob!.Status.Should().Be(AtomizerJobStatus.Pending);
+        finalJob.Attempts.Should().Be(0);
+        finalJob.LeaseToken.Should().BeNull();
+        finalJob.VisibleAt.Should().BeNull();
+        finalJob.FailedAt.Should().BeNull();
+        finalJob.Errors.Should().BeEmpty();
+        await _storage
+            .Received(1)
+            .UpdateJobsAsync(
+                Arg.Any<IEnumerable<AtomizerJob>>(),
+                Arg.Is<CancellationToken>(token => token == CancellationToken.None)
+            );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenJobIsInserted_ShouldRegisterHeartbeatBeforeInsert()
+    {
+        var payload = new DirectPayload("send");
+        _jobSerializer.Serialize(payload).Returns("{\"Message\":\"send\"}");
+        _dispatcher.DispatchAsync(Arg.Any<AtomizerJob>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        _storage
+            .InsertAsync(Arg.Any<AtomizerJob>(), Arg.Any<CancellationToken>())
+            .Returns(call => ((AtomizerJob)call[0]!).Id);
+        _storage
+            .UpdateJobsAsync(Arg.Any<IEnumerable<AtomizerJob>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        var sut = CreateSut();
+
+        await sut.ExecuteAsync(payload, cancellation: TestContext.Current.CancellationToken);
+
+        Received.InOrder(() =>
+        {
+            _storage.UpsertHeartbeatAsync(
+                Arg.Is<AtomizerActiveServer>(server =>
+                    server.InstanceId == _identity.InstanceId && server.LastHeartbeatAt == _now
+                ),
+                TestContext.Current.CancellationToken
+            );
+            _storage.InsertAsync(Arg.Any<AtomizerJob>(), TestContext.Current.CancellationToken);
+        });
     }
 
     private AtomizerClient CreateSut() =>

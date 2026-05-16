@@ -9,6 +9,7 @@ namespace Atomizer.Core;
 /// </summary>
 public sealed class AtomizerClient : IAtomizerClient
 {
+    private static readonly TimeSpan DirectExecutionHeartbeatInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan DirectExecutionVisibilityTimeout = TimeSpan.FromDays(1);
 
     private readonly IAtomizerServiceScopeFactory _serviceScopeFactory;
@@ -178,10 +179,14 @@ public sealed class AtomizerClient : IAtomizerClient
         );
 
         job.Lease(CreateDirectLeaseToken(options.Queue), now, DirectExecutionVisibilityTimeout);
-        job.Attempt();
 
         using var scope = _serviceScopeFactory.CreateScope();
         var storage = scope.Storage;
+        await storage.UpsertHeartbeatAsync(
+            new AtomizerActiveServer { InstanceId = _identity.InstanceId, LastHeartbeatAt = now },
+            cancellation
+        );
+
         var jobId = await storage.InsertAsync(job, cancellation);
         if (jobId != job.Id)
         {
@@ -193,12 +198,15 @@ public sealed class AtomizerClient : IAtomizerClient
             return jobId;
         }
 
+        using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        var heartbeatTask = RunDirectExecutionHeartbeatAsync(heartbeatCts.Token);
         try
         {
+            job.Attempt();
             await _dispatcher.DispatchAsync(job, cancellation);
             job.MarkAsCompleted(_clock.UtcNow);
 
-            await storage.UpdateJobsAsync(new[] { job }, cancellation);
+            await storage.UpdateJobsAsync(new[] { job }, CancellationToken.None);
 
             _logger.LogInformation(
                 "Direct execution of job {JobId} with payload type {PayloadType} completed",
@@ -207,6 +215,22 @@ public sealed class AtomizerClient : IAtomizerClient
             );
 
             return job.Id;
+        }
+        catch (OperationCanceledException ex) when (cancellation.IsCancellationRequested)
+        {
+            job.Attempts -= 1;
+            job.Release(_clock.UtcNow);
+
+            await storage.UpdateJobsAsync(new[] { job }, CancellationToken.None);
+
+            _logger.LogWarning(
+                ex,
+                "Direct execution of job {JobId} with payload type {PayloadType} was cancelled",
+                job.Id,
+                job.PayloadType?.FullName
+            );
+
+            throw;
         }
         catch (Exception ex)
         {
@@ -224,6 +248,11 @@ public sealed class AtomizerClient : IAtomizerClient
             );
 
             throw;
+        }
+        finally
+        {
+            heartbeatCts.Cancel();
+            await StopDirectExecutionHeartbeatAsync(heartbeatTask);
         }
     }
 
@@ -263,4 +292,46 @@ public sealed class AtomizerClient : IAtomizerClient
 
     private LeaseToken CreateDirectLeaseToken(QueueKey queue) =>
         new LeaseToken($"{_identity.InstanceId}{LeaseToken.Delimiter}{queue}{LeaseToken.Delimiter}{Guid.NewGuid():N}");
+
+    private async Task RunDirectExecutionHeartbeatAsync(CancellationToken cancellation)
+    {
+        while (!cancellation.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(DirectExecutionHeartbeatInterval, cancellation);
+                await UpsertDirectExecutionHeartbeatAsync(_clock.UtcNow, cancellation);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to refresh Atomizer heartbeat during direct execution for instance {InstanceId}",
+                    _identity.InstanceId
+                );
+            }
+        }
+    }
+
+    private async Task UpsertDirectExecutionHeartbeatAsync(DateTimeOffset now, CancellationToken cancellation)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        await scope.Storage.UpsertHeartbeatAsync(
+            new AtomizerActiveServer { InstanceId = _identity.InstanceId, LastHeartbeatAt = now },
+            cancellation
+        );
+    }
+
+    private async Task StopDirectExecutionHeartbeatAsync(Task heartbeatTask)
+    {
+        try
+        {
+            await heartbeatTask;
+        }
+        catch (OperationCanceledException) { }
+    }
 }
