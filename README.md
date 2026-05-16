@@ -118,15 +118,6 @@ builder.Services.AddAtomizer(options =>
 
 Redis storage implements the same `IAtomizerStorage` monitoring methods as the other backends, so it works with `Atomizer.Dashboard` without referencing the dashboard package from `Atomizer.Redis`.
 
-The Redis sample includes the dashboard and a few endpoints for creating and operating on jobs:
-
-```bash
-docker compose up -d redis
-dotnet run --project samples/Atomizer.Redis.Example/Atomizer.Redis.Example.csproj
-```
-
-Open `http://localhost:5053/atomizer` to inspect Redis-backed jobs, schedules, queues, and workers.
-
 The sample projects include `.http` files with example requests for enqueueing jobs, executing handlers directly, dequeuing pending jobs, and deleting recurring schedules:
 
 - `samples/Atomizer.Example/Atomizer.Example.http`
