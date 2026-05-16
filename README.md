@@ -14,7 +14,7 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 ## Features
 - ⏰ **Recurring Scheduled Jobs** — Cron-like recurring execution for time-based workflows.
 - 🚀 **Distributed Processing** — Scale out to as many servers as your storage backend supports; Atomizer coordinates job execution across the cluster.
-- 🗄️ **Multiple Storage Backends** — Use Entity Framework Core for durable, database-backed queues; in-memory for fast local development & testing; Redis support coming soon.
+- 🗄️ **Multiple Storage Backends** — Use Entity Framework Core for durable, database-backed queues; Redis for distributed low-latency queues; in-memory for fast local development & testing.
 - 🔀 **Multiple Queues** — Configure independent queues with custom processing options for each workload.
 - 🧩 **Extensible Drivers & Handlers** — Easily add new storage drivers or job handlers; auto-register handlers from assemblies.
 - ♻️ **Advanced Retry Policies** — Automatic, configurable retries to keep your jobs running smoothly—even when things go wrong.
@@ -26,16 +26,17 @@ Atomizer is a modern, high-performance job scheduling and queueing framework for
 - 📈 **Dashboard** — Optional read-only dashboard for jobs, schedules, queue statistics, and worker heartbeats.
 - 🔔 **ASP.NET Core Integration** — Works with DI, logging, and modern C# idioms.
 
-## Planned Features
-- ⚡ **Redis Driver** — Lightning-fast, distributed, in-memory queues for massive scale.
-
 ## Quick Start
 Get up and running in minutes:
 
 ### 1. Install the package
 ```bash
 dotnet add package Atomizer
+
+# Choose a durable storage backend
 dotnet add package Atomizer.EntityFrameworkCore
+# or
+dotnet add package Atomizer.Redis
 
 # Optional: add the monitoring dashboard
 dotnet add package Atomizer.Dashboard
@@ -66,7 +67,7 @@ builder.Services.AddAtomizer(options =>
     // Register job handlers automatically
     options.AddHandlersFrom<AssignStockJobHandler>();
     
-    // Use EF Core-backed job storage
+    // Use EF Core-backed job storage.
     options.UseEntityFrameworkCoreStorage<ExampleDbContext>();
 });
 
@@ -98,6 +99,20 @@ Make sure to run migrations to create the necessary tables.
 
 Note:
 >If using MySql, set schema to 'null' or configure schema behavior in your `DbContext` as MySql is not compatible with EF Core schemas.
+
+To use Redis-backed storage instead, reference `Atomizer.Redis` and configure the storage option with a StackExchange.Redis connection string:
+
+```csharp
+using Atomizer.Redis;
+
+builder.Services.AddAtomizer(options =>
+{
+    options.AddHandlersFrom<AssignStockJobHandler>();
+    options.UseRedisStorage(builder.Configuration.GetConnectionString("Redis")!);
+});
+```
+
+Redis storage implements the same `IAtomizerStorage` monitoring methods as the other backends, so it works with `Atomizer.Dashboard` without referencing the dashboard package from `Atomizer.Redis`.
 
 ### 3. Define a Job Handler
 Create a handler for your job payload:
