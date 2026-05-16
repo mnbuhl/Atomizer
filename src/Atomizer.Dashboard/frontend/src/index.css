@@ -106,7 +106,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
     font: inherit;
 }
 
@@ -116,14 +118,18 @@ button:not(:disabled) {
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
     outline: 2px solid #38bdf8;
     outline-offset: 3px;
 }
 
 [data-theme="light"] button:focus-visible,
 [data-theme="light"] a:focus-visible,
-[data-theme="light"] input:focus-visible {
+[data-theme="light"] input:focus-visible,
+[data-theme="light"] select:focus-visible,
+[data-theme="light"] textarea:focus-visible {
     outline-color: #0284c7;
 }
 
@@ -344,6 +350,16 @@ input:focus-visible {
     filter: brightness(0.96);
 }
 
+.danger-button {
+    background: var(--danger-strong);
+    color: var(--page-background);
+    box-shadow: 0 14px 32px var(--shadow);
+}
+
+.danger-button:hover {
+    filter: brightness(0.96);
+}
+
 .button-secondary:hover,
 .filter-chip:hover {
     border-color: var(--border);
@@ -469,6 +485,10 @@ input:focus-visible {
     color: #94a3b8;
 }
 
+.count-orange {
+    color: #fb923c;
+}
+
 [data-theme="light"] .count-amber {
     color: #d97706;
 }
@@ -487,6 +507,21 @@ input:focus-visible {
 
 [data-theme="light"] .count-slate {
     color: #475569;
+}
+
+[data-theme="light"] .count-orange {
+    color: #ea580c;
+}
+
+.dialog-backdrop {
+    background: rgba(2, 6, 23, 0.72);
+    backdrop-filter: blur(10px);
+}
+
+.dialog-panel {
+    border-color: var(--border);
+    background: var(--panel-solid);
+    color: var(--text);
 }
 
 .status-pill {
@@ -544,6 +579,12 @@ input:focus-visible {
     --tone-border: rgba(34, 211, 238, 0.28);
 }
 
+.status-pill--orange {
+    --tone-bg: rgba(249, 115, 22, 0.18);
+    --tone-text: #fed7aa;
+    --tone-border: rgba(251, 146, 60, 0.3);
+}
+
 [data-theme="light"] .status-pill--slate {
     --tone-bg: #f1f5f9;
     --tone-text: #475569;
@@ -584,4 +625,10 @@ input:focus-visible {
     --tone-bg: #cffafe;
     --tone-text: #0e7490;
     --tone-border: #a5f3fc;
+}
+
+[data-theme="light"] .status-pill--orange {
+    --tone-bg: #ffedd5;
+    --tone-text: #c2410c;
+    --tone-border: #fed7aa;
 }

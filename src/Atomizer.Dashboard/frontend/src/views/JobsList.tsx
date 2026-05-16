@@ -5,8 +5,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useJobs, useJobTypes, type JobFilters } from '../api/hooks';
 import { routePrefix, jobsRefreshMs } from '../config';
-import type { JobDto } from '../api/types';
+import type { JobDto, JobTypeOption } from '../api/types';
 import {
+    ConfirmationDialog,
     cx,
     EmptyState,
     formatNumber,
@@ -34,6 +35,11 @@ const TIME_FILTERS = [
     { key: '7d', label: '7d', getFrom: () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
 ] as const;
 
+type JobsConfirmation =
+    | { action: 'trigger'; payloadTypeId: string; payloadTypeName: string; queueKey: string; payload: string }
+    | { action: 'retry'; job: JobDto }
+    | { action: 'cancel'; job: JobDto };
+
 export default function JobsList() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -42,7 +48,8 @@ export default function JobsList() {
     const [isTriggerOpen, setIsTriggerOpen] = useState(false);
     const [triggerPayloadTypeId, setTriggerPayloadTypeId] = useState('');
     const [triggerQueueKey, setTriggerQueueKey] = useState(QueueKeyDefault);
-    const [triggerPayload, setTriggerPayload] = useState('{\n  "message": ""\n}');
+    const [triggerPayload, setTriggerPayload] = useState('');
+    const [confirmation, setConfirmation] = useState<JobsConfirmation | null>(null);
     const [timeFilter, setTimeFilter] = useState<(typeof TIME_FILTERS)[number]['key']>('all');
     const [filters, setFilters] = useState<JobFilters>(() => ({
         skip: 0,
@@ -56,7 +63,7 @@ export default function JobsList() {
     const debouncedQueueSearch = useDebouncedValue(queueSearch, 300);
     const debouncedPayloadSearch = useDebouncedValue(payloadSearch, 300);
     const { data, isLoading, error, refetch, dataUpdatedAt, isFetching } = useJobs(filters);
-    const { data: jobTypes = [] } = useJobTypes();
+    const { data: jobTypes = [], isLoading: isLoadingJobTypes, error: jobTypesError } = useJobTypes(isTriggerOpen);
     const counts = data?.statusCounts ?? { pending: 0, processing: 0, completed: 0, failed: 0, cancelled: 0 };
     const retryMutation = useMutation({
         mutationFn: api.retryJob,
@@ -81,6 +88,10 @@ export default function JobsList() {
 
     const setPage = (skip: number) => setFilters(f => ({ ...f, skip }));
     const openJob = (jobId: string) => navigate(`${routePrefix}/jobs/${jobId}`);
+    const selectTriggerPayloadType = (option: JobTypeOption) => {
+        setTriggerPayloadTypeId(option.id);
+        setTriggerPayload(option.examplePayload);
+    };
 
     useEffect(() => {
         setFilters(f => ({
@@ -92,10 +103,10 @@ export default function JobsList() {
     }, [debouncedPayloadSearch, debouncedQueueSearch]);
 
     useEffect(() => {
-        if (!triggerPayloadTypeId && jobTypes.length > 0) {
-            setTriggerPayloadTypeId(jobTypes[0].id);
+        if (isTriggerOpen && !triggerPayloadTypeId && jobTypes.length > 0) {
+            selectTriggerPayloadType(jobTypes[0]);
         }
-    }, [jobTypes, triggerPayloadTypeId]);
+    }, [isTriggerOpen, jobTypes, triggerPayloadTypeId]);
 
     const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, jobId: string) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -109,8 +120,11 @@ export default function JobsList() {
 
     const submitTriggerJob = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        triggerMutation.mutate({
+        const selectedJobType = jobTypes.find(option => option.id === triggerPayloadTypeId);
+        setConfirmation({
+            action: 'trigger',
             payloadTypeId: triggerPayloadTypeId,
+            payloadTypeName: selectedJobType?.payloadTypeName ?? 'selected payload type',
             queueKey: triggerQueueKey,
             payload: triggerPayload,
         });
@@ -150,7 +164,7 @@ export default function JobsList() {
                         <button
                             onClick={() => setIsTriggerOpen(open => !open)}
                             className={ui.secondaryButton}
-                            disabled={jobTypes.length === 0}
+                            aria-expanded={isTriggerOpen}
                         >
                             Trigger job
                         </button>
@@ -166,8 +180,18 @@ export default function JobsList() {
                             <select
                                 className={ui.input}
                                 value={triggerPayloadTypeId}
-                                onChange={event => setTriggerPayloadTypeId(event.target.value)}
+                                disabled={isLoadingJobTypes || jobTypes.length === 0}
+                                onChange={event => {
+                                    const selected = jobTypes.find(option => option.id === event.target.value);
+                                    if (selected) {
+                                        selectTriggerPayloadType(selected);
+                                    }
+                                }}
                             >
+                                {isLoadingJobTypes && <option value="">Loading payload types</option>}
+                                {!isLoadingJobTypes && jobTypes.length === 0 && (
+                                    <option value="">No registered payload types</option>
+                                )}
                                 {jobTypes.map(option => (
                                     <option key={option.id} value={option.id}>
                                         {option.payloadTypeFullName}
@@ -191,9 +215,16 @@ export default function JobsList() {
                             <textarea
                                 className="input-field mt-2 h-44 w-full rounded-2xl border px-4 py-3 font-mono text-sm outline-none transition"
                                 value={triggerPayload}
+                                disabled={isLoadingJobTypes || jobTypes.length === 0}
                                 onChange={event => setTriggerPayload(event.target.value)}
                             />
                         </label>
+
+                        {jobTypesError && (
+                            <div className="danger-text text-sm font-medium xl:col-span-2">
+                                Failed to load payload types.
+                            </div>
+                        )}
 
                         {triggerMutation.error && (
                             <div className="danger-text text-sm font-medium xl:col-span-2">
@@ -205,7 +236,7 @@ export default function JobsList() {
                             <button
                                 type="submit"
                                 className={ui.primaryButton}
-                                disabled={triggerMutation.isPending || !triggerPayloadTypeId}
+                                disabled={triggerMutation.isPending || isLoadingJobTypes || !triggerPayloadTypeId}
                             >
                                 {triggerMutation.isPending ? 'Triggering…' : 'Trigger'}
                             </button>
@@ -220,6 +251,34 @@ export default function JobsList() {
                     </form>
                 </Panel>
             )}
+
+            <ConfirmationDialog
+                open={confirmation !== null}
+                title={getJobsConfirmationTitle(confirmation)}
+                description={getJobsConfirmationDescription(confirmation)}
+                confirmLabel={getJobsConfirmationLabel(confirmation)}
+                confirmTone={confirmation?.action === 'cancel' ? 'danger' : 'default'}
+                onCancel={() => setConfirmation(null)}
+                onConfirm={() => {
+                    if (!confirmation) {
+                        return;
+                    }
+
+                    if (confirmation.action === 'trigger') {
+                        triggerMutation.mutate({
+                            payloadTypeId: confirmation.payloadTypeId,
+                            queueKey: confirmation.queueKey,
+                            payload: confirmation.payload,
+                        });
+                    } else if (confirmation.action === 'retry') {
+                        retryMutation.mutate(confirmation.job.id);
+                    } else {
+                        cancelMutation.mutate(confirmation.job.id);
+                    }
+
+                    setConfirmation(null);
+                }}
+            />
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {isLoading ? (
@@ -423,7 +482,7 @@ export default function JobsList() {
                                                             onKeyDown={stopRowKeyboardAction}
                                                             onClick={event => {
                                                                 stopRowAction(event);
-                                                                retryMutation.mutate(job.id);
+                                                                setConfirmation({ action: 'retry', job });
                                                             }}
                                                         >
                                                             Retry
@@ -437,7 +496,7 @@ export default function JobsList() {
                                                             onKeyDown={stopRowKeyboardAction}
                                                             onClick={event => {
                                                                 stopRowAction(event);
-                                                                cancelMutation.mutate(job.id);
+                                                                setConfirmation({ action: 'cancel', job });
                                                             }}
                                                         >
                                                             Cancel
@@ -489,6 +548,46 @@ export default function JobsList() {
             </Panel>
         </div>
     );
+}
+
+function getJobsConfirmationTitle(confirmation: JobsConfirmation | null): string {
+    if (confirmation?.action === 'trigger') {
+        return 'Trigger job?';
+    }
+
+    if (confirmation?.action === 'retry') {
+        return 'Retry job?';
+    }
+
+    return 'Cancel job?';
+}
+
+function getJobsConfirmationDescription(confirmation: JobsConfirmation | null): string {
+    if (confirmation?.action === 'trigger') {
+        return `Trigger ${confirmation.payloadTypeName} on queue ${confirmation.queueKey}.`;
+    }
+
+    if (confirmation?.action === 'retry') {
+        return `Retry failed job ${confirmation.job.id.slice(0, 8)} by enqueueing a replacement job.`;
+    }
+
+    if (confirmation?.action === 'cancel') {
+        return `Cancel pending job ${confirmation.job.id.slice(0, 8)}. This moves it out of the queue.`;
+    }
+
+    return '';
+}
+
+function getJobsConfirmationLabel(confirmation: JobsConfirmation | null): string {
+    if (confirmation?.action === 'trigger') {
+        return 'Trigger job';
+    }
+
+    if (confirmation?.action === 'retry') {
+        return 'Retry job';
+    }
+
+    return 'Cancel job';
 }
 
 function JobTiming({ job, now }: { job: JobDto; now: number }) {

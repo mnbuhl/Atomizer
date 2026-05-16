@@ -36,6 +36,7 @@ internal sealed class DashboardCommandService
                 Id = payloadType.AssemblyQualifiedName!,
                 PayloadTypeName = payloadType.Name,
                 PayloadTypeFullName = payloadType.FullName ?? payloadType.Name,
+                ExamplePayload = DashboardPayloadExampleFactory.Create(payloadType),
             })
             .ToList();
     }

@@ -28,6 +28,7 @@ internal sealed class JobTypeOptionDto
     public string Id { get; init; } = string.Empty;
     public string PayloadTypeName { get; init; } = string.Empty;
     public string PayloadTypeFullName { get; init; } = string.Empty;
+    public string ExamplePayload { get; init; } = string.Empty;
 }
 
 internal sealed class SetScheduleEnabledRequest

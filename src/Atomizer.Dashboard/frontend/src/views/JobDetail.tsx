@@ -1,9 +1,11 @@
 import { Link, useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useJob } from '../api/hooks';
 import { routePrefix } from '../config';
 import {
+    ConfirmationDialog,
     cx,
     MetricCard,
     MetricCardSkeleton,
@@ -21,6 +23,7 @@ export default function JobDetail() {
     const queryClient = useQueryClient();
     const now = useNow(15_000);
     const { data: job, isLoading, error } = useJob(id!);
+    const [confirmation, setConfirmation] = useState<'retry' | 'cancel' | null>(null);
     const refreshJobQueries = () => {
         queryClient.invalidateQueries({ queryKey: ['job', id] });
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -65,7 +68,7 @@ export default function JobDetail() {
                                 type="button"
                                 className={ui.primaryButton}
                                 disabled={retryMutation.isPending}
-                                onClick={() => retryMutation.mutate(job.id)}
+                                onClick={() => setConfirmation('retry')}
                             >
                                 {retryMutation.isPending ? 'Retrying…' : 'Retry'}
                             </button>
@@ -75,7 +78,7 @@ export default function JobDetail() {
                                 type="button"
                                 className={ui.secondaryButton}
                                 disabled={cancelMutation.isPending}
-                                onClick={() => cancelMutation.mutate(job.id)}
+                                onClick={() => setConfirmation('cancel')}
                             >
                                 {cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
                             </button>
@@ -117,9 +120,31 @@ export default function JobDetail() {
                     label={finalLabel}
                     value={<RelativeTime value={finalTimestamp} now={now} />}
                     helper="Most relevant transition"
-                    tone={job.status === 'Failed' ? 'red' : job.status === 'Completed' ? 'green' : job.status === 'Cancelled' ? 'slate' : 'purple'}
+                    tone={job.status === 'Failed' ? 'red' : job.status === 'Completed' ? 'green' : job.status === 'Cancelled' ? 'orange' : 'purple'}
                 />
             </div>
+
+            <ConfirmationDialog
+                open={confirmation !== null}
+                title={confirmation === 'cancel' ? 'Cancel job?' : 'Retry job?'}
+                description={
+                    confirmation === 'cancel'
+                        ? `Cancel pending job ${job.id.slice(0, 8)}. This moves it out of the queue.`
+                        : `Retry failed job ${job.id.slice(0, 8)} by enqueueing a replacement job.`
+                }
+                confirmLabel={confirmation === 'cancel' ? 'Cancel job' : 'Retry job'}
+                confirmTone={confirmation === 'cancel' ? 'danger' : 'default'}
+                onCancel={() => setConfirmation(null)}
+                onConfirm={() => {
+                    if (confirmation === 'cancel') {
+                        cancelMutation.mutate(job.id);
+                    } else if (confirmation === 'retry') {
+                        retryMutation.mutate(job.id);
+                    }
+
+                    setConfirmation(null);
+                }}
+            />
 
             <Panel>
                 <div className={ui.panelHeadingAccent}>
