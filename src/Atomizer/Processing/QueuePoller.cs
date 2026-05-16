@@ -73,6 +73,11 @@ internal class QueuePoller : IQueuePoller
 
                                     foreach (var job in jobs)
                                     {
+                                        if (job.Status == AtomizerJobStatus.Processing)
+                                        {
+                                            job.Release(now);
+                                        }
+
                                         job.Lease(leaseToken, now, queue.VisibilityTimeout);
                                         acquired.Add(job);
                                     }

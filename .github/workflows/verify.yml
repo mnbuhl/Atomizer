@@ -61,7 +61,18 @@ jobs:
         run: dotnet build --no-restore --configuration Release --verbosity minimal
 
       - name: Test
-        run: dotnet test --no-build --verbosity normal --configuration Release --collect:"XPlat Code Coverage" --logger "trx" --results-directory ./TestResults
+        run: >
+          dotnet test
+          --no-build
+          --configuration Release
+          --verbosity normal
+          --maxcpucount
+          -p:TestTfmsInParallel=true
+          --collect:"XPlat Code Coverage"
+          --logger "trx"
+          --results-directory ./TestResults
+          --
+          RunConfiguration.MaxCpuCount=0
         
       - name: Test results report
         uses: dorny/test-reporter@v2
