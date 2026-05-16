@@ -540,6 +540,33 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
         (await _sut.GetJobByIdAsync(oldPending.Id, CancellationToken.None)).Should().NotBeNull();
     }
 
+    /// <summary>
+    /// Schedule deletion removes an existing recurring schedule.
+    /// </summary>
+    [Fact]
+    public async Task DeleteScheduleAsync_WhenScheduleExists_ShouldRemoveScheduleAndReturnTrue()
+    {
+        var schedule = CreateSchedule("nightly-report");
+        await _sut.UpsertScheduleAsync(schedule, CancellationToken.None);
+
+        var deleted = await _sut.DeleteScheduleAsync(schedule.JobKey, CancellationToken.None);
+
+        deleted.Should().BeTrue();
+        var schedules = await _sut.GetSchedulesAsync(CancellationToken.None);
+        schedules.Should().NotContain(s => s.JobKey == schedule.JobKey);
+    }
+
+    /// <summary>
+    /// Schedule deletion is idempotent when the recurring schedule does not exist.
+    /// </summary>
+    [Fact]
+    public async Task DeleteScheduleAsync_WhenScheduleDoesNotExist_ShouldReturnFalse()
+    {
+        var deleted = await _sut.DeleteScheduleAsync(new JobKey("missing-schedule"), CancellationToken.None);
+
+        deleted.Should().BeFalse();
+    }
+
     // ------------------------------------------------------------------
     // Helper
     // ------------------------------------------------------------------
@@ -561,4 +588,15 @@ public abstract class AtomizerStorageContractTests : IAsyncLifetime
             partitionKey: partitionKey
         );
     }
+
+    private AtomizerSchedule CreateSchedule(string jobKey) =>
+        AtomizerSchedule.Create(
+            new JobKey(jobKey),
+            QueueKey.Default,
+            typeof(WriteLineJob),
+            "{}",
+            Schedule.Default,
+            TimeZoneInfo.Utc,
+            _now
+        );
 }

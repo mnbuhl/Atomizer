@@ -255,6 +255,26 @@ internal sealed class RedisStorage : IAtomizerStorage, IDisposable
         }
     }
 
+    public async Task<bool> DeleteScheduleAsync(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var lockValue = await AcquireLockAsync(_keys.SchedulesLock, wait: true, cancellationToken);
+        try
+        {
+            var existing = await ReadScheduleAsync(jobKey.Key, cancellationToken);
+            if (existing is null)
+                return false;
+
+            await DeleteScheduleRecordAsync(jobKey);
+            return true;
+        }
+        finally
+        {
+            await ReleaseLockAsync(_keys.SchedulesLock, lockValue);
+        }
+    }
+
     public async Task UpdateSchedulesAsync(IEnumerable<AtomizerSchedule> schedules, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -601,6 +621,12 @@ internal sealed class RedisStorage : IAtomizerStorage, IDisposable
             RedisRecordSerializer.Serialize(RedisScheduleRecord.FromSchedule(schedule))
         );
         await Database.SortedSetAddAsync(_keys.SchedulesByNextRun, schedule.JobKey.Key, Score(schedule.NextRunAt));
+    }
+
+    private async Task DeleteScheduleRecordAsync(JobKey jobKey)
+    {
+        await Database.KeyDeleteAsync(_keys.Schedule(jobKey.Key));
+        await Database.SortedSetRemoveAsync(_keys.SchedulesByNextRun, jobKey.Key);
     }
 
     private async Task<AtomizerSchedule?> ReadScheduleAsync(string jobKey, CancellationToken cancellationToken)

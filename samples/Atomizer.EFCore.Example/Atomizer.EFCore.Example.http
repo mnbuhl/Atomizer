@@ -1,6 +1,53 @@
 @Atomizer.EFCore.Example_HostAddress = http://localhost:5052
+@ProductId = 11111111-1111-1111-1111-111111111111
+@PendingJobId = 00000000-0000-0000-0000-000000000000
 
-GET {{Atomizer.EFCore.Example_HostAddress}}/weatherforecast/
+POST {{Atomizer.EFCore.Example_HostAddress}}/products
 Accept: application/json
 
 ###
+
+POST {{Atomizer.EFCore.Example_HostAddress}}/assign-stock
+Content-Type: application/json
+
+{
+  "productId": "{{ProductId}}",
+  "quantity": 25
+}
+
+###
+
+POST {{Atomizer.EFCore.Example_HostAddress}}/execute/log
+Accept: application/json
+
+###
+
+POST {{Atomizer.EFCore.Example_HostAddress}}/stock-events
+Content-Type: application/json
+
+{
+  "productId": "{{ProductId}}",
+  "eventType": "Restocked",
+  "delta": 25
+}
+
+###
+
+POST {{Atomizer.EFCore.Example_HostAddress}}/long-running-job
+Content-Type: application/json
+
+{
+  "durationInSeconds": 10
+}
+
+###
+
+# Replace @PendingJobId with a job id returned by a scheduled or enqueued request before it is picked up.
+DELETE {{Atomizer.EFCore.Example_HostAddress}}/jobs/{{PendingJobId}}
+Accept: application/json
+
+###
+
+# Idempotent: returns no content even when the recurring schedule is already gone.
+DELETE {{Atomizer.EFCore.Example_HostAddress}}/recurring/LoggerJob
+Accept: application/json

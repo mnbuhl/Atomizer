@@ -1,6 +1,12 @@
 @Atomizer.Redis.Example_HostAddress = http://localhost:5053
+@PendingJobId = 00000000-0000-0000-0000-000000000000
 
 POST {{Atomizer.Redis.Example_HostAddress}}/log
+Accept: application/json
+
+###
+
+POST {{Atomizer.Redis.Example_HostAddress}}/execute/log
 Accept: application/json
 
 ###
@@ -27,3 +33,15 @@ Content-Type: application/json
   "accountId": "account-123",
   "eventName": "StatementGenerated"
 }
+
+###
+
+# Replace @PendingJobId with a job id returned by /schedule before the job is picked up.
+DELETE {{Atomizer.Redis.Example_HostAddress}}/jobs/{{PendingJobId}}
+Accept: application/json
+
+###
+
+# Idempotent: returns no content even when the recurring schedule is already gone.
+DELETE {{Atomizer.Redis.Example_HostAddress}}/recurring/RedisRecurringLogger
+Accept: application/json
