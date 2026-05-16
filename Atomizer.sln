@@ -41,6 +41,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Redis", "src\Atomi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Redis.Tests", "tests\Atomizer.Redis.Tests\Atomizer.Redis.Tests.csproj", "{B6852BFA-D9C6-48EE-9ED6-35B542B834C9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atomizer.Redis.Example", "samples\Atomizer.Redis.Example\Atomizer.Redis.Example.csproj", "{1D05317E-F0B0-4638-99D8-CCB018BCB681}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -181,6 +183,18 @@ Global
 		{B6852BFA-D9C6-48EE-9ED6-35B542B834C9}.Release|x64.Build.0 = Release|Any CPU
 		{B6852BFA-D9C6-48EE-9ED6-35B542B834C9}.Release|x86.ActiveCfg = Release|Any CPU
 		{B6852BFA-D9C6-48EE-9ED6-35B542B834C9}.Release|x86.Build.0 = Release|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Debug|x64.Build.0 = Debug|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Debug|x86.Build.0 = Debug|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Release|x64.ActiveCfg = Release|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Release|x64.Build.0 = Release|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Release|x86.ActiveCfg = Release|Any CPU
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -197,5 +211,6 @@ Global
 		{24DF0777-9688-475F-B740-93A49A158423} = {7233FD90-018C-47BF-9001-EB1681DFE75B}
 		{33964D8D-5DA4-442C-8CEB-50F36DF81199} = {57DC23B8-FC3C-41A3-AEB0-21C016F935F6}
 		{B6852BFA-D9C6-48EE-9ED6-35B542B834C9} = {7233FD90-018C-47BF-9001-EB1681DFE75B}
+		{1D05317E-F0B0-4638-99D8-CCB018BCB681} = {5D128655-88B1-4CA4-B12B-9E6C067D6DA3}
 	EndGlobalSection
 EndGlobal

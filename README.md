@@ -114,6 +114,15 @@ builder.Services.AddAtomizer(options =>
 
 Redis storage implements the same `IAtomizerStorage` monitoring methods as the other backends, so it works with `Atomizer.Dashboard` without referencing the dashboard package from `Atomizer.Redis`.
 
+The Redis sample includes the dashboard and a few endpoints for creating jobs:
+
+```bash
+docker compose up -d redis
+dotnet run --project samples/Atomizer.Redis.Example/Atomizer.Redis.Example.csproj
+```
+
+Open `http://localhost:5053/atomizer` to inspect Redis-backed jobs, schedules, queues, and workers.
+
 ### 3. Define a Job Handler
 Create a handler for your job payload:
 ```csharp
