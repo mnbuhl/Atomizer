@@ -24,6 +24,7 @@ public abstract class DashboardHostBase : WebApplicationFactory<Program>
                 web.ConfigureServices(services =>
                 {
                     services.AddRouting();
+                    services.AddEndpointsApiExplorer();
                     services.AddAtomizer(options =>
                     {
                         options.UseInMemoryStorage();
