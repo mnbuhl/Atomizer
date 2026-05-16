@@ -36,6 +36,18 @@ public class AtomizerProcessingOptions
     public TimeSpan? StaleSweepInterval { get; set; }
 
     /// <summary>
+    /// Gets or sets how long terminal jobs are retained before cleanup removes them.
+    /// <remarks>Default is <see langword="null"/>, which keeps jobs forever.</remarks>
+    /// </summary>
+    public TimeSpan? JobRetention { get; set; }
+
+    /// <summary>
+    /// Gets or sets how frequently job retention cleanup scans run when <see cref="JobRetention"/> is configured.
+    /// <remarks>Default is 1 hour.</remarks>
+    /// </summary>
+    public TimeSpan JobRetentionSweepInterval { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
     /// Gets the configured stale sweep interval, defaulting to <see cref="HeartbeatInterval"/>.
     /// </summary>
     public TimeSpan EffectiveStaleSweepInterval => StaleSweepInterval ?? HeartbeatInterval;
@@ -66,6 +78,19 @@ public class AtomizerProcessingOptions
         if (StaleSweepInterval.HasValue && StaleSweepInterval.Value <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(StaleSweepInterval), "Stale sweep interval must be positive.");
+        }
+
+        if (JobRetention.HasValue && JobRetention.Value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(JobRetention), "Job retention must be positive.");
+        }
+
+        if (JobRetention.HasValue && JobRetentionSweepInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(JobRetentionSweepInterval),
+                "Job retention sweep interval must be positive."
+            );
         }
 
         if (StaleServerTimeout < TimeSpan.FromTicks(HeartbeatInterval.Ticks * 6))

@@ -16,6 +16,8 @@ internal abstract class BaseSqlDialect : ISqlDialect
     protected readonly string _jStatus;
     protected readonly string _jAttempts;
     protected readonly string _jRetryIntervals;
+    protected readonly string _jCompletedAt;
+    protected readonly string _jFailedAt;
     protected readonly string _jCreatedAt;
     protected readonly string _jUpdatedAt;
     protected readonly string _jLeaseToken;
@@ -45,6 +47,9 @@ internal abstract class BaseSqlDialect : ISqlDialect
 
     protected readonly int _statusPending = (int)AtomizerEntityJobStatus.Pending;
     protected readonly int _statusProcessing = (int)AtomizerEntityJobStatus.Processing;
+    protected readonly int _statusCompleted = (int)AtomizerEntityJobStatus.Completed;
+    protected readonly int _statusFailed = (int)AtomizerEntityJobStatus.Failed;
+    protected readonly int _statusCancelled = (int)AtomizerEntityJobStatus.Cancelled;
 
     protected BaseSqlDialect(EntityMap jobs, EntityMap schedules)
     {
@@ -59,6 +64,8 @@ internal abstract class BaseSqlDialect : ISqlDialect
         _jStatus = jc[nameof(AtomizerJobEntity.Status)];
         _jAttempts = jc[nameof(AtomizerJobEntity.Attempts)];
         _jRetryIntervals = jc[nameof(AtomizerJobEntity.RetryIntervals)];
+        _jCompletedAt = jc[nameof(AtomizerJobEntity.CompletedAt)];
+        _jFailedAt = jc[nameof(AtomizerJobEntity.FailedAt)];
         _jCreatedAt = jc[nameof(AtomizerJobEntity.CreatedAt)];
         _jUpdatedAt = jc[nameof(AtomizerJobEntity.UpdatedAt)];
         _jLeaseToken = jc[nameof(AtomizerJobEntity.LeaseToken)];
@@ -93,15 +100,35 @@ internal abstract class BaseSqlDialect : ISqlDialect
     public FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now)
     {
         var format = $$"""
-            UPDATE {{_jTable}}
-            SET {{_jStatus}} = {{_statusPending}},
-                {{_jLeaseToken}} = NULL,
-                {{_jVisibleAt}} = NULL,
-                {{_jUpdatedAt}} = {0}
-            WHERE {{_jLeaseToken}} = {1}
-              AND {{_jStatus}} = {{_statusProcessing}};
+                UPDATE {{_jTable}}
+                SET {{_jStatus}} = {{_statusPending}},
+                    {{_jLeaseToken}} = NULL,
+                    {{_jVisibleAt}} = NULL,
+                    {{_jUpdatedAt}} = {0}
+                WHERE {{_jLeaseToken}} = {1}
+                  AND {{_jStatus}} = {{_statusProcessing}};
             """;
         return FormattableStringFactory.Create(format, now, leaseToken.Token);
+    }
+
+    public FormattableString DeleteExpiredJobs(DateTimeOffset terminalBefore)
+    {
+        var format = $$"""
+            DELETE FROM {{_jTable}}
+            WHERE (
+                {{_jStatus}} = {{_statusCompleted}}
+                AND COALESCE({{_jCompletedAt}}, {{_jUpdatedAt}}) < {0}
+            )
+            OR (
+                {{_jStatus}} = {{_statusFailed}}
+                AND COALESCE({{_jFailedAt}}, {{_jUpdatedAt}}) < {0}
+            )
+            OR (
+                {{_jStatus}} = {{_statusCancelled}}
+                AND {{_jUpdatedAt}} < {0}
+            );
+            """;
+        return FormattableStringFactory.Create(format, terminalBefore);
     }
 
     public abstract FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize);

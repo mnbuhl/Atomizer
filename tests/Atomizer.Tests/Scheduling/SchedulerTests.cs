@@ -21,11 +21,19 @@ public class SchedulerTests
     {
         // Arrange
         var token = CancellationToken.None;
+        var pollerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _poller
+            .RunAsync(Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                pollerStarted.SetResult();
+                return Task.CompletedTask;
+            });
 
         // Act
         _sut.Start(token);
 
-        await Task.Delay(50, TestContext.Current.CancellationToken); // Give some time for the async task to star
+        await pollerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
         _logger.Received(1).LogInformation("Starting Atomizer Scheduler");

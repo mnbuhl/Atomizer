@@ -111,6 +111,14 @@ public interface IAtomizerStorage
     Task<AtomizerJob?> GetJobByIdAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Deletes terminal jobs whose terminal timestamp is older than the supplied cutoff.
+    /// </summary>
+    /// <param name="terminalBefore">The exclusive UTC cutoff for completed, failed, or cancelled jobs.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>The number of jobs deleted.</returns>
+    Task<int> DeleteExpiredJobsAsync(DateTimeOffset terminalBefore, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Returns all registered recurring schedules.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>

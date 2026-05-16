@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Threading.Channels;
+﻿using System.Threading.Channels;
 using Atomizer.Abstractions;
 using Atomizer.Core;
 using Atomizer.Processing;
@@ -112,14 +111,21 @@ public class QueuePumpTests
         var identity = new AtomizerRuntimeIdentity();
         var worker = Substitute.For<IJobWorker>();
         var clock = Substitute.For<IAtomizerClock>();
+        var workerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executionCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         workerFactory.Create(Arg.Any<QueueKey>(), Arg.Any<int>()).Returns(worker);
-        // Simulate a worker that takes 3 seconds to complete
         worker
             .RunAsync(Arg.Any<ChannelReader<JobBatch>>(), Arg.Any<CancellationToken>(), Arg.Any<CancellationToken>())
-            .Returns(async _ =>
+            .Returns(async call =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(3));
+                var executionToken = call.ArgAt<CancellationToken>(2);
+                workerStarted.SetResult();
+                using var registration = executionToken.Register(() => executionCancelled.TrySetResult());
+                await executionCancelled.Task;
             });
+        storage
+            .ReleaseLeasedAsync(Arg.Any<LeaseToken>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(0);
         poller
             .RunAsync(
                 Arg.Any<QueueOptions>(),
@@ -131,16 +137,14 @@ public class QueuePumpTests
 
         var pump = new QueuePump(queueOptions, poller, storageScopeFactory, logger, workerFactory, identity, clock);
         pump.Start(CancellationToken.None);
+        await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Act
-        var sw = Stopwatch.StartNew();
-        await pump.StopAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
-        sw.Stop();
+        await pump.StopAsync(TimeSpan.Zero, TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        // Assert: Should return after about 1 second, not 2
-        sw.Elapsed.TotalSeconds.Should().BeGreaterThanOrEqualTo(1);
-        sw.Elapsed.TotalSeconds.Should()
-            .BeLessThan(2, $"StopAsync should return after about 1 second, elapsed: {sw.Elapsed.TotalSeconds}");
+        // Assert
+        await executionCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         logger.Received(1).LogInformation($"Stopping queue '{queueOptions.QueueKey}'...");
         logger.Received(1).LogInformation($"Queue '{queueOptions.QueueKey}' stopped");

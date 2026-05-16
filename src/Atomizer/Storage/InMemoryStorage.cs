@@ -519,6 +519,28 @@ public sealed class InMemoryStorage : IAtomizerStorage
     }
 
     /// <inheritdoc/>
+    public Task<int> DeleteExpiredJobsAsync(DateTimeOffset terminalBefore, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var expired = _jobs
+            .Values.Where(job =>
+            {
+                var terminalAt = GetTerminalTimestamp(job);
+                return terminalAt.HasValue && terminalAt.Value < terminalBefore;
+            })
+            .ToList();
+
+        var removed = RemoveJobs(expired);
+        if (removed > 0)
+        {
+            _logger.LogDebug("Deleted {Count} terminal jobs older than {TerminalBefore:o}", removed, terminalBefore);
+        }
+
+        return Task.FromResult(removed);
+    }
+
+    /// <inheritdoc/>
     public Task<IReadOnlyList<AtomizerSchedule>> GetSchedulesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -640,13 +662,37 @@ public sealed class InMemoryStorage : IAtomizerStorage
         if (toRemove.Count == 0)
             return;
 
+        var removed = RemoveJobs(toRemove);
+
+        if (removed > 0)
+        {
+            _logger.LogDebug(
+                "Evicted {Count} terminal jobs; retaining {Retain} most-recent terminal jobs",
+                removed,
+                retain
+            );
+        }
+    }
+
+    private static DateTimeOffset? GetTerminalTimestamp(AtomizerJob job)
+    {
+        return job.Status switch
+        {
+            AtomizerJobStatus.Completed => job.CompletedAt ?? job.UpdatedAt,
+            AtomizerJobStatus.Failed => job.FailedAt ?? job.UpdatedAt,
+            AtomizerJobStatus.Cancelled => job.UpdatedAt,
+            _ => null,
+        };
+    }
+
+    private int RemoveJobs(IEnumerable<AtomizerJob> jobs)
+    {
         var removed = 0;
 
-        foreach (var job in toRemove)
+        foreach (var job in jobs)
         {
             UnindexFromQueue(job);
 
-            // Remove from leases set (if any)
             var leaseToken = job.LeaseToken?.Token;
             if (!string.IsNullOrEmpty(leaseToken) && _leasesByToken.TryGetValue(leaseToken!, out var set))
             {
@@ -657,19 +703,13 @@ public sealed class InMemoryStorage : IAtomizerStorage
                 }
             }
 
-            // Finally remove from jobs
-            _jobs.TryRemove(job.Id, out _);
-            removed++;
+            if (_jobs.TryRemove(job.Id, out _))
+            {
+                removed++;
+            }
         }
 
-        if (removed > 0)
-        {
-            _logger.LogDebug(
-                "Evicted {Count} terminal jobs; retaining {Retain} most-recent terminal jobs",
-                removed,
-                retain
-            );
-        }
+        return removed;
     }
 
     private int ReleaseMatchingJobs(Func<AtomizerJob, bool> predicate, DateTimeOffset now)

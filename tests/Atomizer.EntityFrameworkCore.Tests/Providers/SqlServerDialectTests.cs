@@ -60,6 +60,20 @@ public sealed class SqlServerDialectTests
     }
 
     [Fact]
+    public void DeleteExpiredJobs_WhenCalled_ShouldContainSingleDeleteStatement()
+    {
+        var (jobs, schedules) = BuildMaps();
+        var dialect = new SqlServerDialect(jobs, schedules);
+
+        var sql = dialect.DeleteExpiredJobs(DateTimeOffset.UtcNow);
+
+        sql.Format.Should().Contain("DELETE FROM");
+        sql.Format.Should().Contain("COALESCE");
+        sql.Format.Should().NotContain("SELECT");
+        sql.ArgumentCount.Should().Be(1);
+    }
+
+    [Fact]
     public void UpsertSchedule_WhenCalled_ShouldContainMergeWithHoldlock()
     {
         var (jobs, schedules) = BuildMaps();

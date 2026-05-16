@@ -4,6 +4,7 @@ internal interface ISqlDialect
 {
     FormattableString GetDueJobs(QueueKey queueKey, DateTimeOffset now, int batchSize);
     FormattableString ReleaseLeasedJobs(LeaseToken leaseToken, DateTimeOffset now);
+    FormattableString DeleteExpiredJobs(DateTimeOffset terminalBefore);
     FormattableString GetDueSchedules(DateTimeOffset now);
     FormattableString UpsertSchedule(AtomizerSchedule schedule, DateTimeOffset now);
 
