@@ -19,8 +19,17 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddAtomizer(options =>
 {
+    options.AddQueue(
+        new QueueKey("fast-queue"),
+        queue =>
+        {
+            queue.DegreeOfParallelism = 10;
+            queue.StorageCheckInterval = TimeSpan.FromSeconds(1);
+        }
+    );
+
     options.AddHandlersFrom<AssignStockJob>();
-    options.UseEntityFrameworkCoreStorage<ExamplePostgresContext>();
+    options.UseEntityFrameworkCoreStorage<ExampleSqlServerContext>();
 });
 builder.Services.AddAtomizerProcessing(options =>
 {
@@ -83,6 +92,18 @@ await atomizer.ScheduleRecurringAsync(
     {
         options.MisfirePolicy = MisfirePolicy.CatchUp;
         options.PartitionKey = new PartitionKey("LoggerJobCatchUp");
+        options.Queue = new QueueKey("fast-queue");
+    }
+);
+
+await atomizer.ScheduleRecurringAsync(
+    new SendEmailPayload(),
+    nameof(SendEmailJob),
+    Schedule.Every(30).Minutes(),
+    options =>
+    {
+        options.TimeZone = TimeZoneInfo.Local;
+        options.RetryStrategy = RetryStrategy.Exponential(TimeSpan.FromSeconds(5), 3);
     }
 );
 
