@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { formatAbsoluteDateTime, formatRelativeTime } from '../utils/time';
 
-type Tone = 'slate' | 'blue' | 'green' | 'red' | 'amber' | 'purple' | 'cyan';
+type Tone = 'slate' | 'blue' | 'green' | 'red' | 'amber' | 'purple' | 'cyan' | 'orange';
 
 const toneClasses: Record<Tone, string> = {
     slate: 'status-pill--slate',
@@ -11,6 +12,7 @@ const toneClasses: Record<Tone, string> = {
     amber: 'status-pill--amber',
     purple: 'status-pill--purple',
     cyan: 'status-pill--cyan',
+    orange: 'status-pill--orange',
 };
 
 const statusTones: Record<string, Tone> = {
@@ -18,7 +20,7 @@ const statusTones: Record<string, Tone> = {
     Processing: 'blue',
     Completed: 'green',
     Failed: 'red',
-    Cancelled: 'slate',
+    Cancelled: 'orange',
     Enabled: 'green',
     Disabled: 'slate',
     Healthy: 'green',
@@ -132,6 +134,7 @@ export function MetricCard({
         amber: 'from-amber-300 to-orange-500',
         purple: 'from-violet-400 to-fuchsia-600',
         cyan: 'from-cyan-300 to-sky-500',
+        orange: 'from-orange-300 to-orange-600',
     };
 
     return (
@@ -166,6 +169,68 @@ export function StatusPill({ status, tone, className }: { status: string; tone?:
             <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
             {status}
         </span>
+    );
+}
+
+export function ConfirmationDialog({
+    open,
+    title,
+    description,
+    confirmLabel,
+    onConfirm,
+    onCancel,
+    confirmTone = 'default',
+}: {
+    open: boolean;
+    title: string;
+    description: ReactNode;
+    confirmLabel: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+    confirmTone?: 'default' | 'danger';
+}) {
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onCancel();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onCancel, open]);
+
+    if (!open) {
+        return null;
+    }
+
+    return (
+        <div
+            aria-modal="true"
+            className="dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+        >
+            <div className="dialog-panel w-full max-w-md rounded-2xl border p-5 shadow-2xl">
+                <h2 className="text-strong text-base font-semibold">{title}</h2>
+                <div className="text-muted mt-2 text-sm leading-6">{description}</div>
+                <div className="mt-5 flex flex-wrap justify-end gap-2">
+                    <button type="button" className={ui.secondaryButton} onClick={onCancel}>
+                        Keep current state
+                    </button>
+                    <button
+                        type="button"
+                        className={confirmTone === 'danger' ? 'danger-button rounded-2xl px-4 py-2 text-sm font-semibold transition' : ui.primaryButton}
+                        onClick={onConfirm}
+                    >
+                        {confirmLabel}
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 }
 

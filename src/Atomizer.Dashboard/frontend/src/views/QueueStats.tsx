@@ -131,13 +131,13 @@ export default function QueueStats() {
                                                 <CountCell value={queue.processing} tone="count-sky" />
                                                 <CountCell value={queue.completed} tone="count-emerald" />
                                                 <CountCell value={queue.failed} tone="count-rose" />
-                                                <CountCell value={queue.cancelled} tone="count-slate" />
+                                                <CountCell value={queue.cancelled} tone="count-orange" />
                                                 <td className="px-5 py-4">
                                                     <div className="flex h-2 w-40 overflow-hidden rounded-full bg-[var(--chip)]">
                                                         <WorkMixSegment value={queue.pending} total={total} className="bg-amber-400" />
                                                         <WorkMixSegment value={queue.processing} total={total} className="bg-sky-400" />
                                                         <WorkMixSegment value={queue.failed} total={total} className="bg-rose-400" />
-                                                        <WorkMixSegment value={queue.cancelled} total={total} className="bg-slate-400" />
+                                                        <WorkMixSegment value={queue.cancelled} total={total} className="bg-orange-400" />
                                                         <WorkMixSegment value={queue.completed} total={total} className="bg-emerald-400" />
                                                     </div>
                                                     <div className={cx(ui.soft, 'mt-1 text-xs')}>{formatNumber(total)} total</div>

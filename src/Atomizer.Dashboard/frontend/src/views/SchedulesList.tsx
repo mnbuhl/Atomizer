@@ -1,10 +1,13 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useSchedules } from '../api/hooks';
 import { routePrefix, statsRefreshMs } from '../config';
+import type { ScheduleDto } from '../api/types';
 import {
+    ConfirmationDialog,
     EmptyState,
     formatNumber,
     MetricCard,
@@ -19,11 +22,16 @@ import {
 } from '../components/DashboardUi';
 import { useNow } from '../hooks/useNow';
 
+type ScheduleConfirmation =
+    | { action: 'toggle'; schedule: ScheduleDto }
+    | { action: 'runNow'; schedule: ScheduleDto };
+
 export default function SchedulesList() {
     const { data, isLoading, error, dataUpdatedAt } = useSchedules();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const now = useNow(1_000);
+    const [confirmation, setConfirmation] = useState<ScheduleConfirmation | null>(null);
     const invalidateScheduleActions = () => {
         queryClient.invalidateQueries({ queryKey: ['schedules'] });
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -177,10 +185,7 @@ export default function SchedulesList() {
                                                         onKeyDown={stopRowKeyboardAction}
                                                         onClick={event => {
                                                             stopRowAction(event);
-                                                            toggleMutation.mutate({
-                                                                id: schedule.id,
-                                                                enabled: !schedule.enabled,
-                                                            });
+                                                            setConfirmation({ action: 'toggle', schedule });
                                                         }}
                                                     >
                                                         {schedule.enabled ? 'Disable' : 'Enable'}
@@ -192,7 +197,7 @@ export default function SchedulesList() {
                                                         onKeyDown={stopRowKeyboardAction}
                                                         onClick={event => {
                                                             stopRowAction(event);
-                                                            runNowMutation.mutate(schedule.id);
+                                                            setConfirmation({ action: 'runNow', schedule });
                                                         }}
                                                     >
                                                         Run now
@@ -214,8 +219,67 @@ export default function SchedulesList() {
                     </>
                 )}
             </Panel>
+
+            <ConfirmationDialog
+                open={confirmation !== null}
+                title={getScheduleConfirmationTitle(confirmation)}
+                description={getScheduleConfirmationDescription(confirmation)}
+                confirmLabel={getScheduleConfirmationLabel(confirmation)}
+                confirmTone={
+                    confirmation?.action === 'toggle' && confirmation.schedule.enabled ? 'danger' : 'default'
+                }
+                onCancel={() => setConfirmation(null)}
+                onConfirm={() => {
+                    if (!confirmation) {
+                        return;
+                    }
+
+                    if (confirmation.action === 'toggle') {
+                        toggleMutation.mutate({
+                            id: confirmation.schedule.id,
+                            enabled: !confirmation.schedule.enabled,
+                        });
+                    } else {
+                        runNowMutation.mutate(confirmation.schedule.id);
+                    }
+
+                    setConfirmation(null);
+                }}
+            />
         </div>
     );
+}
+
+function getScheduleConfirmationTitle(confirmation: ScheduleConfirmation | null): string {
+    if (confirmation?.action === 'runNow') {
+        return 'Run schedule now?';
+    }
+
+    return confirmation?.schedule.enabled ? 'Disable schedule?' : 'Enable schedule?';
+}
+
+function getScheduleConfirmationDescription(confirmation: ScheduleConfirmation | null): string {
+    if (confirmation?.action === 'runNow') {
+        return `Create a job for ${confirmation.schedule.jobKey} immediately.`;
+    }
+
+    if (confirmation?.action === 'toggle' && confirmation.schedule.enabled) {
+        return `Disable ${confirmation.schedule.jobKey}. Future runs will stop until it is enabled again.`;
+    }
+
+    if (confirmation?.action === 'toggle') {
+        return `Enable ${confirmation.schedule.jobKey}. Future runs can be enqueued again.`;
+    }
+
+    return '';
+}
+
+function getScheduleConfirmationLabel(confirmation: ScheduleConfirmation | null): string {
+    if (confirmation?.action === 'runNow') {
+        return 'Run now';
+    }
+
+    return confirmation?.schedule.enabled ? 'Disable schedule' : 'Enable schedule';
 }
 
 function getLastRunDisplayValue(lastRunAt: string | null, latestKnownRefreshAt: number): string | number | null {

@@ -221,6 +221,15 @@ public class JobsEndpointsTests : IClassFixture<DashboardTestHost>
             .NotBeNull()
             .And.ContainSingle(o => o.PayloadTypeName == nameof(DashboardActionPayload))
             .Subject;
+        option
+            .ExamplePayload.Should()
+            .Be(
+                """
+                {
+                  "message": ""
+                }
+                """
+            );
 
         var response = await client.PostAsJsonAsync(
             "/atomizer/api/jobs/trigger",
@@ -345,6 +354,7 @@ internal sealed class JobTypeOptionDto
     public string Id { get; init; } = string.Empty;
     public string PayloadTypeName { get; init; } = string.Empty;
     public string PayloadTypeFullName { get; init; } = string.Empty;
+    public string ExamplePayload { get; init; } = string.Empty;
 }
 
 internal sealed class JobErrorItemDto

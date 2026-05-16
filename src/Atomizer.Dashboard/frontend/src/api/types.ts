@@ -59,6 +59,7 @@ export interface JobTypeOption {
     id: string;
     payloadTypeName: string;
     payloadTypeFullName: string;
+    examplePayload: string;
 }
 
 export interface TriggerJobRequest {

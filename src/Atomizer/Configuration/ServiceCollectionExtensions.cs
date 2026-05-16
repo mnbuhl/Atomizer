@@ -79,6 +79,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<AtomizerRuntimeIdentity>();
         services.AddHostedService<AtomizerHeartbeatRecoveryService>();
         services.AddHostedService<AtomizerQueueService>();
+        if (options.JobRetention is not null)
+        {
+            services.AddHostedService<AtomizerJobRetentionService>();
+        }
+
         services.AddSingleton<IQueueCoordinator, QueueCoordinator>();
         services.AddSingleton<IQueuePumpFactory, QueuePumpFactory>();
         services.AddSingleton<IQueuePoller, QueuePoller>();

@@ -399,6 +399,19 @@ internal sealed class EntityFrameworkCoreStorage<TDbContext> : IAtomizerStorage
         return entity?.ToAtomizerJob();
     }
 
+    public async Task<int> DeleteExpiredJobsAsync(DateTimeOffset terminalBefore, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_providerCache.Dialect is not null)
+        {
+            var sql = _providerCache.Dialect.DeleteExpiredJobs(terminalBefore);
+            return await _dbContext.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+        }
+
+        throw UnsupportedProviderException(_providerCache.ProviderName);
+    }
+
     public async Task<IReadOnlyList<AtomizerSchedule>> GetSchedulesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
