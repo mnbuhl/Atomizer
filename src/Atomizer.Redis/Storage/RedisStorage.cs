@@ -333,6 +333,44 @@ internal sealed class RedisStorage : IAtomizerStorage, IDisposable
     public Task<AtomizerJob?> GetJobByIdAsync(Guid id, CancellationToken cancellationToken) =>
         ReadJobAsync(id, cancellationToken);
 
+    public async Task<int> DeleteExpiredJobsAsync(DateTimeOffset terminalBefore, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var lockValue = await AcquireLockAsync(_keys.InsertLock, wait: true, cancellationToken);
+        try
+        {
+            var expired = (await ReadAllJobsAsync(cancellationToken))
+                .Where(job =>
+                {
+                    var terminalAt = GetTerminalTimestamp(job);
+                    return terminalAt.HasValue && terminalAt.Value < terminalBefore;
+                })
+                .ToList();
+
+            foreach (var job in expired)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await DeleteJobAsync(job);
+            }
+
+            if (expired.Count > 0)
+            {
+                _logger.LogDebug(
+                    "Deleted {Count} Redis terminal jobs older than {TerminalBefore:o}",
+                    expired.Count,
+                    terminalBefore
+                );
+            }
+
+            return expired.Count;
+        }
+        finally
+        {
+            await ReleaseLockAsync(_keys.InsertLock, lockValue);
+        }
+    }
+
     public async Task<IReadOnlyList<AtomizerSchedule>> GetSchedulesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -540,6 +578,20 @@ internal sealed class RedisStorage : IAtomizerStorage, IDisposable
         return jobs;
     }
 
+    private async Task DeleteJobAsync(AtomizerJob job)
+    {
+        var jobId = job.Id.ToString(JobIdFormat);
+
+        await Database.KeyDeleteAsync(_keys.Job(job.Id));
+        await Database.SortedSetRemoveAsync(_keys.JobsByCreated, jobId);
+
+        if (job.IdempotencyKey is not null)
+            await Database.KeyDeleteAsync(_keys.Idempotency(job.IdempotencyKey));
+
+        if (job.LeaseToken?.Token is not null)
+            await Database.SetRemoveAsync(_keys.LeaseSet(job.LeaseToken.Token), jobId);
+    }
+
     private async Task StoreScheduleAsync(AtomizerSchedule schedule, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -713,6 +765,15 @@ internal sealed class RedisStorage : IAtomizerStorage, IDisposable
     }
 
     private static double Score(DateTimeOffset value) => value.ToUniversalTime().ToUnixTimeMilliseconds();
+
+    private static DateTimeOffset? GetTerminalTimestamp(AtomizerJob job) =>
+        job.Status switch
+        {
+            AtomizerJobStatus.Completed => job.CompletedAt ?? job.UpdatedAt,
+            AtomizerJobStatus.Failed => job.FailedAt ?? job.UpdatedAt,
+            AtomizerJobStatus.Cancelled => job.UpdatedAt,
+            _ => null,
+        };
 
     private static AtomizerJob CloneJob(AtomizerJob job) => RedisJobRecord.FromJob(job).ToJob();
 
